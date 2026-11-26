@@ -12,6 +12,7 @@ import {
   Copy,
   Download,
   ExternalLink,
+  FileDown,
   FileText,
   Fuel,
   ImagePlus,
@@ -62,6 +63,7 @@ import {
   formatWhatsAppDisplay,
   sanitizeWhatsAppNumber,
 } from '../utils/whatsapp';
+import { downloadPdfBlob, generateVehicleFinalPdf } from '../utils/pdfReport';
 import { insertServiceLogToCloud, syncVehicleToCloud } from '../services/dataRepository';
 import { deleteVehicleAttachment, uploadVehicleAttachment } from '../services/storageRepository';
 import { WhatsAppConnectButton } from './WhatsAppConnectButton';
@@ -217,6 +219,7 @@ export function VehicleMedicalRecordPanel({
   const [recipientEmail, setRecipientEmail] = useState(cloudUserEmail ?? '');
   const [dossierFeedback, setDossierFeedback] = useState<string | null>(null);
   const [dossierCopied, setDossierCopied] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   useEffect(() => {
     setWhatsappInput(prefs.whatsappNumber ?? '');
@@ -905,6 +908,33 @@ export function VehicleMedicalRecordPanel({
     }
   };
 
+  const handleDownloadMedicalPdf = async () => {
+    setGeneratingPdf(true);
+    setDossierFeedback(null);
+    try {
+      const res = await generateVehicleFinalPdf({
+        vehicle,
+        maintenanceItems,
+        logs,
+        chargingSessions,
+        attachments,
+        prefs,
+        t,
+        ownerEmail: cleanEmailTarget || cloudUserEmail,
+      });
+      downloadPdfBlob(res.blob, res.filename);
+      setDossierFeedback(
+        `PDF "${res.filename}" gerado com ${res.embeddedPhotosCount} foto(s) incorporada(s).`
+      );
+    } catch (err) {
+      setDossierFeedback(
+        err instanceof Error ? err.message : 'Não foi possível gerar o PDF.'
+      );
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
   const docLicenseOk =
     isDateRecorded(vehicle.documentExpiryDate) &&
     daysBetween(todayIso(), vehicle.documentExpiryDate) > prefs.docReminderDays;
@@ -1393,6 +1423,20 @@ export function VehicleMedicalRecordPanel({
                 <Copy className="w-3.5 h-3.5" />
               )}
               <span>{dossierCopied ? 'Copiado' : 'Copiar Ficha'}</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={generatingPdf}
+              onClick={() => void handleDownloadMedicalPdf()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/60 whitespace-nowrap shrink-0 disabled:opacity-60"
+            >
+              {generatingPdf ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <FileDown className="w-3.5 h-3.5" />
+              )}
+              <span>PDF Completo</span>
             </button>
           </div>
         </div>

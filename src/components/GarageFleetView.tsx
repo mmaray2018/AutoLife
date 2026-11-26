@@ -20,8 +20,6 @@ import {
   X,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
-import { listVehicleAttachments } from '../services/storageRepository';
 import {
   BillingCycle,
   ChargingSession,
@@ -68,6 +66,11 @@ interface GarageFleetViewProps {
   activeVehicle: Vehicle | null;
   maintenanceItems: MaintenanceItem[];
   chargingSessions: ChargingSession[];
+  attachments: VehicleAttachment[];
+  attachmentsLoading: boolean;
+  attachmentsError: string | null;
+  onAttachmentCreated: (attachment: VehicleAttachment) => void;
+  onAttachmentDeleted: (attachmentId: string) => void;
   onSelectVehicle: (id: string) => void;
   onUpdateOdometer: (vehicleId: string, newKm: number) => void;
   onUpdateDrivingProfile: (
@@ -109,6 +112,11 @@ export function GarageFleetView({
   activeVehicle,
   maintenanceItems,
   chargingSessions,
+  attachments,
+  attachmentsLoading,
+  attachmentsError,
+  onAttachmentCreated,
+  onAttachmentDeleted,
   onSelectVehicle,
   onUpdateOdometer,
   onUpdateDrivingProfile,
@@ -135,11 +143,6 @@ export function GarageFleetView({
   );
   const [odometerSaved, setOdometerSaved] = useState(false);
   const [showPassport, setShowPassport] = useState(false);
-
-  // Shared attachments state between Ficha Médica and VehicleVaultSection
-  const [attachments, setAttachments] = useState<VehicleAttachment[]>([]);
-  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
-  const [attachmentsError, setAttachmentsError] = useState<string | null>(null);
 
   // Multi-currency commercial plans & checkout state
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
@@ -171,39 +174,6 @@ export function GarageFleetView({
       setPayerEmail(cloudUserEmail);
     }
   }, [cloudUserEmail, payerEmail]);
-
-  const supabaseReady = isSupabaseConfigured();
-
-  useEffect(() => {
-    if (!cloudUserId || !activeVehicleId || !supabaseReady) {
-      setAttachments([]);
-      setAttachmentsError(null);
-      return;
-    }
-    let mounted = true;
-    setAttachmentsLoading(true);
-    setAttachmentsError(null);
-    listVehicleAttachments(cloudUserId, activeVehicleId)
-      .then((rows) => {
-        if (mounted) setAttachments(rows);
-      })
-      .catch((err) => {
-        if (mounted) {
-          setAttachments([]);
-          setAttachmentsError(
-            err instanceof Error
-              ? err.message
-              : 'Não foi possível carregar as fotos/documentos salvos.'
-          );
-        }
-      })
-      .finally(() => {
-        if (mounted) setAttachmentsLoading(false);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [cloudUserId, activeVehicleId, supabaseReady]);
 
   // Auto-poll Mercado Pago Pix status while QR Code is displayed
   useEffect(() => {
@@ -993,10 +963,8 @@ export function GarageFleetView({
           onAddServiceLog={onAddServiceLog}
           onAddChargingSession={onAddChargingSession}
           onMarkMaintenanceChecked={onMarkMaintenanceChecked}
-          onAttachmentCreated={(att) => setAttachments((prev) => [att, ...prev])}
-          onAttachmentDeleted={(id) =>
-            setAttachments((prev) => prev.filter((item) => item.id !== id))
-          }
+          onAttachmentCreated={onAttachmentCreated}
+          onAttachmentDeleted={onAttachmentDeleted}
           onOpenCloudSettings={onOpenCloudSettings}
           onUpdatePrefs={onUpdatePrefs}
         />
@@ -1036,10 +1004,8 @@ export function GarageFleetView({
           onUpdatePrefs={onUpdatePrefs}
           externalAttachments={attachments}
           externalLoading={attachmentsLoading}
-          onAttachmentCreated={(att) => setAttachments((prev) => [att, ...prev])}
-          onAttachmentDeleted={(id) =>
-            setAttachments((prev) => prev.filter((item) => item.id !== id))
-          }
+          onAttachmentCreated={onAttachmentCreated}
+          onAttachmentDeleted={onAttachmentDeleted}
         />
       </div>
 

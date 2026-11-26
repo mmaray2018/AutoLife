@@ -9,6 +9,7 @@ import {
   ChevronUp,
   Clock,
   Compass,
+  FileDown,
   FileText,
   Plus,
   Search,
@@ -19,12 +20,15 @@ import {
 import { Translations } from '../data/i18n';
 import { CARE_GUIDES } from '../data/seedData';
 import {
+  ChargingSession,
   MaintenanceCategory,
   MaintenanceItem,
   MaintenanceStatus,
   PowertrainType,
+  ServiceLog,
   UserPreferences,
   Vehicle,
+  VehicleAttachment,
 } from '../types/autolife';
 import { computeMaintenanceStatus, formatDistance, isDateRecorded } from '../utils/autolife';
 import { downloadCalendarEvent } from '../utils/calendar';
@@ -33,28 +37,47 @@ import {
   buildPreTripWhatsAppText,
 } from '../utils/whatsapp';
 import { ResilientImage } from './ResilientImage';
+import { VehicleFinalReportTab } from './VehicleFinalReportTab';
 import { WhatsAppConnectButton } from './WhatsAppConnectButton';
 
 interface HealthMaintenanceViewProps {
   vehicle: Vehicle | null;
   items: MaintenanceItem[];
+  logs: ServiceLog[];
+  chargingSessions: ChargingSession[];
+  attachments: VehicleAttachment[];
+  attachmentsLoading: boolean;
   prefs: UserPreferences;
   t: Translations;
+  cloudUserId: string | null;
+  cloudUserEmail?: string | null;
   onOpenLogModal: (item: MaintenanceItem) => void;
   onOpenAddVehicle: () => void;
   onUpdatePrefs: (partial: Partial<UserPreferences>) => void;
+  onAttachmentCreated: (attachment: VehicleAttachment) => void;
+  onAttachmentDeleted: (attachmentId: string) => void;
+  onOpenCloudSettings: () => void;
 }
 
 export function HealthMaintenanceView({
   vehicle,
   items,
+  logs,
+  chargingSessions,
+  attachments,
+  attachmentsLoading,
   prefs,
   t,
+  cloudUserId,
+  cloudUserEmail,
   onOpenLogModal,
   onOpenAddVehicle,
   onUpdatePrefs,
+  onAttachmentCreated,
+  onAttachmentDeleted,
+  onOpenCloudSettings,
 }: HealthMaintenanceViewProps) {
-  const [activeSection, setActiveSection] = useState<'checklist' | 'guides'>('checklist');
+  const [activeSection, setActiveSection] = useState<'checklist' | 'guides' | 'report'>('checklist');
   const [statusFilter, setStatusFilter] = useState<'all' | MaintenanceStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<
@@ -421,8 +444,8 @@ export function HealthMaintenanceView({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 print:hidden">
+          <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
             <button
               type="button"
               onClick={() => setActiveSection('checklist')}
@@ -446,6 +469,18 @@ export function HealthMaintenanceView({
               <BookOpen className="w-3.5 h-3.5" />
               <span>Guias Ilustrados</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveSection('report')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                activeSection === 'report'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <FileDown className="w-3.5 h-3.5" />
+              <span>Relatório Final</span>
+            </button>
           </div>
 
           <button
@@ -462,7 +497,7 @@ export function HealthMaintenanceView({
         </div>
       </div>
 
-      {activeSection === 'checklist' ? (
+      {activeSection === 'checklist' && (
         <>
           {/* Compact 4-Metric Hairline Summary Strip */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl grid grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800 tabular-nums">
@@ -852,7 +887,9 @@ export function HealthMaintenanceView({
             )}
           </div>
         </>
-      ) : (
+      )}
+
+      {activeSection === 'guides' && (
         /* Dedicated Tab: Illustrated Care Guides */
         <section className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -940,6 +977,25 @@ export function HealthMaintenanceView({
             })}
           </div>
         </section>
+      )}
+
+      {activeSection === 'report' && (
+        <VehicleFinalReportTab
+          vehicle={vehicle}
+          maintenanceItems={items}
+          logs={logs}
+          chargingSessions={chargingSessions}
+          attachments={attachments}
+          attachmentsLoading={attachmentsLoading}
+          prefs={prefs}
+          t={t}
+          cloudUserId={cloudUserId}
+          cloudUserEmail={cloudUserEmail}
+          onAttachmentCreated={onAttachmentCreated}
+          onAttachmentDeleted={onAttachmentDeleted}
+          onOpenCloudSettings={onOpenCloudSettings}
+          onUpdatePrefs={onUpdatePrefs}
+        />
       )}
 
       {/* Pre-Trip 60-Second Inspection Modal */}

@@ -17,7 +17,8 @@ import {
   INITIAL_SERVICE_LOGS,
   INITIAL_VEHICLES,
 } from './data/seedData';
-import { supabase } from './lib/supabaseClient';
+import { isSupabaseConfigured, supabase } from './lib/supabaseClient';
+import { listVehicleAttachments } from './services/storageRepository';
 import {
   deleteVehicleFromCloud,
   fetchCloudSnapshot,
@@ -43,6 +44,7 @@ import {
   ServiceLog,
   UserPreferences,
   Vehicle,
+  VehicleAttachment,
 } from './types/autolife';
 import { todayIso } from './utils/autolife';
 import { CURRENCY_CATALOG } from './utils/billing';
@@ -388,6 +390,9 @@ export default function App() {
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
   const [cloudUserEmail, setCloudUserEmail] = useState<string | null>(null);
   const [cloudUserName, setCloudUserName] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<VehicleAttachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [attachmentsError, setAttachmentsError] = useState<string | null>(null);
   const [mapsQuotaExceeded, setMapsQuotaExceeded] = useState(false);
   const [onboardingWhatsappInput, setOnboardingWhatsappInput] = useState('');
   const [onboardingWhatsappError, setOnboardingWhatsappError] = useState<string | null>(null);
@@ -413,7 +418,39 @@ export default function App() {
 
   const activeVehicle =
     state.vehicles.find((v) => v.id === state.activeVehicleId) ?? state.vehicles[0] ?? null;
+  const activeVehicleId = activeVehicle?.id ?? '';
   const t = TRANSLATIONS[state.prefs.language] ?? TRANSLATIONS.pt;
+
+  useEffect(() => {
+    if (!cloudUserId || !activeVehicleId || !isSupabaseConfigured()) {
+      setAttachments([]);
+      setAttachmentsError(null);
+      return;
+    }
+    let mounted = true;
+    setAttachmentsLoading(true);
+    setAttachmentsError(null);
+    listVehicleAttachments(cloudUserId, activeVehicleId)
+      .then((rows) => {
+        if (mounted) setAttachments(rows);
+      })
+      .catch((err) => {
+        if (mounted) {
+          setAttachments([]);
+          setAttachmentsError(
+            err instanceof Error
+              ? err.message
+              : 'Não foi possível carregar as fotos/documentos salvos.'
+          );
+        }
+      })
+      .finally(() => {
+        if (mounted) setAttachmentsLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [cloudUserId, activeVehicleId]);
 
   useEffect(() => {
     try {
@@ -998,14 +1035,25 @@ export default function App() {
             <HealthMaintenanceView
               vehicle={activeVehicle}
               items={state.items}
+              logs={state.logs}
+              chargingSessions={state.chargingSessions}
+              attachments={attachments}
+              attachmentsLoading={attachmentsLoading}
               prefs={state.prefs}
               t={t}
+              cloudUserId={cloudUserId}
+              cloudUserEmail={cloudUserEmail}
               onOpenLogModal={(item) => {
                 setLogModalItem(item);
                 setShowLogModal(true);
               }}
               onOpenAddVehicle={() => setShowAddVehicleModal(true)}
               onUpdatePrefs={updatePrefs}
+              onAttachmentCreated={(att) => setAttachments((prev) => [att, ...prev])}
+              onAttachmentDeleted={(id) =>
+                setAttachments((prev) => prev.filter((item) => item.id !== id))
+              }
+              onOpenCloudSettings={() => handleSelectModule('settings')}
             />
           )}
 
@@ -1015,6 +1063,13 @@ export default function App() {
               activeVehicle={activeVehicle}
               maintenanceItems={state.items}
               chargingSessions={state.chargingSessions}
+              attachments={attachments}
+              attachmentsLoading={attachmentsLoading}
+              attachmentsError={attachmentsError}
+              onAttachmentCreated={(att) => setAttachments((prev) => [att, ...prev])}
+              onAttachmentDeleted={(id) =>
+                setAttachments((prev) => prev.filter((item) => item.id !== id))
+              }
               onSelectVehicle={handleSelectVehicle}
               onUpdateOdometer={handleUpdateOdometer}
               onUpdateDrivingProfile={handleUpdateDrivingProfile}
