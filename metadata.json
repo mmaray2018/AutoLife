@@ -1,0 +1,8 @@
+{
+  "name": "AutoLife World",
+  "description": "Plataforma automotiva global para ficha médica veicular, manutenção inteligente, mobilidade elétrica e rede internacional de serviços.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

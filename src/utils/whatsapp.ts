@@ -1,0 +1,198 @@
+import {
+  ChargingSession,
+  CurrencyCode,
+  LanguageCode,
+  NetworkPartner,
+  ServiceLog,
+  UnitSystem,
+  Vehicle,
+  VehicleAttachment,
+} from '../types/autolife';
+import { formatCurrency, formatDistance, isDateRecorded } from './autolife';
+import { convertCurrency } from './billing';
+
+export function sanitizeWhatsAppNumber(
+  raw?: string | null,
+  language: LanguageCode = 'pt'
+): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  if (!digits) return '';
+
+  // Se o usuario digitou DDD + numero brasileiro sem +55, completa com 55
+  const normalized =
+    !trimmed.startsWith('+') &&
+    language === 'pt' &&
+    (digits.length === 10 || digits.length === 11) &&
+    !digits.startsWith('55')
+      ? `55${digits}`
+      : digits;
+
+  if (normalized.length < 8 || normalized.length > 15) return '';
+  return normalized;
+}
+
+export function formatWhatsAppDisplay(
+  raw?: string | null,
+  language: LanguageCode = 'pt'
+): string {
+  const digits = sanitizeWhatsAppNumber(raw, language);
+  if (!digits) return '';
+  return `+${digits}`;
+}
+
+export function buildWhatsAppUrl(
+  rawPhone: string | undefined | null,
+  language: LanguageCode,
+  message: string
+): string | null {
+  const digits = sanitizeWhatsAppNumber(rawPhone, language);
+  if (!digits) return null;
+  const trimmedMsg = message.trim().slice(0, 1800);
+  return `https://wa.me/${digits}?text=${encodeURIComponent(trimmedMsg)}`;
+}
+
+export function buildMaintenanceWhatsAppText(params: {
+  vehicle: Vehicle;
+  serviceTitle: string;
+  statusLabel: string;
+  projectedDueDate: string;
+  effectiveIntervalDays: number;
+  effectiveIntervalKm: number;
+  units: UnitSystem;
+  notes?: string;
+}): string {
+  const {
+    vehicle,
+    serviceTitle,
+    statusLabel,
+    projectedDueDate,
+    effectiveIntervalDays,
+    effectiveIntervalKm,
+    units,
+    notes,
+  } = params;
+
+  const lines = [
+    `*AutoLife World — Serviço Preventivo*`,
+    `Veículo: ${vehicle.make} ${vehicle.model} (${vehicle.year}) · Placa ${vehicle.plate}`,
+    `Odômetro atual: ${formatDistance(vehicle.odometerKm, units)}`,
+    `Serviço: ${serviceTitle}`,
+    `Status: ${statusLabel}`,
+    `Previsão: ${projectedDueDate || 'Não informado'} (a cada ${effectiveIntervalDays} dias / ${formatDistance(effectiveIntervalKm, units)})`,
+  ];
+  if (notes) lines.push(`Detalhes: ${notes}`);
+  return lines.join('\n');
+}
+
+export function buildPreTripWhatsAppText(params: {
+  vehicle: Vehicle;
+  tripKm: number;
+  checklistLabels: string[];
+  units: UnitSystem;
+}): string {
+  const { vehicle, tripKm, checklistLabels, units } = params;
+  return [
+    `*AutoLife World — Checklist Pré-Viagem*`,
+    `Veículo: ${vehicle.make} ${vehicle.model} (${vehicle.year}) · ${vehicle.plate}`,
+    `Distância prevista: ${formatDistance(tripKm, units)}`,
+    ...checklistLabels.map((item, i) => `${i + 1}. ${item}`),
+  ].join('\n');
+}
+
+export function buildServiceLogWhatsAppText(params: {
+  vehicle: Vehicle;
+  log: ServiceLog;
+  currency: CurrencyCode;
+  units: UnitSystem;
+  badgeLabel?: string;
+  attachmentUrl?: string;
+}): string {
+  const { vehicle, log, currency, units, badgeLabel, attachmentUrl } = params;
+  const converted = convertCurrency(log.cost, log.currency ?? 'BRL', currency);
+  const lines = [
+    `*AutoLife World — ${badgeLabel || 'Registro da Ficha Médica'}*`,
+    `Veículo: ${vehicle.make} ${vehicle.model} (${vehicle.year}) · Placa ${vehicle.plate}`,
+    `Data: ${log.date}`,
+    `Km: ${formatDistance(log.odometerKm, units)}`,
+    `O que foi feito: ${log.title}`,
+    `Oficina / Local: ${log.workshopName}`,
+    `Valor: ${formatCurrency(converted, currency)}`,
+  ];
+  if (log.notes) lines.push(`Observações: ${log.notes}`);
+  if (attachmentUrl) lines.push(`Nota / Comprovante: ${attachmentUrl}`);
+  return lines.join('\n');
+}
+
+export function buildChargingSessionWhatsAppText(params: {
+  vehicle: Vehicle;
+  session: ChargingSession;
+  currency: CurrencyCode;
+}): string {
+  const { vehicle, session, currency } = params;
+  const converted = convertCurrency(session.cost, session.currency ?? 'BRL', currency);
+  return [
+    `*AutoLife World — Recarga EV*`,
+    `Veículo: ${vehicle.make} ${vehicle.model} (${vehicle.year}) · Placa ${vehicle.plate}`,
+    `Data: ${session.date}`,
+    `Estação: ${session.stationName} (${session.powerType})`,
+    `Energia: ${session.energyKwh.toFixed(1)} kWh (${session.socStart}% → ${session.socEnd}%)`,
+    `Valor: ${formatCurrency(converted, currency)}`,
+  ].join('\n');
+}
+
+export function buildAttachmentWhatsAppText(params: {
+  vehicle: Vehicle;
+  attachment: VehicleAttachment;
+  categoryLabel: string;
+}): string {
+  const { vehicle, attachment, categoryLabel } = params;
+  const lines = [
+    `*AutoLife World — ${categoryLabel}*`,
+    `Veículo: ${vehicle.make} ${vehicle.model} (${vehicle.year}) · Placa ${vehicle.plate}`,
+    `Arquivo: ${attachment.fileName}`,
+    `Data: ${attachment.attachmentDate}`,
+  ];
+  if (attachment.notes) lines.push(`Observações: ${attachment.notes}`);
+  if (attachment.signedUrl) lines.push(`Link privado temporário: ${attachment.signedUrl}`);
+  return lines.join('\n');
+}
+
+export function buildVehicleWhatsAppText(params: {
+  vehicle: Vehicle;
+  units: UnitSystem;
+}): string {
+  const { vehicle, units } = params;
+  return [
+    `*AutoLife World — Resumo do Veículo*`,
+    `Modelo: ${vehicle.make} ${vehicle.model} (${vehicle.year})`,
+    `Placa: ${vehicle.plate}`,
+    `Odômetro: ${formatDistance(vehicle.odometerKm, units)}`,
+    `Vencimento Documento/ITV: ${isDateRecorded(vehicle.documentExpiryDate) ? vehicle.documentExpiryDate : 'Não informado'}`,
+    `Vencimento Seguro: ${isDateRecorded(vehicle.insuranceExpiryDate) ? vehicle.insuranceExpiryDate : 'Não informado'}`,
+  ].join('\n');
+}
+
+export function buildPartnerWhatsAppText(params: {
+  partner: NetworkPartner;
+  vehicle: Vehicle | null;
+  urgentTitles: string[];
+  units: UnitSystem;
+}): string {
+  const { partner, vehicle, urgentTitles, units } = params;
+  const lines = [
+    `*AutoLife World — Solicitação de Serviço / Atendimento*`,
+    `Local: ${partner.name}`,
+    `Endereço: ${partner.address} — ${partner.city}`,
+  ];
+  if (vehicle) {
+    lines.push(
+      `Veículo: ${vehicle.make} ${vehicle.model} (${vehicle.year}) · Placa ${vehicle.plate} · ${formatDistance(vehicle.odometerKm, units)}`
+    );
+  }
+  if (urgentTitles.length > 0) {
+    lines.push(`Itens para verificar: ${urgentTitles.join(', ')}`);
+  }
+  return lines.join('\n');
+}
