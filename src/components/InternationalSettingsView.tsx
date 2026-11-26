@@ -61,6 +61,7 @@ export function InternationalSettingsView({
   const [scheduledCount, setScheduledCount] = useState(0);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authWhatsapp, setAuthWhatsapp] = useState(prefs.whatsappNumber ?? '');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -139,6 +140,10 @@ export function InternationalSettingsView({
     setAuthMessage(null);
     setIsAuthLoading(true);
     try {
+      const cleanWa = authWhatsapp.trim();
+      if (mode === 'signup' && cleanWa && !sanitizeWhatsAppNumber(cleanWa, prefs.language)) {
+        throw new Error('WhatsApp inválido. Informe com DDI e DDD (ex.: +55 11 99999-8888).');
+      }
       const res =
         mode === 'signin'
           ? await supabase.auth.signInWithPassword({
@@ -148,11 +153,15 @@ export function InternationalSettingsView({
           : await supabase.auth.signUp({
               email: authEmail.trim(),
               password: authPassword,
+              options: cleanWa ? { data: { whatsapp_number: cleanWa } } : undefined,
             });
       if (res.error) throw res.error;
+      if (cleanWa) {
+        onUpdatePrefs({ whatsappNumber: cleanWa });
+      }
       setAuthMessage(
         mode === 'signup'
-          ? 'Conta criada! Verifique seu e-mail se a confirmação estiver ativa.'
+          ? 'Conta criada! E-mail e WhatsApp vinculados. Verifique seu e-mail se a confirmação estiver ativa.'
           : 'Conectado ao Supabase! Seus veículos e arquivos já podem ser sincronizados.'
       );
       setAuthPassword('');
@@ -331,7 +340,7 @@ export function InternationalSettingsView({
               <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <input
                 type="email"
                 placeholder="seu@email.com"
@@ -345,6 +354,13 @@ export function InternationalSettingsView({
                 value={authPassword}
                 onChange={(e) => setAuthPassword(e.target.value)}
                 className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              />
+              <input
+                type="tel"
+                placeholder="WhatsApp (ex.: +55 11 99999-8888)"
+                value={authWhatsapp}
+                onChange={(e) => setAuthWhatsapp(e.target.value)}
+                className="px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
               <div className="flex items-center gap-2">
                 <button

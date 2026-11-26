@@ -228,24 +228,48 @@ export async function insertChargingSessionToCloud(
   if (error) throw error;
 }
 
+export async function saveWhatsAppToUserMetadata(whatsappNumber: string): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.auth.updateUser({
+      data: { whatsapp_number: whatsappNumber.trim() },
+    });
+  } catch {
+    // Non-fatal metadata sync fallback
+  }
+}
+
 export async function syncPreferencesToCloud(
   userId: string,
   prefs: UserPreferences
 ): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from('user_preferences').upsert({
+  const basePayload = {
     user_id: userId,
     language: prefs.language,
     units: prefs.units,
     currency: prefs.currency,
     theme: prefs.theme,
     active_plan: prefs.activePlan ?? 'free',
-    whatsapp_number: prefs.whatsappNumber ?? '',
     oil_reminder_days: prefs.oilReminderDays,
     tire_reminder_days: prefs.tireReminderDays,
     coolant_reminder_days: prefs.coolantReminderDays,
     doc_reminder_days: prefs.docReminderDays,
     updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase.from('user_preferences').upsert({
+    ...basePayload,
+    whatsapp_number: prefs.whatsappNumber ?? '',
   });
-  if (error) throw error;
+
+  if (error) {
+    if (error.message?.toLowerCase().includes('whatsapp_number')) {
+      const retry = await supabase.from('user_preferences').upsert(basePayload);
+      if (retry.error) throw retry.error;
+      return;
+    }
+    throw error;
+  }
 }
+

@@ -1773,12 +1773,25 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
     app.use(vite.middlewares);
   } else {
     const distPath = path.resolve(__dirname, 'dist');
-    app.use(express.static(distPath));
+    app.use(
+      express.static(distPath, {
+        setHeaders: (res, filePath) => {
+          if (
+            filePath.endsWith('index.html') ||
+            filePath.endsWith('sw.js') ||
+            filePath.endsWith('registerSW.js')
+          ) {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+          }
+        },
+      })
+    );
     app.get('*', (req: Request, res: Response) => {
       if (req.path.startsWith('/api/')) {
         res.status(404).json({ error: 'API route not found.' });
         return;
       }
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

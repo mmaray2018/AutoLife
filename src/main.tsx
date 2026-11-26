@@ -26,7 +26,23 @@ if (typeof window !== 'undefined') {
   };
 
   if ('serviceWorker' in navigator) {
-    registerSW({ immediate: true });
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+    const updateSW = registerSW({
+      immediate: true,
+      onNeedRefresh() {
+        void updateSW(true);
+      },
+      onRegisteredSW(_swUrl, registration) {
+        if (registration) {
+          void registration.update().catch(() => {});
+        }
+      },
+    });
   }
 }
 

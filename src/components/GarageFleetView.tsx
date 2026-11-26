@@ -80,6 +80,12 @@ interface GarageFleetViewProps {
   onUpdatePrefs: (partial: Partial<UserPreferences>) => void;
   onAddServiceLog: (log: ServiceLog) => Promise<void> | void;
   onAddChargingSession: (session: ChargingSession) => void;
+  onMarkMaintenanceChecked?: (payload: {
+    itemId: string;
+    date: string;
+    odometerKm: number;
+    notes?: string;
+  }) => void;
   logs: ServiceLog[];
   prefs: UserPreferences;
   t: Translations;
@@ -111,6 +117,7 @@ export function GarageFleetView({
   onUpdatePrefs,
   onAddServiceLog,
   onAddChargingSession,
+  onMarkMaintenanceChecked,
   logs,
   prefs,
   t,
@@ -974,14 +981,18 @@ export function GarageFleetView({
       <div ref={medicalRecordRef}>
         <VehicleMedicalRecordPanel
           vehicle={activeVehicle}
+          maintenanceItems={maintenanceItems}
           logs={logs}
           chargingSessions={chargingSessions}
           attachments={attachments}
           attachmentsLoading={attachmentsLoading}
           prefs={prefs}
+          t={t}
           cloudUserId={cloudUserId}
+          cloudUserEmail={cloudUserEmail}
           onAddServiceLog={onAddServiceLog}
           onAddChargingSession={onAddChargingSession}
+          onMarkMaintenanceChecked={onMarkMaintenanceChecked}
           onAttachmentCreated={(att) => setAttachments((prev) => [att, ...prev])}
           onAttachmentDeleted={(id) =>
             setAttachments((prev) => prev.filter((item) => item.id !== id))

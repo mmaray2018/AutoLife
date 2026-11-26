@@ -1,4 +1,4 @@
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, MessageCircle, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AddVehicleModal, LogCheckModal } from './components/ActionModals';
 import { EvWorldView } from './components/EvWorldView';
@@ -23,6 +23,7 @@ import {
   fetchCloudSnapshot,
   insertChargingSessionToCloud,
   insertServiceLogToCloud,
+  saveWhatsAppToUserMetadata,
   syncMaintenanceItemToCloud,
   syncPreferencesToCloud,
   syncVehicleToCloud,
@@ -45,6 +46,7 @@ import {
 } from './types/autolife';
 import { todayIso } from './utils/autolife';
 import { CURRENCY_CATALOG } from './utils/billing';
+import { sanitizeWhatsAppNumber } from './utils/whatsapp';
 
 const STORAGE_KEY = 'autolife_world_state_v2';
 const LEGACY_STORAGE_KEY = 'autolife_world_state_v1';
@@ -387,6 +389,9 @@ export default function App() {
   const [cloudUserEmail, setCloudUserEmail] = useState<string | null>(null);
   const [cloudUserName, setCloudUserName] = useState<string | null>(null);
   const [mapsQuotaExceeded, setMapsQuotaExceeded] = useState(false);
+  const [onboardingWhatsappInput, setOnboardingWhatsappInput] = useState('');
+  const [onboardingWhatsappError, setOnboardingWhatsappError] = useState<string | null>(null);
+  const [dismissedWhatsappPrompt, setDismissedWhatsappPrompt] = useState(false);
   const latestStateRef = useRef(state);
   const hadAuthenticatedSessionRef = useRef(false);
   const userSelectedModuleRef = useRef(false);
@@ -454,12 +459,31 @@ export default function App() {
       setCloudUserId(user.id);
       setCloudUserEmail(user.email ?? null);
       setCloudUserName(resolveUserName(user));
+
+      const metaWhatsapp =
+        typeof user.user_metadata?.whatsapp_number === 'string'
+          ? user.user_metadata.whatsapp_number.trim()
+          : '';
+      if (metaWhatsapp) {
+        setState((prev) => ({
+          ...prev,
+          prefs: {
+            ...prev.prefs,
+            whatsappNumber: prev.prefs.whatsappNumber?.trim() || metaWhatsapp,
+          },
+        }));
+      }
+
       fetchCloudSnapshot(user.id)
         .then((snap) => {
           if (!active || !snap) return;
           const localWhatsapp = (latestStateRef.current.prefs.whatsappNumber ?? '').trim();
           const cloudWhatsapp = (snap.prefs?.whatsappNumber ?? '').trim();
-          const effectiveWhatsapp = cloudWhatsapp || localWhatsapp;
+          const effectiveWhatsapp = cloudWhatsapp || metaWhatsapp || localWhatsapp;
+
+          if (effectiveWhatsapp && !metaWhatsapp) {
+            void saveWhatsAppToUserMetadata(effectiveWhatsapp);
+          }
 
           if (snap.vehicles.length === 0) {
             if (latestStateRef.current.vehicles.length > 0) {
@@ -471,7 +495,7 @@ export default function App() {
                 whatsappNumber: effectiveWhatsapp,
               };
               if (effectiveWhatsapp && !cloudWhatsapp) {
-                void syncPreferencesToCloud(user.id, mergedPrefs);
+                void syncPreferencesToCloud(user.id, mergedPrefs).catch(() => {});
               }
               setState((prev) => ({
                 ...prev,
@@ -483,12 +507,12 @@ export default function App() {
 
           setState((prev) => {
             const prevWa = (prev.prefs.whatsappNumber ?? '').trim();
-            const mergedWa = cloudWhatsapp || prevWa || localWhatsapp;
+            const mergedWa = cloudWhatsapp || metaWhatsapp || prevWa || localWhatsapp;
             const mergedPrefs: UserPreferences = snap.prefs
               ? { ...snap.prefs, whatsappNumber: mergedWa }
               : { ...prev.prefs, whatsappNumber: mergedWa };
             if (mergedWa && !cloudWhatsapp) {
-              void syncPreferencesToCloud(user.id, mergedPrefs);
+              void syncPreferencesToCloud(user.id, mergedPrefs).catch(() => {});
             }
             return {
               vehicles: snap.vehicles,
@@ -625,8 +649,8 @@ export default function App() {
 
   const updatePrefs = (partial: Partial<UserPreferences>) => {
     if (partial.whatsappNumber !== undefined) {
+      const cleanWa = partial.whatsappNumber.trim();
       try {
-        const cleanWa = partial.whatsappNumber.trim();
         if (cleanWa) {
           localStorage.setItem(WHATSAPP_STORAGE_KEY, cleanWa);
         } else {
@@ -635,10 +659,13 @@ export default function App() {
       } catch {
         // Ignore storage error
       }
+      if (cloudUserId) {
+        void saveWhatsAppToUserMetadata(cleanWa);
+      }
     }
     setState((prev) => {
       const nextPrefs = { ...prev.prefs, ...partial };
-      if (cloudUserId) void syncPreferencesToCloud(cloudUserId, nextPrefs);
+      if (cloudUserId) void syncPreferencesToCloud(cloudUserId, nextPrefs).catch(() => {});
       return { ...prev, prefs: nextPrefs };
     });
   };
@@ -802,6 +829,29 @@ export default function App() {
     }));
   };
 
+  const handleMarkMaintenanceChecked = (payload: {
+    itemId: string;
+    date: string;
+    odometerKm: number;
+    notes?: string;
+  }) => {
+    const target = latestStateRef.current.items.find((i) => i.id === payload.itemId);
+    if (!target) return;
+    const updatedItem: MaintenanceItem = {
+      ...target,
+      lastCheckedDate: payload.date,
+      lastCheckedKm: payload.odometerKm,
+      notes: payload.notes || target.notes,
+    };
+    if (cloudUserId) {
+      void syncMaintenanceItemToCloud(cloudUserId, updatedItem);
+    }
+    setState((prev) => ({
+      ...prev,
+      items: prev.items.map((it) => (it.id === payload.itemId ? updatedItem : it)),
+    }));
+  };
+
   const primaryActionLabel =
     activeModule === 'garage' || !activeVehicle ? t.actions.addVehicle : t.actions.logCheck;
 
@@ -880,6 +930,69 @@ export default function App() {
           />
         </div>
 
+        {cloudUserId &&
+          !dismissedWhatsappPrompt &&
+          !sanitizeWhatsAppNumber(state.prefs.whatsappNumber, state.prefs.language) && (
+            <div className="print:hidden px-4 sm:px-6 lg:px-8 pt-4 max-w-7xl w-full mx-auto">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const clean = onboardingWhatsappInput.trim();
+                  if (!sanitizeWhatsAppNumber(clean, state.prefs.language)) {
+                    setOnboardingWhatsappError(
+                      'Informe um WhatsApp válido com DDD/DDI (ex.: +55 11 99999-8888).'
+                    );
+                    return;
+                  }
+                  setOnboardingWhatsappError(null);
+                  updatePrefs({ whatsappNumber: clean });
+                }}
+                className="bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
+              >
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Complete seu cadastro único (E-mail + WhatsApp)</span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    E-mail já vinculado:{' '}
+                    <strong className="font-mono">{cloudUserEmail || 'Conta conectada'}</strong>.{' '}
+                    Salve seu WhatsApp uma única vez para enviar toda a ficha técnica e avisos com 1 clique.
+                  </p>
+                  {onboardingWhatsappError && (
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      {onboardingWhatsappError}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <input
+                    type="tel"
+                    placeholder="Ex.: +55 11 99999-8888"
+                    value={onboardingWhatsappInput}
+                    onChange={(e) => setOnboardingWhatsappInput(e.target.value)}
+                    className="px-3 py-1.5 text-xs sm:text-sm font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 w-52"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Salvar WhatsApp</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDismissedWhatsappPrompt(true)}
+                    className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                  >
+                    Agora não
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
         <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl w-full mx-auto">
           {activeModule === 'health' && (
             <HealthMaintenanceView
@@ -910,6 +1023,7 @@ export default function App() {
               onUpdatePrefs={updatePrefs}
               onAddServiceLog={handleAddServiceLog}
               onAddChargingSession={handleAddChargingSession}
+              onMarkMaintenanceChecked={handleMarkMaintenanceChecked}
               logs={state.logs}
               prefs={state.prefs}
               t={t}

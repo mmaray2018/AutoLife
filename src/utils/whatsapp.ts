@@ -53,6 +53,19 @@ export function buildWhatsAppUrl(
   return `https://wa.me/${digits}?text=${encodeURIComponent(trimmedMsg)}`;
 }
 
+export function buildWhatsAppShareUrl(
+  message: string,
+  rawPhone?: string | null,
+  language: LanguageCode = 'pt'
+): string {
+  const trimmedMsg = message.trim().slice(0, 1800);
+  const digits = sanitizeWhatsAppNumber(rawPhone, language);
+  if (digits) {
+    return `https://wa.me/${digits}?text=${encodeURIComponent(trimmedMsg)}`;
+  }
+  return `https://wa.me/?text=${encodeURIComponent(trimmedMsg)}`;
+}
+
 export function buildMaintenanceWhatsAppText(params: {
   vehicle: Vehicle;
   serviceTitle: string;
@@ -196,3 +209,112 @@ export function buildPartnerWhatsAppText(params: {
   }
   return lines.join('\n');
 }
+
+export interface FullMedicalDossierEntry {
+  date: string;
+  badgeLabel: string;
+  title: string;
+  odometerKm: number | null;
+  location: string;
+  cost: number | null;
+  currency: CurrencyCode;
+  notes?: string;
+}
+
+export interface UpcomingDossierReminder {
+  title: string;
+  statusLabel: string;
+  dueSummary: string;
+}
+
+export function buildFullMedicalDossierText(params: {
+  vehicle: Vehicle;
+  entries: FullMedicalDossierEntry[];
+  currency: CurrencyCode;
+  units: UnitSystem;
+  ownerEmail?: string | null;
+  upcomingReminders?: UpcomingDossierReminder[];
+  maxChars?: number;
+}): string {
+  const {
+    vehicle,
+    entries,
+    currency,
+    units,
+    ownerEmail,
+    upcomingReminders = [],
+    maxChars,
+  } = params;
+
+  const totalCost = entries.reduce((sum, entry) => {
+    if (entry.cost === null) return sum;
+    return sum + convertCurrency(entry.cost, entry.currency ?? 'BRL', currency);
+  }, 0);
+
+  const headerLines: string[] = [
+    `*AutoLife World — Ficha Técnica e Histórico Completo*`,
+    `Veículo: ${vehicle.make} ${vehicle.model} (${vehicle.year})`,
+    `Placa: ${vehicle.plate} · Motorização: ${vehicle.powertrain.toUpperCase()}`,
+    `Odômetro atual: ${formatDistance(vehicle.odometerKm, units)}`,
+    `Pneus: ${vehicle.tirePressurePsi} PSI${vehicle.rearTirePressurePsi ? ` / ${vehicle.rearTirePressurePsi} PSI` : ''}`,
+    `Doc/ITV: ${isDateRecorded(vehicle.documentExpiryDate) ? vehicle.documentExpiryDate : 'Não informado'} · Seguro: ${isDateRecorded(vehicle.insuranceExpiryDate) ? vehicle.insuranceExpiryDate : 'Não informado'}`,
+    `Total registrado (${entries.length} itens): ${formatCurrency(totalCost, currency)}`,
+  ];
+
+  if (ownerEmail) {
+    headerLines.push(`Proprietário / E-mail: ${ownerEmail}`);
+  }
+
+  if (upcomingReminders.length > 0) {
+    headerLines.push('', `*Próximos Lembretes (Não esquecer):*`);
+    for (const rem of upcomingReminders.slice(0, 4)) {
+      headerLines.push(`• ${rem.title} [${rem.statusLabel}] — ${rem.dueSummary}`);
+    }
+  }
+
+  headerLines.push('', `*Histórico Cronológico:*`);
+
+  if (entries.length === 0) {
+    headerLines.push('Nenhum registro lançado até o momento.');
+    return headerLines.join('\n');
+  }
+
+  const lines = [...headerLines];
+  let includedCount = 0;
+
+  for (const entry of entries) {
+    const kmPart = entry.odometerKm !== null ? ` · ${formatDistance(entry.odometerKm, units)}` : '';
+    const costPart =
+      entry.cost !== null
+        ? ` · ${formatCurrency(convertCurrency(entry.cost, entry.currency ?? 'BRL', currency), currency)}`
+        : '';
+    const entryLine = `• ${entry.date} [${entry.badgeLabel}] ${entry.title}${kmPart} · ${entry.location}${costPart}`;
+
+    if (maxChars && lines.join('\n').length + entryLine.length + 60 > maxChars) {
+      const remaining = entries.length - includedCount;
+      lines.push(`... e mais ${remaining} registro(s) no histórico completo.`);
+      break;
+    }
+
+    lines.push(entryLine);
+    if (!maxChars && entry.notes) {
+      lines.push(`  Obs: ${entry.notes}`);
+    }
+    includedCount++;
+  }
+
+  return lines.join('\n');
+}
+
+export function buildMedicalDossierEmailUrl(params: {
+  recipientEmail: string;
+  vehicle: Vehicle;
+  dossierText: string;
+}): string {
+  const { recipientEmail, vehicle, dossierText } = params;
+  const cleanEmail = recipientEmail.trim();
+  const subject = `AutoLife — Ficha Técnica Completa · ${vehicle.make} ${vehicle.model} (${vehicle.plate})`;
+  const safeBody = dossierText.replace(/\*/g, '').slice(0, 1700);
+  return `mailto:${encodeURIComponent(cleanEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(safeBody)}`;
+}
+
