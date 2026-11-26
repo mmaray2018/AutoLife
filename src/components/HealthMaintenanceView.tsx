@@ -6,8 +6,11 @@ import {
   CalendarPlus,
   Car,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Compass,
+  FileText,
   Plus,
   Search,
   ShieldAlert,
@@ -17,6 +20,7 @@ import {
 import { Translations } from '../data/i18n';
 import { CARE_GUIDES } from '../data/seedData';
 import {
+  MaintenanceCategory,
   MaintenanceItem,
   MaintenanceStatus,
   PowertrainType,
@@ -53,6 +57,13 @@ export function HealthMaintenanceView({
 }: HealthMaintenanceViewProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | MaintenanceStatus>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState<
+    Record<'safety' | 'motor' | 'documents', boolean>
+  >({
+    safety: true,
+    motor: true,
+    documents: true,
+  });
   const [guideScope, setGuideScope] = useState<'active' | 'all' | 'car' | 'motorcycle'>('active');
   const [showPreTripModal, setShowPreTripModal] = useState(false);
   const [tripKm, setTripKm] = useState(350);
@@ -121,6 +132,72 @@ export function HealthMaintenanceView({
       return true;
     });
   }, [enrichedItems, statusFilter, searchQuery]);
+
+  const categoryGroups = useMemo(() => {
+    const resolveGroupKey = (category: MaintenanceCategory): 'safety' | 'motor' | 'documents' => {
+      if (
+        category === MaintenanceCategory.BRAKES ||
+        category === MaintenanceCategory.TIRES ||
+        category === MaintenanceCategory.SUSPENSION
+      ) {
+        return 'safety';
+      }
+      if (category === MaintenanceCategory.DOCUMENTATION) {
+        return 'documents';
+      }
+      return 'motor';
+    };
+
+    const definitions: Array<{
+      id: 'safety' | 'motor' | 'documents';
+      title: string;
+      subtitle: string;
+    }> = [
+      {
+        id: 'safety',
+        title: 'Segurança',
+        subtitle: 'Freios, calibragem de pneus, desgaste e suspensão',
+      },
+      {
+        id: 'motor',
+        title: 'Motor & Sistemas',
+        subtitle: 'Óleo, arrefecimento, bateria, transmissão e revisões periódicas',
+      },
+      {
+        id: 'documents',
+        title: 'Documentos & Prazos',
+        subtitle: 'Licenciamento, vistoria obrigatória e vencimento do seguro',
+      },
+    ];
+
+    return definitions
+      .map((def) => {
+        const entries = filteredItems.filter((entry) => resolveGroupKey(entry.item.category) === def.id);
+        const overdue = entries.filter((e) => e.status === MaintenanceStatus.OVERDUE).length;
+        const attention = entries.filter((e) => e.status === MaintenanceStatus.ATTENTION).length;
+        const onTrack = entries.filter((e) => e.status === MaintenanceStatus.ON_TRACK).length;
+        return {
+          ...def,
+          entries,
+          overdue,
+          attention,
+          onTrack,
+        };
+      })
+      .filter((group) => group.entries.length > 0);
+  }, [filteredItems]);
+
+  const allExpanded =
+    categoryGroups.length > 0 && categoryGroups.every((g) => expandedCategories[g.id]);
+
+  const toggleAllCategories = () => {
+    const nextValue = !allExpanded;
+    setExpandedCategories({
+      safety: nextValue,
+      motor: nextValue,
+      documents: nextValue,
+    });
+  };
 
   const preTripChecklist = useMemo(() => {
     if (!vehicle) return [];
@@ -425,9 +502,9 @@ export function HealthMaintenanceView({
         </div>
       </div>
 
-      {/* Checklist Toolbar & Table */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* Checklist Toolbar & Expandable Category Cards (Segurança, Motor, Documentos) */}
+      <div className="space-y-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
             {(
               [
@@ -453,141 +530,276 @@ export function HealthMaintenanceView({
             ))}
           </div>
 
-          <div className="relative w-full lg:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t.health.searchPlaceholder}
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-blue-600"
-            />
+          <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+            <div className="relative flex-1 sm:w-72">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t.health.searchPlaceholder}
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-blue-600"
+              />
+            </div>
+
+            {categoryGroups.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleAllCategories}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
+              >
+                {allExpanded ? (
+                  <>
+                    <ChevronUp className="w-3.5 h-3.5" />
+                    <span>Recolher todas</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                    <span>Expandir todas</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
-        {filteredItems.length === 0 ? (
-          <div className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">
-            {t.health.searchPlaceholder}
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-200 dark:divide-slate-800">
-            {filteredItems.map(
-              ({
-                item,
-                localized,
-                status,
-                daysElapsed,
-                effectiveIntervalDays,
-                effectiveIntervalKm,
-                projectedDueDate,
-              }) => (
-                <div
-                  key={item.id}
-                  className="p-4 sm:px-6 sm:py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
-                >
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                        {localized.title}
-                      </h2>
-                      <span className="text-slate-300 dark:text-slate-700" aria-hidden="true">
-                        ·
-                      </span>
-                      {renderStatusIndicator(status)}
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400">
-                      {localized.desc}
-                    </p>
-                    {localized.safety && (
-                      <div className="mt-2 inline-flex items-start gap-2 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 text-xs text-amber-900 dark:text-amber-200">
-                        <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-                        <span>{localized.safety}</span>
-                      </div>
-                    )}
-                    <div className="pt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-                      <span>
-                        {t.health.lastCheck}:{' '}
-                        <strong className="font-medium text-slate-700 dark:text-slate-300">
-                          {status === MaintenanceStatus.PENDING || !isDateRecorded(item.lastCheckedDate)
-                            ? t.health.notRecorded
-                            : daysElapsed === 0
-                            ? t.health.today
-                            : `${daysElapsed} ${t.health.daysAgo}`}
-                        </strong>
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <span>
-                        {t.health.dueEvery}: {effectiveIntervalDays}d /{' '}
-                        {formatDistance(effectiveIntervalKm, prefs.units)}
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <span>
-                        Previsão:{' '}
-                        <strong className="font-mono text-slate-700 dark:text-slate-300">
-                          {projectedDueDate || t.health.notRecorded}
-                        </strong>
-                      </span>
-                      {item.notes && (
-                        <>
-                          <span aria-hidden="true">·</span>
-                          <span className="text-slate-600 dark:text-slate-300">{item.notes}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    <WhatsAppConnectButton
-                      whatsappNumber={prefs.whatsappNumber}
-                      language={prefs.language}
-                      compact
-                      label="WhatsApp"
-                      title="Enviar serviço para o WhatsApp cadastrado"
-                      message={buildMaintenanceWhatsAppText({
-                        vehicle,
-                        serviceTitle: localized.title,
-                        statusLabel: t.status[status],
-                        projectedDueDate,
-                        effectiveIntervalDays,
-                        effectiveIntervalKm,
-                        units: prefs.units,
-                        notes: item.notes,
-                      })}
-                      onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
-                    />
-                    {projectedDueDate && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          downloadCalendarEvent({
-                            title: `${t.brand}: ${localized.title} (${vehicle.make} ${vehicle.model})`,
-                            description: localized.desc,
-                            dateIso: projectedDueDate,
-                            filename: `autolife-${item.category}.ics`,
-                          })
-                        }
-                        className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
-                        title="Adicionar previsão ao Calendário (.ics)"
-                        aria-label="Adicionar ao Calendário"
-                      >
-                        <CalendarPlus className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => onOpenLogModal(item)}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
-                    >
-                      <Wrench className="w-3.5 h-3.5 shrink-0" />
-                      <span>{t.actions.logCheck}</span>
-                    </button>
-                  </div>
-                </div>
-              )
+        {categoryGroups.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center space-y-2">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Nenhum item encontrado para este filtro ou busca.
+            </p>
+            {(statusFilter !== 'all' || searchQuery.trim()) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter('all');
+                  setSearchQuery('');
+                }}
+                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Limpar filtros
+              </button>
             )}
           </div>
+        ) : (
+          <div className="space-y-4">
+            {categoryGroups.map((group) => {
+              const isExpanded = Boolean(expandedCategories[group.id]);
+              const CategoryIcon =
+                group.id === 'safety'
+                  ? ShieldAlert
+                  : group.id === 'documents'
+                  ? FileText
+                  : Wrench;
+              const iconAccentClass =
+                group.id === 'safety'
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : group.id === 'documents'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-blue-600 dark:text-blue-400';
+
+              return (
+                <section
+                  key={group.id}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    aria-expanded={isExpanded}
+                    onClick={() =>
+                      setExpandedCategories((prev) => ({
+                        ...prev,
+                        [group.id]: !prev[group.id],
+                      }))
+                    }
+                    className="w-full px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors focus-visible:outline-2 focus-visible:outline-blue-600"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <CategoryIcon className={`w-4 h-4 mt-0.5 shrink-0 ${iconAccentClass}`} />
+                      <div className="min-w-0">
+                        <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
+                          {group.title}
+                        </h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          {group.subtitle}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pl-7 sm:pl-0 tabular-nums">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        <span className="font-mono font-medium text-slate-700 dark:text-slate-300">
+                          {group.entries.length}{' '}
+                          {group.entries.length === 1 ? 'item' : 'itens'}
+                        </span>
+                        {group.overdue > 0 && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span className="font-semibold text-red-600 dark:text-red-400">
+                              {group.overdue} vencido{group.overdue > 1 ? 's' : ''}
+                            </span>
+                          </>
+                        )}
+                        {group.attention > 0 && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span className="font-semibold text-amber-600 dark:text-amber-400">
+                              {group.attention} atenção
+                            </span>
+                          </>
+                        )}
+                        {group.overdue === 0 && group.attention === 0 && group.onTrack > 0 && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                              {group.onTrack} em dia
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        <span>{isExpanded ? 'Ocultar' : 'Abrir'}</span>
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </span>
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-slate-200 dark:border-slate-800 divide-y divide-slate-200 dark:divide-slate-800">
+                      {group.entries.map(
+                        ({
+                          item,
+                          localized,
+                          status,
+                          daysElapsed,
+                          effectiveIntervalDays,
+                          effectiveIntervalKm,
+                          projectedDueDate,
+                        }) => (
+                          <div
+                            key={item.id}
+                            className="p-4 sm:px-6 sm:py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                          >
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                  {localized.title}
+                                </h3>
+                                <span
+                                  className="text-slate-300 dark:text-slate-700"
+                                  aria-hidden="true"
+                                >
+                                  ·
+                                </span>
+                                {renderStatusIndicator(status)}
+                              </div>
+                              <p className="text-xs text-slate-600 dark:text-slate-400">
+                                {localized.desc}
+                              </p>
+                              {localized.safety && (
+                                <div className="mt-2 inline-flex items-start gap-2 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 text-xs text-amber-900 dark:text-amber-200">
+                                  <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                                  <span>{localized.safety}</span>
+                                </div>
+                              )}
+                              <div className="pt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                                <span>
+                                  {t.health.lastCheck}:{' '}
+                                  <strong className="font-medium text-slate-700 dark:text-slate-300">
+                                    {status === MaintenanceStatus.PENDING ||
+                                    !isDateRecorded(item.lastCheckedDate)
+                                      ? t.health.notRecorded
+                                      : daysElapsed === 0
+                                      ? t.health.today
+                                      : `${daysElapsed} ${t.health.daysAgo}`}
+                                  </strong>
+                                </span>
+                                <span aria-hidden="true">·</span>
+                                <span>
+                                  {t.health.dueEvery}: {effectiveIntervalDays}d /{' '}
+                                  {formatDistance(effectiveIntervalKm, prefs.units)}
+                                </span>
+                                <span aria-hidden="true">·</span>
+                                <span>
+                                  Previsão:{' '}
+                                  <strong className="font-mono text-slate-700 dark:text-slate-300">
+                                    {projectedDueDate || t.health.notRecorded}
+                                  </strong>
+                                </span>
+                                {item.notes && (
+                                  <>
+                                    <span aria-hidden="true">·</span>
+                                    <span className="text-slate-600 dark:text-slate-300">
+                                      {item.notes}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2 shrink-0">
+                              <WhatsAppConnectButton
+                                whatsappNumber={prefs.whatsappNumber}
+                                language={prefs.language}
+                                compact
+                                label="WhatsApp"
+                                title="Enviar serviço para o WhatsApp cadastrado"
+                                message={buildMaintenanceWhatsAppText({
+                                  vehicle,
+                                  serviceTitle: localized.title,
+                                  statusLabel: t.status[status],
+                                  projectedDueDate,
+                                  effectiveIntervalDays,
+                                  effectiveIntervalKm,
+                                  units: prefs.units,
+                                  notes: item.notes,
+                                })}
+                                onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
+                              />
+                              {projectedDueDate && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    downloadCalendarEvent({
+                                      title: `${t.brand}: ${localized.title} (${vehicle.make} ${vehicle.model})`,
+                                      description: localized.desc,
+                                      dateIso: projectedDueDate,
+                                      filename: `autolife-${item.category}.ics`,
+                                    })
+                                  }
+                                  className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                                  title="Adicionar previsão ao Calendário (.ics)"
+                                  aria-label="Adicionar ao Calendário"
+                                >
+                                  <CalendarPlus className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => onOpenLogModal(item)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
+                              >
+                                <Wrench className="w-3.5 h-3.5 shrink-0" />
+                                <span>{t.actions.logCheck}</span>
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
         )}
-      </section>
+      </div>
 
       {/* Illustrated Care Guides */}
       <section className="space-y-4">
