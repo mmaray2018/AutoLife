@@ -111,11 +111,13 @@ export function VehicleVaultSection({
       })
       .catch((err) => {
         if (mounted) {
-          setErrorMsg(
+          const msg =
             err instanceof Error
               ? err.message
-              : 'Não foi possível carregar os arquivos privados no momento.'
-          );
+              : err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string'
+              ? String((err as { message: string }).message)
+              : 'Não foi possível carregar os arquivos privados no momento.';
+          setErrorMsg(msg);
         }
       })
       .finally(() => {

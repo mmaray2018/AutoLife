@@ -442,11 +442,13 @@ export default function App() {
       .catch((err) => {
         if (mounted) {
           setAttachments([]);
-          setAttachmentsError(
+          const msg =
             err instanceof Error
               ? err.message
-              : 'Não foi possível carregar as fotos/documentos salvos.'
-          );
+              : err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string'
+              ? String((err as { message: string }).message)
+              : 'Não foi possível carregar as fotos/documentos salvos.';
+          setAttachmentsError(msg);
         }
       })
       .finally(() => {

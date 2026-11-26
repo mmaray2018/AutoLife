@@ -165,13 +165,70 @@ export async function compressImageToJpgUnder2Mb(
   throw new Error('Não foi possível comprimir a foto abaixo de 2 MB em JPG.');
 }
 
+function extractRawError(err: unknown): { code?: string; message?: string } {
+  if (err instanceof Error) {
+    const withCode = err as Error & { code?: string };
+    return { code: withCode.code, message: err.message };
+  }
+  if (err && typeof err === 'object') {
+    const record = err as Record<string, unknown>;
+    return {
+      code: typeof record.code === 'string' ? record.code : undefined,
+      message: typeof record.message === 'string' ? record.message : undefined,
+    };
+  }
+  return {};
+}
+
+function isMissingAttachmentDateColumn(err: unknown): boolean {
+  const { code, message } = extractRawError(err);
+  const msg = (message ?? '').toLowerCase();
+  return (
+    (code === '42703' || code === 'PGRST204') && msg.includes('attachment_date')
+  ) || (msg.includes('attachment_date') && (msg.includes('does not exist') || msg.includes('schema cache')));
+}
+
+function toReadableStorageError(err: unknown, fallback: string): Error {
+  const { code, message } = extractRawError(err);
+  const msg = (message ?? '').trim();
+  const lower = msg.toLowerCase();
+
+  if (
+    code === '42P01' ||
+    code === 'PGRST205' ||
+    (lower.includes('vehicle_attachments') &&
+      (lower.includes('does not exist') || lower.includes('schema cache')))
+  ) {
+    return new Error(
+      'Tabela "vehicle_attachments" não encontrada no Supabase. Execute o arquivo supabase/schema.sql no SQL Editor do Supabase.'
+    );
+  }
+
+  if (code === '42501' || lower.includes('row-level security') || lower.includes('permission denied')) {
+    return new Error(
+      'Permissão negada ao acessar fotos/documentos no Supabase (RLS). Execute as políticas de supabase/schema.sql.'
+    );
+  }
+
+  if (lower.includes('bucket') && lower.includes('not found')) {
+    return new Error(
+      'Bucket privado "vehicle-attachments" não encontrado no Supabase Storage. Execute o script supabase/schema.sql.'
+    );
+  }
+
+  if (msg) {
+    return new Error(msg);
+  }
+  return new Error(fallback);
+}
+
 export async function listVehicleAttachments(
   userId: string,
   vehicleId: string
 ): Promise<VehicleAttachment[]> {
   if (!supabase) return [];
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('vehicle_attachments')
     .select('*')
     .eq('user_id', userId)
@@ -179,7 +236,22 @@ export async function listVehicleAttachments(
     .order('attachment_date', { ascending: false })
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  // Backwards compatibility if an older DB schema doesn't have attachment_date yet
+  if (error && isMissingAttachmentDateColumn(error)) {
+    const fallbackRes = await supabase
+      .from('vehicle_attachments')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('vehicle_id', vehicleId)
+      .order('created_at', { ascending: false });
+    data = fallbackRes.data;
+    error = fallbackRes.error;
+  }
+
+  if (error) {
+    throw toReadableStorageError(error, 'Não foi possível carregar as fotos/documentos salvos.');
+  }
+
   const rows = data ?? [];
   if (rows.length === 0) return [];
 
@@ -187,20 +259,45 @@ export async function listVehicleAttachments(
   const pathsByBucket = new Map<string, string[]>();
   for (const row of rows) {
     const bucket = String(row.storage_bucket || AUTOLIFE_STORAGE_BUCKET);
+    const storagePath = String(row.storage_path || '').trim();
+    if (!storagePath) continue;
     const list = pathsByBucket.get(bucket) ?? [];
-    list.push(String(row.storage_path));
+    list.push(storagePath);
     pathsByBucket.set(bucket, list);
   }
 
   const signedMap = new Map<string, string>();
   for (const [bucket, paths] of pathsByBucket.entries()) {
-    const { data: signedData } = await supabase.storage
-      .from(bucket)
-      .createSignedUrls(paths, 3600);
-    for (const item of signedData ?? []) {
-      if (item.path && item.signedUrl) {
-        signedMap.set(item.path, item.signedUrl);
+    try {
+      const { data: signedData, error: signedErr } = await supabase.storage
+        .from(bucket)
+        .createSignedUrls(paths, 3600);
+
+      if (!signedErr && Array.isArray(signedData)) {
+        for (const item of signedData) {
+          if (item.path && item.signedUrl) {
+            signedMap.set(item.path, item.signedUrl);
+          }
+        }
+      } else {
+        // Fallback per-file so one missing object doesn't hide valid attachments
+        await Promise.all(
+          paths.map(async (p) => {
+            try {
+              const { data: singleSigned } = await supabase!.storage
+                .from(bucket)
+                .createSignedUrl(p, 3600);
+              if (singleSigned?.signedUrl) {
+                signedMap.set(p, singleSigned.signedUrl);
+              }
+            } catch {
+              // Non-fatal for missing object
+            }
+          })
+        );
       }
+    } catch {
+      // Non-fatal: still return metadata rows even if Storage signed URL request fails
     }
   }
 
@@ -283,15 +380,17 @@ export async function uploadVehicleAttachment(params: {
     });
 
   if (uploadError) {
-    throw new Error(`Erro no Storage ao salvar foto: ${uploadError.message}`);
+    throw toReadableStorageError(
+      uploadError,
+      `Erro no Storage ao salvar foto: ${uploadError.message}`
+    );
   }
 
-  const insertPayload = {
+  const basePayload = {
     user_id: userId,
     vehicle_id: vehicleId,
     service_log_id: serviceLogId ?? null,
     file_category: category,
-    attachment_date: attachmentDate,
     file_name: finalFile.name,
     mime_type: finalMime,
     file_size_bytes: finalFile.size,
@@ -302,27 +401,47 @@ export async function uploadVehicleAttachment(params: {
 
   let { data: inserted, error: dbError } = await supabase
     .from('vehicle_attachments')
-    .insert(insertPayload)
+    .insert({ ...basePayload, attachment_date: attachmentDate })
     .select('*')
     .single();
+
+  // Backwards compatibility if attachment_date column wasn't added yet
+  if (dbError && isMissingAttachmentDateColumn(dbError)) {
+    const retryNoDate = await supabase
+      .from('vehicle_attachments')
+      .insert(basePayload)
+      .select('*')
+      .single();
+    inserted = retryNoDate.data;
+    dbError = retryNoDate.error;
+  }
 
   // If service_log_id triggers a foreign-key race (23503), retry linking only to vehicle_id so photo is never lost
   if (dbError && dbError.code === '23503' && serviceLogId) {
     const retryRes = await supabase
       .from('vehicle_attachments')
-      .insert({ ...insertPayload, service_log_id: null })
+      .insert({ ...basePayload, attachment_date: attachmentDate, service_log_id: null })
       .select('*')
       .single();
-    inserted = retryRes.data;
-    dbError = retryRes.error;
+    if (retryRes.error && isMissingAttachmentDateColumn(retryRes.error)) {
+      const retryNoDateNoFk = await supabase
+        .from('vehicle_attachments')
+        .insert({ ...basePayload, service_log_id: null })
+        .select('*')
+        .single();
+      inserted = retryNoDateNoFk.data;
+      dbError = retryNoDateNoFk.error;
+    } else {
+      inserted = retryRes.data;
+      dbError = retryRes.error;
+    }
   }
 
   if (dbError || !inserted) {
     await supabase.storage.from(AUTOLIFE_STORAGE_BUCKET).remove([storagePath]).catch(() => {});
-    throw new Error(
-      dbError?.message
-        ? `Falha ao salvar registro da foto no banco: ${dbError.message}`
-        : 'Falha ao registrar anexo na tabela vehicle_attachments.'
+    throw toReadableStorageError(
+      dbError,
+      'Falha ao registrar anexo na tabela vehicle_attachments.'
     );
   }
 
@@ -358,12 +477,16 @@ export async function deleteVehicleAttachment(
   const { error: storageErr } = await supabase.storage
     .from(attachment.storageBucket || AUTOLIFE_STORAGE_BUCKET)
     .remove([attachment.storagePath]);
-  if (storageErr) throw storageErr;
+  if (storageErr && !storageErr.message?.toLowerCase().includes('not found')) {
+    throw toReadableStorageError(storageErr, 'Falha ao remover arquivo do Storage.');
+  }
 
   const { error: dbErr } = await supabase
     .from('vehicle_attachments')
     .delete()
     .eq('id', attachment.id)
     .eq('user_id', userId);
-  if (dbErr) throw dbErr;
+  if (dbErr) {
+    throw toReadableStorageError(dbErr, 'Falha ao remover registro do anexo.');
+  }
 }
