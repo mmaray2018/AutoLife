@@ -1,6 +1,10 @@
 import { AlertTriangle, CheckCircle2, MessageCircle, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { AddVehicleModal, LogCheckModal } from './components/ActionModals';
+import {
+  AddVehicleModal,
+  DeleteVehicleConfirmModal,
+  LogCheckModal,
+} from './components/ActionModals';
 import { EvWorldView } from './components/EvWorldView';
 import { GarageFleetView } from './components/GarageFleetView';
 import { GlobalNetworkView } from './components/GlobalNetworkView';
@@ -386,6 +390,7 @@ export default function App() {
   const [logModalItem, setLogModalItem] = useState<MaintenanceItem | null>(null);
   const [showLogModal, setShowLogModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
+  const [vehicleToDeleteId, setVehicleToDeleteId] = useState<string | null>(null);
 
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
   const [cloudUserEmail, setCloudUserEmail] = useState<string | null>(null);
@@ -754,7 +759,10 @@ export default function App() {
   };
 
   const handleDeleteVehicle = (vehicleId: string) => {
-    if (cloudUserId) void deleteVehicleFromCloud(cloudUserId, vehicleId);
+    if (cloudUserId) {
+      void deleteVehicleFromCloud(cloudUserId, vehicleId).catch(() => {});
+    }
+    setAttachments((prev) => prev.filter((att) => att.vehicleId !== vehicleId));
     setState((prev) => {
       const remaining = prev.vehicles.filter((v) => v.id !== vehicleId);
       const nextActive =
@@ -768,6 +776,11 @@ export default function App() {
         chargingSessions: prev.chargingSessions.filter((s) => s.vehicleId !== vehicleId),
       };
     });
+    setVehicleToDeleteId(null);
+  };
+
+  const requestDeleteVehicle = (vehicleId: string) => {
+    setVehicleToDeleteId(vehicleId);
   };
 
   const handleSaveMaintenanceCheck = (payload: {
@@ -910,6 +923,8 @@ export default function App() {
           vehicles={state.vehicles}
           activeVehicleId={activeVehicle?.id ?? ''}
           onSelectVehicle={handleSelectVehicle}
+          onAddVehicle={() => setShowAddVehicleModal(true)}
+          onRequestDeleteVehicle={requestDeleteVehicle}
           t={t}
           units={state.prefs.units}
           theme={state.prefs.theme}
@@ -1073,7 +1088,7 @@ export default function App() {
               onSelectVehicle={handleSelectVehicle}
               onUpdateOdometer={handleUpdateOdometer}
               onUpdateDrivingProfile={handleUpdateDrivingProfile}
-              onDeleteVehicle={handleDeleteVehicle}
+              onDeleteVehicle={requestDeleteVehicle}
               onOpenAddVehicle={() => setShowAddVehicleModal(true)}
               onUpdatePrefs={updatePrefs}
               onAddServiceLog={handleAddServiceLog}
@@ -1116,11 +1131,16 @@ export default function App() {
               onUpdatePrefs={updatePrefs}
               t={t}
               vehicles={state.vehicles}
+              activeVehicleId={activeVehicle?.id ?? ''}
+              logs={state.logs}
               maintenanceItems={state.items}
               cloudUserId={cloudUserId}
               cloudUserEmail={cloudUserEmail}
               cloudUserName={cloudUserName}
               onSyncNow={handleSyncAllToCloud}
+              onSelectVehicle={handleSelectVehicle}
+              onOpenAddVehicle={() => setShowAddVehicleModal(true)}
+              onRequestDeleteVehicle={requestDeleteVehicle}
             />
           )}
         </main>
@@ -1157,6 +1177,23 @@ export default function App() {
           onAdd={handleAddVehicle}
         />
       )}
+
+      {vehicleToDeleteId && (() => {
+        const target = state.vehicles.find((v) => v.id === vehicleToDeleteId);
+        if (!target) return null;
+        return (
+          <DeleteVehicleConfirmModal
+            vehicle={target}
+            logsCount={state.logs.filter((l) => l.vehicleId === target.id).length}
+            chargesCount={state.chargingSessions.filter((c) => c.vehicleId === target.id).length}
+            itemsCount={state.items.filter((i) => i.vehicleId === target.id).length}
+            attachmentsCount={attachments.filter((a) => a.vehicleId === target.id).length}
+            t={t}
+            onClose={() => setVehicleToDeleteId(null)}
+            onConfirm={() => handleDeleteVehicle(target.id)}
+          />
+        );
+      })()}
     </div>
   );
 }

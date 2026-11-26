@@ -5,7 +5,9 @@ import {
   Globe,
   MapPin,
   Moon,
+  Plus,
   Sun,
+  Trash2,
   X,
   Zap,
 } from 'lucide-react';
@@ -24,6 +26,8 @@ interface SidebarNavProps {
   vehicles: Vehicle[];
   activeVehicleId: string;
   onSelectVehicle: (id: string) => void;
+  onAddVehicle: () => void;
+  onRequestDeleteVehicle: (vehicleId: string) => void;
   t: Translations;
   units: UnitSystem;
   theme: 'light' | 'dark';
@@ -38,6 +42,8 @@ export function SidebarNav({
   vehicles,
   activeVehicleId,
   onSelectVehicle,
+  onAddVehicle,
+  onRequestDeleteVehicle,
   t,
   units,
   theme,
@@ -119,6 +125,34 @@ export function SidebarNav({
             </span>
           </div>
         )}
+
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              onAddVehicle();
+              onCloseMobile();
+            }}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <span>Adicionar</span>
+          </button>
+          {activeVehicle && (
+            <button
+              type="button"
+              onClick={() => {
+                onRequestDeleteVehicle(activeVehicle.id);
+                onCloseMobile();
+              }}
+              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors whitespace-nowrap shrink-0"
+              title="Remover veículo e todo o seu histórico"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Remover</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Main Navigation */}

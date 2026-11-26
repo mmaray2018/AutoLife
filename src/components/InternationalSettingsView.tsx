@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react';
 import {
   Bell,
   BellOff,
+  Bike,
+  Car,
   CheckCircle2,
   Cloud,
   ExternalLink,
   Loader2,
   LogOut,
   MessageCircle,
+  Plus,
   Send,
+  Trash2,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
@@ -22,10 +26,12 @@ import {
 } from '../services/pushClient';
 import {
   MaintenanceItem,
+  ServiceLog,
   UnitSystem,
   UserPreferences,
   Vehicle,
 } from '../types/autolife';
+import { formatDistance } from '../utils/autolife';
 import {
   buildWhatsAppUrl,
   formatWhatsAppDisplay,
@@ -37,11 +43,16 @@ interface InternationalSettingsViewProps {
   onUpdatePrefs: (partial: Partial<UserPreferences>) => void;
   t: Translations;
   vehicles: Vehicle[];
+  activeVehicleId: string;
+  logs: ServiceLog[];
   maintenanceItems: MaintenanceItem[];
   cloudUserId: string | null;
   cloudUserEmail: string | null;
   cloudUserName: string | null;
   onSyncNow: () => Promise<void>;
+  onSelectVehicle: (id: string) => void;
+  onOpenAddVehicle: () => void;
+  onRequestDeleteVehicle: (vehicleId: string) => void;
 }
 
 export function InternationalSettingsView({
@@ -49,11 +60,16 @@ export function InternationalSettingsView({
   onUpdatePrefs,
   t,
   vehicles,
+  activeVehicleId,
+  logs,
   maintenanceItems,
   cloudUserId,
   cloudUserEmail,
   cloudUserName,
   onSyncNow,
+  onSelectVehicle,
+  onOpenAddVehicle,
+  onRequestDeleteVehicle,
 }: InternationalSettingsViewProps) {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
@@ -386,6 +402,104 @@ export function InternationalSettingsView({
 
         {authMessage && (
           <p className="text-xs text-blue-600 dark:text-blue-400">{authMessage}</p>
+        )}
+      </section>
+
+      {/* Client Vehicles Management (Add / Remove Vehicle + History Cascade) */}
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Car className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+              <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
+                Meus Veículos ({vehicles.length})
+              </h2>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Adicione um novo veículo ou remova um cadastrado (ao apagar, todo o histórico e fotos dele também são excluídos).
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenAddVehicle}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white transition-colors whitespace-nowrap shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>{t.actions.addVehicle}</span>
+          </button>
+        </div>
+
+        {vehicles.length === 0 ? (
+          <div className="px-6 py-8 text-center space-y-3">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+              Nenhum veículo cadastrado na sua conta ainda.
+            </p>
+            <button
+              type="button"
+              onClick={onOpenAddVehicle}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{t.actions.addVehicle}</span>
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-200 dark:divide-slate-800 tabular-nums">
+            {vehicles.map((v) => {
+              const isSelected = v.id === activeVehicleId;
+              const isMoto = v.vehicleType === 'motorcycle';
+              const vLogsCount = logs.filter((l) => l.vehicleId === v.id).length;
+              return (
+                <div
+                  key={v.id}
+                  className={`px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    isSelected ? 'bg-blue-50/40 dark:bg-blue-950/20' : ''
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSelectVehicle(v.id)}
+                    className="flex items-center gap-3 text-left min-w-0 flex-1"
+                  >
+                    {isMoto ? (
+                      <Bike className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    ) : (
+                      <Car className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                        {v.make} {v.model} ({v.year})
+                        {isSelected ? ' · Ativo' : ''}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2">
+                        <span className="font-mono">{v.plate}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{t.powertrain[v.powertrain]}</span>
+                        <span aria-hidden="true">·</span>
+                        <span className="font-mono">{formatDistance(v.odometerKm, prefs.units)}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>
+                          {vLogsCount} registro{vLogsCount === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+
+                  <div className="flex items-center gap-2 shrink-0 pl-7 sm:pl-0">
+                    <button
+                      type="button"
+                      onClick={() => onRequestDeleteVehicle(v.id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors whitespace-nowrap shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remover</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
 

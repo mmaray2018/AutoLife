@@ -157,6 +157,40 @@ export async function syncVehicleToCloud(userId: string, v: Vehicle): Promise<vo
 
 export async function deleteVehicleFromCloud(userId: string, vehicleId: string): Promise<void> {
   if (!supabase) return;
+
+  // 1. Remove any attached photos/documents from private Storage buckets first
+  const { data: attRows } = await supabase
+    .from('vehicle_attachments')
+    .select('storage_bucket, storage_path')
+    .eq('user_id', userId)
+    .eq('vehicle_id', vehicleId);
+
+  if (attRows && attRows.length > 0) {
+    const pathsByBucket = new Map<string, string[]>();
+    for (const row of attRows) {
+      const bucket = String(row.storage_bucket || 'vehicle-attachments');
+      const path = String(row.storage_path || '');
+      if (!path) continue;
+      const list = pathsByBucket.get(bucket) ?? [];
+      list.push(path);
+      pathsByBucket.set(bucket, list);
+    }
+    await Promise.all(
+      Array.from(pathsByBucket.entries()).map(([bucket, paths]) =>
+        supabase!.storage.from(bucket).remove(paths).catch(() => {})
+      )
+    );
+  }
+
+  // 2. Delete all related history tables for this vehicle
+  await Promise.all([
+    supabase.from('vehicle_attachments').delete().eq('user_id', userId).eq('vehicle_id', vehicleId),
+    supabase.from('service_logs').delete().eq('user_id', userId).eq('vehicle_id', vehicleId),
+    supabase.from('charging_sessions').delete().eq('user_id', userId).eq('vehicle_id', vehicleId),
+    supabase.from('maintenance_items').delete().eq('user_id', userId).eq('vehicle_id', vehicleId),
+  ]);
+
+  // 3. Delete the vehicle itself
   const { error } = await supabase
     .from('vehicles')
     .delete()

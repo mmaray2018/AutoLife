@@ -813,6 +813,26 @@ export function GarageFleetView({
                 />
               </div>
             </div>
+
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={onOpenAddVehicle}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>{t.actions.addVehicle}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onDeleteVehicle(activeVehicle.id)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors whitespace-nowrap shrink-0"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Remover veículo e histórico</span>
+              </button>
+            </div>
           </section>
 
           {/* Documentation Expiry */}
