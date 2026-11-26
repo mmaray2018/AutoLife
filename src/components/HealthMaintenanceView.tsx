@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   BookOpen,
+  Calendar,
   CalendarPlus,
   Car,
   CheckCircle2,
@@ -11,6 +12,8 @@ import {
   Compass,
   FileDown,
   FileText,
+  Gauge,
+  History,
   Plus,
   Search,
   ShieldAlert,
@@ -30,7 +33,13 @@ import {
   Vehicle,
   VehicleAttachment,
 } from '../types/autolife';
-import { computeMaintenanceStatus, formatDistance, isDateRecorded } from '../utils/autolife';
+import {
+  computeMaintenanceStatus,
+  daysBetween,
+  formatDistance,
+  isDateRecorded,
+  todayIso,
+} from '../utils/autolife';
 import { downloadCalendarEvent } from '../utils/calendar';
 import {
   buildMaintenanceWhatsAppText,
@@ -97,6 +106,14 @@ export function HealthMaintenanceView({
 
   const enrichedItems = useMemo(() => {
     if (!vehicle) return [];
+    const today = todayIso();
+    const vehicleLogs = logs
+      .filter((log) => log.vehicleId === vehicle.id)
+      .sort((a, b) => {
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        return b.odometerKm - a.odometerKm;
+      });
+
     return items
       .filter((item) => item.vehicleId === vehicle.id)
       .map((item) => {
@@ -105,10 +122,83 @@ export function HealthMaintenanceView({
           title: item.titleKey,
           desc: item.descriptionKey,
         };
+
+        const itemLogs = vehicleLogs.filter((log) => log.category === item.category);
+        const historyLogsCount = itemLogs.length;
+        const latestServiceLog = itemLogs[0] ?? null;
+
+        const isDoc = item.category === MaintenanceCategory.DOCUMENTATION;
+        const hasRecordedCheck = isDateRecorded(item.lastCheckedDate);
+        const actualDaysRemaining =
+          isDoc && computed.projectedDueDate
+            ? daysBetween(today, computed.projectedDueDate)
+            : computed.daysRemaining;
+
+        let dayRatio = 0;
+        let kmRatio = 0;
+
+        if (isDoc) {
+          if (computed.projectedDueDate) {
+            const docWindowDays = Math.max(computed.effectiveIntervalDays, 365);
+            const docElapsedDays = hasRecordedCheck
+              ? computed.daysElapsed
+              : Math.max(0, docWindowDays - actualDaysRemaining);
+            dayRatio = docElapsedDays / Math.max(1, hasRecordedCheck ? computed.effectiveIntervalDays : docWindowDays);
+          } else if (hasRecordedCheck) {
+            dayRatio = computed.daysElapsed / Math.max(1, computed.effectiveIntervalDays);
+          }
+        } else if (computed.status !== MaintenanceStatus.PENDING) {
+          dayRatio = computed.daysElapsed / Math.max(1, computed.effectiveIntervalDays);
+          kmRatio = computed.kmElapsed / Math.max(1, computed.effectiveIntervalKm);
+        }
+
+        const maxRatio = Math.max(dayRatio, kmRatio);
+        const hasProgressBaseline =
+          computed.status !== MaintenanceStatus.PENDING || Boolean(computed.projectedDueDate);
+        const usagePercent = hasProgressBaseline ? Math.max(0, Math.round(maxRatio * 100)) : 0;
+        const barPercent = hasProgressBaseline
+          ? Math.min(100, Math.max(usagePercent > 0 ? 4 : 0, usagePercent))
+          : 0;
+        const kmPercent =
+          !isDoc && computed.status !== MaintenanceStatus.PENDING
+            ? Math.max(0, Math.round(kmRatio * 100))
+            : 0;
+        const kmBarPercent =
+          !isDoc && computed.status !== MaintenanceStatus.PENDING
+            ? Math.min(100, Math.max(computed.kmElapsed > 0 ? 4 : 0, kmPercent))
+            : 0;
+        const dayPercent = hasProgressBaseline ? Math.max(0, Math.round(dayRatio * 100)) : 0;
+        const dayBarPercent = hasProgressBaseline
+          ? Math.min(100, Math.max(dayPercent > 0 ? 4 : 0, dayPercent))
+          : 0;
+
+        let triggerDriver: 'km' | 'date' | 'both' | 'pending' = 'pending';
+        if (!hasProgressBaseline) {
+          triggerDriver = 'pending';
+        } else if (isDoc) {
+          triggerDriver = 'date';
+        } else if (Math.abs(kmRatio - dayRatio) <= 0.08 && maxRatio > 0) {
+          triggerDriver = 'both';
+        } else if (kmRatio > dayRatio) {
+          triggerDriver = 'km';
+        } else {
+          triggerDriver = 'date';
+        }
+
         return {
           item,
           localized,
           ...computed,
+          actualDaysRemaining,
+          historyLogsCount,
+          latestServiceLog,
+          usagePercent,
+          barPercent,
+          kmPercent,
+          kmBarPercent,
+          dayPercent,
+          dayBarPercent,
+          triggerDriver,
         };
       })
       .sort((a, b) => {
@@ -118,9 +208,12 @@ export function HealthMaintenanceView({
           [MaintenanceStatus.PENDING]: 2,
           [MaintenanceStatus.ON_TRACK]: 3,
         };
-        return order[a.status] - order[b.status];
+        if (order[a.status] !== order[b.status]) {
+          return order[a.status] - order[b.status];
+        }
+        return b.usagePercent - a.usagePercent;
       });
-  }, [items, vehicle, prefs, t]);
+  }, [items, logs, vehicle, prefs, t]);
 
   const counts = useMemo(() => {
     let onTrack = 0;
@@ -141,6 +234,37 @@ export function HealthMaintenanceView({
       (entry) => entry.status !== MaintenanceStatus.PENDING && Boolean(entry.projectedDueDate)
     );
     return scheduled ?? null;
+  }, [enrichedItems]);
+
+  const priorityDashboard = useMemo(() => {
+    const urgent = enrichedItems.filter(
+      (entry) =>
+        entry.status === MaintenanceStatus.OVERDUE ||
+        entry.status === MaintenanceStatus.ATTENTION
+    );
+
+    if (urgent.length > 0) {
+      return {
+        items: urgent.slice(0, 4),
+        totalUrgent: urgent.length,
+        hasUrgent: true,
+      };
+    }
+
+    const upcoming = [...enrichedItems]
+      .sort((a, b) => {
+        const aScheduled = a.status !== MaintenanceStatus.PENDING || Boolean(a.projectedDueDate);
+        const bScheduled = b.status !== MaintenanceStatus.PENDING || Boolean(b.projectedDueDate);
+        if (aScheduled !== bScheduled) return aScheduled ? -1 : 1;
+        return b.usagePercent - a.usagePercent;
+      })
+      .slice(0, 3);
+
+    return {
+      items: upcoming,
+      totalUrgent: 0,
+      hasUrgent: false,
+    };
   }, [enrichedItems]);
 
   const filteredItems = useMemo(() => {
@@ -545,6 +669,255 @@ export function HealthMaintenanceView({
             </div>
           </div>
 
+          {/* Próximos Passos: High-Priority Maintenance Dashboard */}
+          {priorityDashboard.items.length > 0 && (
+            <section className="space-y-3" aria-label="Próximos passos de manutenção">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                <div>
+                  <h2 className="font-display text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    Próximos Passos
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {priorityDashboard.hasUrgent
+                      ? 'Lembretes críticos por data ou quilometragem priorizados pelo histórico de uso'
+                      : 'Sem vencimentos críticos no momento — próximos itens preventivos pelo uso acumulado'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-x-2 text-xs text-slate-500 dark:text-slate-400 tabular-nums shrink-0">
+                  {priorityDashboard.hasUrgent ? (
+                    <span className="font-medium text-slate-700 dark:text-slate-200">
+                      Exibindo {priorityDashboard.items.length} de {priorityDashboard.totalUrgent}{' '}
+                      prioridade{priorityDashboard.totalUrgent > 1 ? 's' : ''}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>Frota sob controle</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div
+                className={`grid grid-cols-1 md:grid-cols-2 ${
+                  priorityDashboard.items.length >= 3 ? 'xl:grid-cols-3' : ''
+                } gap-4`}
+              >
+                {priorityDashboard.items.map((entry) => {
+                  const {
+                    item,
+                    localized,
+                    status,
+                    actualDaysRemaining,
+                    kmRemaining,
+                    kmElapsed,
+                    daysElapsed,
+                    effectiveIntervalDays,
+                    effectiveIntervalKm,
+                    projectedDueDate,
+                    usagePercent,
+                    barPercent,
+                    triggerDriver,
+                    historyLogsCount,
+                    latestServiceLog,
+                  } = entry;
+                  const isDoc = item.category === MaintenanceCategory.DOCUMENTATION;
+                  const borderTone =
+                    status === MaintenanceStatus.OVERDUE
+                      ? 'border-red-200 dark:border-red-900/60'
+                      : status === MaintenanceStatus.ATTENTION
+                      ? 'border-amber-200 dark:border-amber-900/60'
+                      : 'border-slate-200 dark:border-slate-800';
+                  const progressFillTone =
+                    status === MaintenanceStatus.OVERDUE
+                      ? 'bg-red-600 dark:bg-red-500'
+                      : status === MaintenanceStatus.ATTENTION
+                      ? 'bg-amber-500 dark:bg-amber-400'
+                      : status === MaintenanceStatus.ON_TRACK
+                      ? 'bg-emerald-600 dark:bg-emerald-500'
+                      : 'bg-slate-300 dark:bg-slate-700';
+
+                  const driverLabel =
+                    triggerDriver === 'km'
+                      ? status === MaintenanceStatus.OVERDUE
+                        ? 'Crítico por KM'
+                        : 'Alerta por KM'
+                      : triggerDriver === 'date'
+                      ? status === MaintenanceStatus.OVERDUE
+                        ? 'Crítico por Data'
+                        : 'Alerta por Data'
+                      : triggerDriver === 'both'
+                      ? 'Por Data e KM'
+                      : 'Aguardando 1º registro';
+
+                  const deadlineSummary =
+                    status === MaintenanceStatus.PENDING && !projectedDueDate
+                      ? 'Registre a primeira checagem para iniciar o acompanhamento'
+                      : status === MaintenanceStatus.OVERDUE
+                      ? triggerDriver === 'km' && kmRemaining < 0
+                        ? `Excedido em ${formatDistance(Math.abs(kmRemaining), prefs.units)}${
+                            projectedDueDate ? ` · Prev. ${projectedDueDate}` : ''
+                          }`
+                        : actualDaysRemaining < 0
+                        ? `Vencido há ${Math.abs(actualDaysRemaining)}d${
+                            projectedDueDate ? ` · ${projectedDueDate}` : ''
+                          }`
+                        : `Prazo excedido · ${projectedDueDate || 'Ação imediata'}`
+                      : isDoc
+                      ? `Vence em ${Math.max(0, actualDaysRemaining)}d · ${projectedDueDate}`
+                      : `Vence em ${Math.max(0, actualDaysRemaining)}d · ${projectedDueDate} · Restam ${formatDistance(
+                          Math.max(0, kmRemaining),
+                          prefs.units
+                        )}`;
+
+                  return (
+                    <article
+                      key={`priority-${item.id}`}
+                      className={`bg-white dark:bg-slate-900 border ${borderTone} rounded-xl p-4 sm:p-5 flex flex-col justify-between gap-4`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                              {triggerDriver === 'km' ? (
+                                <Gauge className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                              ) : triggerDriver === 'pending' ? (
+                                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              ) : (
+                                <Calendar className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                              )}
+                              <span>{driverLabel}</span>
+                              {historyLogsCount > 0 && (
+                                <>
+                                  <span aria-hidden="true">·</span>
+                                  <span className="font-mono tabular-nums">
+                                    {historyLogsCount} reg.
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            <h3 className="font-display text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-100 leading-snug">
+                              {localized.title}
+                            </h3>
+                          </div>
+
+                          {renderStatusIndicator(status)}
+                        </div>
+
+                        <p className="text-xs font-mono tabular-nums text-slate-700 dark:text-slate-200">
+                          {deadlineSummary}
+                        </p>
+
+                        {/* Visual Progress Bar Based on Usage History */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2 text-[11px] tabular-nums">
+                            <span className="text-slate-500 dark:text-slate-400">
+                              Uso do ciclo
+                            </span>
+                            <span
+                              className={`font-mono font-semibold ${
+                                status === MaintenanceStatus.OVERDUE
+                                  ? 'text-red-600 dark:text-red-400'
+                                  : status === MaintenanceStatus.ATTENTION
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-slate-700 dark:text-slate-200'
+                              }`}
+                            >
+                              {usagePercent}%
+                            </span>
+                          </div>
+                          <div
+                            className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"
+                            role="progressbar"
+                            aria-valuenow={Math.min(100, usagePercent)}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-label={`${localized.title}: ${usagePercent}% do ciclo`}
+                          >
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${progressFillTone}`}
+                              style={{ width: `${barPercent}%` }}
+                            />
+                          </div>
+                          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 font-mono tabular-nums">
+                            {isDoc ? (
+                              <span>
+                                {projectedDueDate ? `Prazo ${projectedDueDate}` : 'Sem validade'}
+                              </span>
+                            ) : (
+                              <span>
+                                {formatDistance(kmElapsed, prefs.units)} /{' '}
+                                {formatDistance(effectiveIntervalKm, prefs.units)}
+                              </span>
+                            )}
+                            <span>
+                              {isDoc
+                                ? latestServiceLog
+                                  ? `Últ. ${latestServiceLog.date}`
+                                  : 'Sem renovação salva'
+                                : `${daysElapsed}/${effectiveIntervalDays}d`}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onOpenLogModal(item)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600"
+                        >
+                          <Wrench className="w-3.5 h-3.5 shrink-0" />
+                          <span>Registrar agora</span>
+                        </button>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {projectedDueDate && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                downloadCalendarEvent({
+                                  title: `${t.brand}: ${localized.title} (${vehicle.make} ${vehicle.model})`,
+                                  description: localized.desc,
+                                  dateIso: projectedDueDate,
+                                  filename: `autolife-${item.category}.ics`,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
+                              title="Adicionar previsão ao Calendário (.ics)"
+                            >
+                              <CalendarPlus className="w-3.5 h-3.5" />
+                              <span>Agenda</span>
+                            </button>
+                          )}
+                          <WhatsAppConnectButton
+                            whatsappNumber={prefs.whatsappNumber}
+                            language={prefs.language}
+                            compact
+                            label="WhatsApp"
+                            title="Enviar alerta para o WhatsApp cadastrado"
+                            message={buildMaintenanceWhatsAppText({
+                              vehicle,
+                              serviceTitle: localized.title,
+                              statusLabel: t.status[status],
+                              projectedDueDate,
+                              effectiveIntervalDays,
+                              effectiveIntervalKm,
+                              units: prefs.units,
+                              notes: item.notes,
+                            })}
+                            onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
+                          />
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {/* Checklist Filter Bar + Expandable Category Cards */}
           <div className="space-y-3">
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:px-5 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
@@ -722,40 +1095,106 @@ export function HealthMaintenanceView({
                               localized,
                               status,
                               daysElapsed,
+                              kmElapsed,
                               effectiveIntervalDays,
                               effectiveIntervalKm,
                               projectedDueDate,
+                              usagePercent,
+                              barPercent,
+                              kmPercent,
+                              kmBarPercent,
+                              dayPercent,
+                              dayBarPercent,
+                              triggerDriver,
+                              historyLogsCount,
+                              latestServiceLog,
                             }) => {
                               const rowOpen = Boolean(expandedRowIds[item.id]);
+                              const isDoc = item.category === MaintenanceCategory.DOCUMENTATION;
+                              const rowBarTone =
+                                status === MaintenanceStatus.OVERDUE
+                                  ? 'bg-red-600 dark:bg-red-500'
+                                  : status === MaintenanceStatus.ATTENTION
+                                  ? 'bg-amber-500 dark:bg-amber-400'
+                                  : status === MaintenanceStatus.ON_TRACK
+                                  ? 'bg-emerald-600 dark:bg-emerald-500'
+                                  : 'bg-slate-300 dark:bg-slate-700';
+
                               return (
                                 <div
                                   key={item.id}
                                   className="px-5 py-3.5 hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors space-y-3"
                                 >
-                                  {/* Slim Scannable Row */}
+                                  {/* Slim Scannable Row + Visual Usage Progress Bar */}
                                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                    <div className="min-w-0 flex-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs tabular-nums">
-                                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                        {localized.title}
-                                      </h3>
-                                      <span
-                                        className="text-slate-300 dark:text-slate-700"
-                                        aria-hidden="true"
-                                      >
-                                        ·
-                                      </span>
-                                      {renderStatusIndicator(status)}
-                                      <span
-                                        className="text-slate-300 dark:text-slate-700"
-                                        aria-hidden="true"
-                                      >
-                                        ·
-                                      </span>
-                                      <span className="text-slate-500 dark:text-slate-400 font-mono">
-                                        {projectedDueDate
-                                          ? `Previsto ${projectedDueDate}`
-                                          : 'Sem data'}
-                                      </span>
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs tabular-nums">
+                                        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                          {localized.title}
+                                        </h3>
+                                        <span
+                                          className="text-slate-300 dark:text-slate-700"
+                                          aria-hidden="true"
+                                        >
+                                          ·
+                                        </span>
+                                        {renderStatusIndicator(status)}
+                                        <span
+                                          className="text-slate-300 dark:text-slate-700"
+                                          aria-hidden="true"
+                                        >
+                                          ·
+                                        </span>
+                                        <span className="text-slate-500 dark:text-slate-400 font-mono">
+                                          {projectedDueDate
+                                            ? `Previsto ${projectedDueDate}`
+                                            : 'Sem data'}
+                                        </span>
+                                      </div>
+
+                                      {/* Per-Item Visual Progress Bar */}
+                                      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 max-w-2xl">
+                                        <div
+                                          className="h-1.5 flex-1 min-w-[140px] rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"
+                                          role="progressbar"
+                                          aria-valuenow={Math.min(100, usagePercent)}
+                                          aria-valuemin={0}
+                                          aria-valuemax={100}
+                                          aria-label={`Progresso de uso: ${usagePercent}%`}
+                                        >
+                                          <div
+                                            className={`h-full rounded-full transition-all duration-300 ${rowBarTone}`}
+                                            style={{ width: `${barPercent}%` }}
+                                          />
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 font-mono tabular-nums shrink-0">
+                                          <span className="font-semibold text-slate-700 dark:text-slate-200">
+                                            {usagePercent}%
+                                          </span>
+                                          <span aria-hidden="true">·</span>
+                                          <span>
+                                            {triggerDriver === 'pending'
+                                              ? 'Sem registro inicial'
+                                              : isDoc
+                                              ? `${dayPercent}% prazo`
+                                              : triggerDriver === 'km'
+                                              ? `${formatDistance(kmElapsed, prefs.units)}/${formatDistance(
+                                                  effectiveIntervalKm,
+                                                  prefs.units
+                                                )}`
+                                              : `${daysElapsed}/${effectiveIntervalDays}d`}
+                                          </span>
+                                          <span aria-hidden="true">·</span>
+                                          <span>
+                                            {historyLogsCount > 0
+                                              ? `${historyLogsCount} histórico${
+                                                  historyLogsCount > 1 ? 's' : ''
+                                                }`
+                                              : '0 histórico'}
+                                          </span>
+                                        </div>
+                                      </div>
                                     </div>
 
                                     <div className="flex items-center gap-2 shrink-0">
@@ -789,12 +1228,83 @@ export function HealthMaintenanceView({
                                     </div>
                                   </div>
 
-                                  {/* Expanded Row Details (Description, Safety, Intervals, Calendar, WhatsApp) */}
+                                  {/* Expanded Row Details (Usage Breakdown, History, Description, Safety, Calendar, WhatsApp) */}
                                   {rowOpen && (
-                                    <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 space-y-2.5 text-xs">
+                                    <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 space-y-3 text-xs">
                                       <p className="text-slate-600 dark:text-slate-400">
                                         {localized.desc}
                                       </p>
+
+                                      {/* Detailed Progress Breakdown (Distance + Time) */}
+                                      <div
+                                        className={`grid grid-cols-1 ${
+                                          isDoc ? '' : 'sm:grid-cols-2'
+                                        } gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 tabular-nums`}
+                                      >
+                                        {!isDoc && (
+                                          <div className="space-y-1">
+                                            <div className="flex items-center justify-between gap-2 text-[11px]">
+                                              <span className="font-medium text-slate-600 dark:text-slate-300">
+                                                Uso por quilometragem
+                                              </span>
+                                              <span className="font-mono text-slate-700 dark:text-slate-200">
+                                                {formatDistance(kmElapsed, prefs.units)} /{' '}
+                                                {formatDistance(effectiveIntervalKm, prefs.units)} (
+                                                {kmPercent}%)
+                                              </span>
+                                            </div>
+                                            <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                                              <div
+                                                className={`h-full rounded-full ${rowBarTone}`}
+                                                style={{ width: `${kmBarPercent}%` }}
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        <div className="space-y-1">
+                                          <div className="flex items-center justify-between gap-2 text-[11px]">
+                                            <span className="font-medium text-slate-600 dark:text-slate-300">
+                                              {isDoc ? 'Prazo do documento' : 'Uso por tempo'}
+                                            </span>
+                                            <span className="font-mono text-slate-700 dark:text-slate-200">
+                                              {isDoc
+                                                ? `${
+                                                    projectedDueDate
+                                                      ? `Vence ${projectedDueDate}`
+                                                      : 'Sem data'
+                                                  } (${dayPercent}%)`
+                                                : `${daysElapsed} / ${effectiveIntervalDays} dias (${dayPercent}%)`}
+                                            </span>
+                                          </div>
+                                          <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                                            <div
+                                              className={`h-full rounded-full ${rowBarTone}`}
+                                              style={{ width: `${dayBarPercent}%` }}
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {latestServiceLog && (
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-600 dark:text-slate-300 tabular-nums">
+                                          <History className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                          <span>Último serviço no histórico:</span>
+                                          <strong className="font-mono font-medium text-slate-800 dark:text-slate-100">
+                                            {latestServiceLog.date}
+                                          </strong>
+                                          <span aria-hidden="true">·</span>
+                                          <span className="font-mono">
+                                            {formatDistance(latestServiceLog.odometerKm, prefs.units)}
+                                          </span>
+                                          {latestServiceLog.workshopName && (
+                                            <>
+                                              <span aria-hidden="true">·</span>
+                                              <span>{latestServiceLog.workshopName}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
 
                                       {localized.safety && (
                                         <div className="inline-flex items-start gap-2 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200">
