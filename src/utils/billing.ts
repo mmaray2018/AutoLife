@@ -3,10 +3,12 @@ import {
   CanonicalPlanId,
   CountryCode,
   CurrencyCode,
+  LanguageCode,
   PaymentMethodType,
   PlanCountryPrice,
   PlanTier,
   SubscriptionPlanCatalogItem,
+  UnitSystem,
 } from '../types/autolife';
 
 export interface CurrencyConfig {
@@ -159,6 +161,230 @@ export function inferCountryFromCurrency(currency: CurrencyCode): CountryCode {
     default:
       return 'US';
   }
+}
+
+export interface DetectedRegionDefaults {
+  countryCode: CountryCode;
+  currency: CurrencyCode;
+  language: LanguageCode;
+  units: UnitSystem;
+}
+
+const EUROZONE_TIMEZONES = new Set([
+  'Europe/Rome',
+  'Europe/Amsterdam',
+  'Europe/Brussels',
+  'Europe/Vienna',
+  'Europe/Dublin',
+  'Europe/Athens',
+  'Europe/Helsinki',
+  'Europe/Luxembourg',
+  'Europe/Bratislava',
+  'Europe/Ljubljana',
+  'Europe/Tallinn',
+  'Europe/Riga',
+  'Europe/Vilnius',
+  'Europe/Valletta',
+  'Europe/Nicosia',
+  'Europe/Zagreb',
+]);
+
+const BRAZIL_TIMEZONES = new Set([
+  'America/Sao_Paulo',
+  'America/Fortaleza',
+  'America/Recife',
+  'America/Belem',
+  'America/Manaus',
+  'America/Bahia',
+  'America/Cuiaba',
+  'America/Campo_Grande',
+  'America/Porto_Velho',
+  'America/Araguaina',
+  'America/Maceio',
+  'America/Noronha',
+  'America/Rio_Branco',
+  'America/Boa_Vista',
+  'America/Santarem',
+]);
+
+const US_TIMEZONE_PREFIXES = [
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Phoenix',
+  'America/Anchorage',
+  'America/Detroit',
+  'America/Boise',
+  'America/Juneau',
+  'America/Nome',
+  'America/Sitka',
+  'America/Yakutat',
+  'America/Indiana/',
+  'America/Kentucky/',
+  'America/North_Dakota/',
+  'Pacific/Honolulu',
+];
+
+const CANADA_TIMEZONES = new Set([
+  'America/Toronto',
+  'America/Vancouver',
+  'America/Edmonton',
+  'America/Winnipeg',
+  'America/Halifax',
+  'America/Montreal',
+  'America/St_Johns',
+  'America/Regina',
+  'America/Moncton',
+]);
+
+const MEXICO_TIMEZONES = new Set([
+  'America/Mexico_City',
+  'America/Cancun',
+  'America/Monterrey',
+  'America/Tijuana',
+  'America/Merida',
+  'America/Chihuahua',
+  'America/Mazatlan',
+  'America/Hermosillo',
+]);
+
+function pickSupportedLanguage(rawLocales: string[], fallback: LanguageCode = 'en'): LanguageCode {
+  for (const loc of rawLocales) {
+    const base = loc.toLowerCase().split(/[-_]/)[0];
+    if (base === 'pt' || base === 'en' || base === 'es' || base === 'de' || base === 'fr') {
+      return base;
+    }
+  }
+  return fallback;
+}
+
+export function resolveRegionForCountryCode(
+  rawCountry: string,
+  preferredLangs: string[] = []
+): DetectedRegionDefaults {
+  const iso = rawCountry.trim().toUpperCase();
+  const browserLang = pickSupportedLanguage(preferredLangs, 'en');
+
+  switch (iso) {
+    case 'BR':
+      return { countryCode: 'BR', currency: 'BRL', language: 'pt', units: 'metric' };
+    case 'PT':
+      return { countryCode: 'PT', currency: 'EUR', language: 'pt', units: 'metric' };
+    case 'US':
+      return {
+        countryCode: 'US',
+        currency: 'USD',
+        language: browserLang === 'es' ? 'es' : 'en',
+        units: 'imperial',
+      };
+    case 'GB':
+      return { countryCode: 'GB', currency: 'GBP', language: 'en', units: 'imperial' };
+    case 'ES':
+      return { countryCode: 'ES', currency: 'EUR', language: 'es', units: 'metric' };
+    case 'DE':
+      return { countryCode: 'DE', currency: 'EUR', language: 'de', units: 'metric' };
+    case 'FR':
+      return { countryCode: 'FR', currency: 'EUR', language: 'fr', units: 'metric' };
+    case 'CH':
+      return {
+        countryCode: 'CH',
+        currency: 'CHF',
+        language: browserLang === 'fr' ? 'fr' : 'de',
+        units: 'metric',
+      };
+    case 'CA':
+      return {
+        countryCode: 'CA',
+        currency: 'CAD',
+        language: browserLang === 'fr' ? 'fr' : 'en',
+        units: 'metric',
+      };
+    case 'MX':
+      return { countryCode: 'MX', currency: 'MXN', language: 'es', units: 'metric' };
+    case 'JP':
+      return { countryCode: 'JP', currency: 'JPY', language: 'en', units: 'metric' };
+    case 'EU':
+    case 'IT':
+    case 'NL':
+    case 'BE':
+    case 'AT':
+    case 'IE':
+    case 'FI':
+    case 'GR':
+    case 'LU':
+    case 'SK':
+    case 'SI':
+    case 'EE':
+    case 'LV':
+    case 'LT':
+    case 'MT':
+    case 'CY':
+    case 'HR':
+      return { countryCode: 'EU', currency: 'EUR', language: browserLang, units: 'metric' };
+    default:
+      return { countryCode: 'GLOBAL', currency: 'USD', language: browserLang, units: 'metric' };
+  }
+}
+
+export function detectLocaleRegionDefaults(): DetectedRegionDefaults {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return { countryCode: 'BR', currency: 'BRL', language: 'pt', units: 'metric' };
+  }
+
+  const locales = Array.isArray(navigator.languages) && navigator.languages.length > 0
+    ? [...navigator.languages]
+    : [navigator.language || 'en-US'];
+
+  let tz = '';
+  try {
+    tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    tz = '';
+  }
+
+  // 1. Timezone provides physical region signal even if OS language is English
+  if (tz) {
+    if (BRAZIL_TIMEZONES.has(tz)) return resolveRegionForCountryCode('BR', locales);
+    if (tz === 'Europe/Lisbon' || tz === 'Atlantic/Azores' || tz === 'Atlantic/Madeira') {
+      return resolveRegionForCountryCode('PT', locales);
+    }
+    if (tz === 'Europe/London') return resolveRegionForCountryCode('GB', locales);
+    if (tz === 'Europe/Madrid' || tz === 'Atlantic/Canary') {
+      return resolveRegionForCountryCode('ES', locales);
+    }
+    if (tz === 'Europe/Berlin' || tz === 'Europe/Busingen') {
+      return resolveRegionForCountryCode('DE', locales);
+    }
+    if (tz === 'Europe/Paris') return resolveRegionForCountryCode('FR', locales);
+    if (tz === 'Europe/Zurich') return resolveRegionForCountryCode('CH', locales);
+    if (EUROZONE_TIMEZONES.has(tz)) return resolveRegionForCountryCode('EU', locales);
+    if (US_TIMEZONE_PREFIXES.some((prefix) => tz === prefix || tz.startsWith(prefix))) {
+      return resolveRegionForCountryCode('US', locales);
+    }
+    if (CANADA_TIMEZONES.has(tz)) return resolveRegionForCountryCode('CA', locales);
+    if (MEXICO_TIMEZONES.has(tz)) return resolveRegionForCountryCode('MX', locales);
+    if (tz === 'Asia/Tokyo') return resolveRegionForCountryCode('JP', locales);
+  }
+
+  // 2. Fallback to browser locale region subtag (e.g. pt-BR, en-GB, es-MX, de-DE)
+  for (const loc of locales) {
+    const parts = loc.split(/[-_]/);
+    if (parts.length >= 2) {
+      const regionSubtag = parts[parts.length - 1].toUpperCase();
+      if (/^[A-Z]{2}$/.test(regionSubtag)) {
+        return resolveRegionForCountryCode(regionSubtag, locales);
+      }
+    }
+  }
+
+  // 3. Language-only fallback
+  const lang = pickSupportedLanguage(locales, 'en');
+  if (lang === 'pt') return resolveRegionForCountryCode('BR', locales);
+  if (lang === 'de') return resolveRegionForCountryCode('DE', locales);
+  if (lang === 'fr') return resolveRegionForCountryCode('FR', locales);
+  if (lang === 'es') return resolveRegionForCountryCode('ES', locales);
+  return { countryCode: 'GLOBAL', currency: 'USD', language: lang, units: 'metric' };
 }
 
 export function normalizePlanTier(plan?: string | null): CanonicalPlanId {

@@ -1653,6 +1653,126 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
     return `http://localhost:${PORT}`;
   }
 
+  app.get('/api/region/detect', (req: Request, res: Response) => {
+    const rawHeaderCountry =
+      req.headers['cf-ipcountry'] ||
+      req.headers['x-vercel-ip-country'] ||
+      req.headers['x-country-code'] ||
+      req.headers['x-geo-country'] ||
+      req.headers['x-appengine-country'];
+
+    const headerIso =
+      typeof rawHeaderCountry === 'string' ? rawHeaderCountry.trim().toUpperCase() : '';
+    const validIso =
+      /^[A-Z]{2}$/.test(headerIso) && headerIso !== 'XX' && headerIso !== 'T1'
+        ? headerIso
+        : '';
+
+    const acceptLang =
+      typeof req.headers['accept-language'] === 'string' ? req.headers['accept-language'] : '';
+    const firstLangTag = acceptLang.split(',')[0]?.split(';')[0]?.trim() || '';
+    const langBase = firstLangTag.toLowerCase().split(/[-_]/)[0];
+    const detectedLanguage =
+      langBase === 'pt' || langBase === 'en' || langBase === 'es' || langBase === 'de' || langBase === 'fr'
+        ? langBase
+        : null;
+
+    if (!validIso) {
+      res.json({
+        detected: false,
+        countryCode: null,
+        currency: null,
+        language: detectedLanguage,
+        units: null,
+      });
+      return;
+    }
+
+    const euSet = new Set([
+      'IT', 'NL', 'BE', 'AT', 'IE', 'FI', 'GR', 'LU',
+      'SK', 'SI', 'EE', 'LV', 'LT', 'MT', 'CY', 'HR',
+    ]);
+
+    let countryCode = 'GLOBAL';
+    let currency = 'USD';
+    let language = detectedLanguage || 'en';
+    let units: 'metric' | 'imperial' = 'metric';
+
+    switch (validIso) {
+      case 'BR':
+        countryCode = 'BR';
+        currency = 'BRL';
+        language = 'pt';
+        break;
+      case 'PT':
+        countryCode = 'PT';
+        currency = 'EUR';
+        language = 'pt';
+        break;
+      case 'US':
+        countryCode = 'US';
+        currency = 'USD';
+        language = detectedLanguage === 'es' ? 'es' : 'en';
+        units = 'imperial';
+        break;
+      case 'GB':
+        countryCode = 'GB';
+        currency = 'GBP';
+        language = 'en';
+        units = 'imperial';
+        break;
+      case 'ES':
+        countryCode = 'ES';
+        currency = 'EUR';
+        language = 'es';
+        break;
+      case 'DE':
+        countryCode = 'DE';
+        currency = 'EUR';
+        language = 'de';
+        break;
+      case 'FR':
+        countryCode = 'FR';
+        currency = 'EUR';
+        language = 'fr';
+        break;
+      case 'CH':
+        countryCode = 'CH';
+        currency = 'CHF';
+        language = detectedLanguage === 'fr' ? 'fr' : 'de';
+        break;
+      case 'CA':
+        countryCode = 'CA';
+        currency = 'CAD';
+        language = detectedLanguage === 'fr' ? 'fr' : 'en';
+        break;
+      case 'MX':
+        countryCode = 'MX';
+        currency = 'MXN';
+        language = 'es';
+        break;
+      case 'JP':
+        countryCode = 'JP';
+        currency = 'JPY';
+        language = 'en';
+        break;
+      default:
+        if (euSet.has(validIso)) {
+          countryCode = 'EU';
+          currency = 'EUR';
+        }
+        break;
+    }
+
+    res.json({
+      detected: true,
+      countryCode,
+      currency,
+      language,
+      units,
+    });
+  });
+
   app.get('/api/billing/status', (_req: Request, res: Response) => {
     const { stripeConfigured, mercadoPagoConfigured } = getBillingGatewayConfig();
     res.json({

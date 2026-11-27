@@ -18,12 +18,12 @@ elif [ -d .git ]; then
 fi
 
 echo "==> Atualizando dependencias..."
-npm install --no-audit --no-fund
+npm install --include=dev --no-audit --no-fund
 
 echo "==> Gerando build de producao..."
 npm run build
 
 echo "==> Reiniciando aplicacao no PM2..."
-pm2 restart autolife 2>/dev/null || pm2 restart autolife-world 2>/dev/null || pm2 restart all
+pm2 restart autolife --update-env 2>/dev/null || pm2 restart autolife-world --update-env 2>/dev/null || pm2 restart all --update-env
 
 echo "==> Pronto! AutoLife atualizado e no ar."

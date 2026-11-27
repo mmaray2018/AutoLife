@@ -71,11 +71,14 @@ import {
 } from './types/autolife';
 import { todayIso } from './utils/autolife';
 import {
+  COUNTRY_CATALOG,
   CURRENCY_CATALOG,
   buildFallbackPlanCatalog,
+  detectLocaleRegionDefaults,
   inferCountryFromCurrency,
   isBusinessPlan,
   normalizePlanTier,
+  resolveRegionForCountryCode,
 } from './utils/billing';
 import { sanitizeWhatsAppNumber } from './utils/whatsapp';
 
@@ -83,6 +86,15 @@ const STORAGE_KEY = 'autolife_world_state_v2';
 const LEGACY_STORAGE_KEY = 'autolife_world_state_v1';
 const CURRENCY_STORAGE_KEY = 'autolife_preferred_currency';
 const WHATSAPP_STORAGE_KEY = 'autolife_whatsapp_number';
+const REGION_MANUAL_KEY = 'autolife_region_manual_v1';
+
+function isRegionManuallySet(): boolean {
+  try {
+    return localStorage.getItem(REGION_MANUAL_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 interface PersistedState {
   vehicles: Vehicle[];
@@ -93,11 +105,14 @@ interface PersistedState {
   prefs: UserPreferences;
 }
 
-function resolveValidCurrency(candidate: unknown): CurrencyCode {
+function resolveValidCurrency(
+  candidate: unknown,
+  fallback: CurrencyCode = DEFAULT_PREFERENCES.currency
+): CurrencyCode {
   if (typeof candidate === 'string' && candidate in CURRENCY_CATALOG) {
     return candidate as CurrencyCode;
   }
-  return DEFAULT_PREFERENCES.currency;
+  return fallback;
 }
 
 function resolveUserName(user: {
@@ -115,6 +130,9 @@ function resolveUserName(user: {
 }
 
 function loadInitialState(): PersistedState {
+  const detectedRegion = detectLocaleRegionDefaults();
+  const manualOverride = isRegionManuallySet();
+
   const savedCurrency = (() => {
     try {
       return localStorage.getItem(CURRENCY_STORAGE_KEY);
@@ -141,12 +159,42 @@ function loadInitialState(): PersistedState {
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<PersistedState>;
       if (Array.isArray(parsed.vehicles)) {
-        const mergedPrefs: UserPreferences = {
-          ...DEFAULT_PREFERENCES,
-          ...(parsed.prefs || {}),
-          currency: resolveValidCurrency(parsed.prefs?.currency ?? savedCurrency),
-          whatsappNumber: parsed.prefs?.whatsappNumber?.trim() || savedWhatsapp || '',
-        };
+        const cachedPrefs = parsed.prefs;
+        const looksLikeUntouchedBrazilDefault =
+          !manualOverride &&
+          (cachedPrefs?.language ?? 'pt') === 'pt' &&
+          (cachedPrefs?.currency ?? 'BRL') === 'BRL' &&
+          (!cachedPrefs?.countryCode || cachedPrefs.countryCode === 'BR');
+
+        const basePrefs: UserPreferences = looksLikeUntouchedBrazilDefault
+          ? {
+              ...DEFAULT_PREFERENCES,
+              ...(cachedPrefs || {}),
+              language: detectedRegion.language,
+              units: detectedRegion.units,
+              countryCode: detectedRegion.countryCode,
+              currency: detectedRegion.currency,
+              whatsappNumber: cachedPrefs?.whatsappNumber?.trim() || savedWhatsapp || '',
+            }
+          : {
+              ...DEFAULT_PREFERENCES,
+              ...(cachedPrefs || {}),
+              countryCode:
+                cachedPrefs?.countryCode ??
+                (manualOverride
+                  ? inferCountryFromCurrency(
+                      resolveValidCurrency(
+                        cachedPrefs?.currency ?? savedCurrency,
+                        detectedRegion.currency
+                      )
+                    )
+                  : detectedRegion.countryCode),
+              currency: resolveValidCurrency(
+                cachedPrefs?.currency ?? savedCurrency,
+                detectedRegion.currency
+              ),
+              whatsappNumber: cachedPrefs?.whatsappNumber?.trim() || savedWhatsapp || '',
+            };
         const vehicles = parsed.vehicles.map((v) => ({
           ...v,
           vehicleType: v.vehicleType ?? 'car',
@@ -163,7 +211,7 @@ function loadInitialState(): PersistedState {
           chargingSessions: Array.isArray(parsed.chargingSessions)
             ? parsed.chargingSessions
             : INITIAL_CHARGING_SESSIONS,
-          prefs: mergedPrefs,
+          prefs: basePrefs,
         };
       }
     }
@@ -179,7 +227,12 @@ function loadInitialState(): PersistedState {
     chargingSessions: INITIAL_CHARGING_SESSIONS,
     prefs: {
       ...DEFAULT_PREFERENCES,
-      currency: resolveValidCurrency(savedCurrency),
+      language: detectedRegion.language,
+      units: detectedRegion.units,
+      countryCode: detectedRegion.countryCode,
+      currency: manualOverride
+        ? resolveValidCurrency(savedCurrency, detectedRegion.currency)
+        : detectedRegion.currency,
       whatsappNumber: savedWhatsapp,
     },
   };
@@ -642,6 +695,53 @@ export default function App() {
     }
   }, [state.prefs.theme]);
 
+  // Automatic region detection via server CDN/proxy headers + browser locale fallback
+  useEffect(() => {
+    if (isRegionManuallySet()) return;
+    let active = true;
+
+    fetch('/api/region/detect')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active || isRegionManuallySet()) return;
+        const browserLocales =
+          Array.isArray(navigator.languages) && navigator.languages.length > 0
+            ? [...navigator.languages]
+            : [navigator.language || 'en-US'];
+
+        const resolved =
+          data?.detected && typeof data.countryCode === 'string' && data.countryCode
+            ? resolveRegionForCountryCode(data.countryCode, browserLocales)
+            : detectLocaleRegionDefaults();
+
+        setState((prev) => {
+          if (
+            prev.prefs.countryCode === resolved.countryCode &&
+            prev.prefs.currency === resolved.currency &&
+            prev.prefs.language === resolved.language &&
+            prev.prefs.units === resolved.units
+          ) {
+            return prev;
+          }
+          return {
+            ...prev,
+            prefs: {
+              ...prev.prefs,
+              countryCode: resolved.countryCode,
+              currency: resolved.currency,
+              language: resolved.language,
+              units: resolved.units,
+            },
+          };
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   useEffect(() => {
     if (!supabase) return;
     let active = true;
@@ -695,11 +795,30 @@ export default function App() {
               return syncLocalSnapshotToCloud(user.id).catch(() => {});
             }
             if (snap.prefs) {
-              const mergedPrefs: UserPreferences = {
-                ...snap.prefs,
-                whatsappNumber: effectiveWhatsapp,
-              };
-              if (effectiveWhatsapp && !cloudWhatsapp) {
+              const localPrefs = latestStateRef.current.prefs;
+              const cloudLooksLikeDefaultTrigger =
+                snap.prefs.language === 'pt' &&
+                snap.prefs.currency === 'BRL' &&
+                (!snap.prefs.countryCode || snap.prefs.countryCode === 'BR');
+              const keepDetectedLocalRegion =
+                !isRegionManuallySet() &&
+                cloudLooksLikeDefaultTrigger &&
+                Boolean(localPrefs.countryCode && localPrefs.countryCode !== 'BR');
+
+              const mergedPrefs: UserPreferences = keepDetectedLocalRegion
+                ? {
+                    ...snap.prefs,
+                    language: localPrefs.language,
+                    units: localPrefs.units,
+                    currency: localPrefs.currency,
+                    countryCode: localPrefs.countryCode,
+                    whatsappNumber: effectiveWhatsapp,
+                  }
+                : {
+                    ...snap.prefs,
+                    whatsappNumber: effectiveWhatsapp,
+                  };
+              if (keepDetectedLocalRegion || (effectiveWhatsapp && !cloudWhatsapp)) {
                 void syncPreferencesToCloud(user.id, mergedPrefs).catch(() => {});
               }
               setState((prev) => ({
@@ -868,6 +987,19 @@ export default function App() {
   };
 
   const updatePrefs = (partial: Partial<UserPreferences>) => {
+    if (
+      partial.language !== undefined ||
+      partial.currency !== undefined ||
+      partial.countryCode !== undefined ||
+      partial.units !== undefined
+    ) {
+      try {
+        localStorage.setItem(REGION_MANUAL_KEY, '1');
+      } catch {
+        // Ignore storage error
+      }
+    }
+
     if (partial.whatsappNumber !== undefined) {
       const cleanWa = partial.whatsappNumber.trim();
       try {
@@ -884,7 +1016,58 @@ export default function App() {
       }
     }
     setState((prev) => {
-      const nextPrefs = { ...prev.prefs, ...partial };
+      let syncedCountry = partial.countryCode;
+      if (partial.currency !== undefined && partial.countryCode === undefined) {
+        const currentCountry = prev.prefs.countryCode;
+        if (
+          !currentCountry ||
+          COUNTRY_CATALOG[currentCountry]?.defaultCurrency !== partial.currency
+        ) {
+          syncedCountry = inferCountryFromCurrency(partial.currency);
+        }
+      }
+      const nextPrefs: UserPreferences = {
+        ...prev.prefs,
+        ...partial,
+        ...(syncedCountry !== undefined ? { countryCode: syncedCountry } : {}),
+      };
+      if (cloudUserId) void syncPreferencesToCloud(cloudUserId, nextPrefs).catch(() => {});
+      return { ...prev, prefs: nextPrefs };
+    });
+  };
+
+  const handleResetAutoRegion = async () => {
+    try {
+      localStorage.removeItem(REGION_MANUAL_KEY);
+    } catch {
+      // Ignore storage error
+    }
+
+    let resolved = detectLocaleRegionDefaults();
+    try {
+      const res = await fetch('/api/region/detect');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.detected && typeof data.countryCode === 'string' && data.countryCode) {
+          const browserLocales =
+            Array.isArray(navigator.languages) && navigator.languages.length > 0
+              ? [...navigator.languages]
+              : [navigator.language || 'en-US'];
+          resolved = resolveRegionForCountryCode(data.countryCode, browserLocales);
+        }
+      }
+    } catch {
+      // Keep client-side locale/timezone fallback
+    }
+
+    setState((prev) => {
+      const nextPrefs: UserPreferences = {
+        ...prev.prefs,
+        countryCode: resolved.countryCode,
+        currency: resolved.currency,
+        language: resolved.language,
+        units: resolved.units,
+      };
       if (cloudUserId) void syncPreferencesToCloud(cloudUserId, nextPrefs).catch(() => {});
       return { ...prev, prefs: nextPrefs };
     });
@@ -1411,6 +1594,7 @@ export default function App() {
             <InternationalSettingsView
               prefs={state.prefs}
               onUpdatePrefs={updatePrefs}
+              onResetAutoRegion={handleResetAutoRegion}
               t={t}
               vehicles={state.vehicles}
               activeVehicleId={activeVehicle?.id ?? ''}

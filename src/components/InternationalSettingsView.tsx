@@ -13,6 +13,7 @@ import {
   LogOut,
   MessageCircle,
   Plus,
+  RefreshCw,
   Send,
   Trash2,
 } from 'lucide-react';
@@ -62,6 +63,7 @@ interface InternationalSettingsViewProps {
   onSelectVehicle: (id: string) => void;
   onOpenAddVehicle: () => void;
   onRequestDeleteVehicle: (vehicleId: string) => void;
+  onResetAutoRegion?: () => Promise<void> | void;
 }
 
 export function InternationalSettingsView({
@@ -83,6 +85,7 @@ export function InternationalSettingsView({
   onSelectVehicle,
   onOpenAddVehicle,
   onRequestDeleteVehicle,
+  onResetAutoRegion,
 }: InternationalSettingsViewProps) {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
@@ -94,6 +97,7 @@ export function InternationalSettingsView({
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [detectingRegion, setDetectingRegion] = useState(false);
   const [whatsappInput, setWhatsappInput] = useState(prefs.whatsappNumber ?? '');
   const [editingWhatsapp, setEditingWhatsapp] = useState(
     !sanitizeWhatsAppNumber(prefs.whatsappNumber, prefs.language)
@@ -649,11 +653,35 @@ export function InternationalSettingsView({
       {/* Country, Units & Theme */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <h2 className="font-display text-sm font-semibold text-slate-900 dark:text-slate-100">
-              País / Região de Faturamento
-            </h2>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+              <h2 className="font-display text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                País / Região de Faturamento
+              </h2>
+            </div>
+            {onResetAutoRegion && (
+              <button
+                type="button"
+                disabled={detectingRegion}
+                onClick={async () => {
+                  setDetectingRegion(true);
+                  try {
+                    await onResetAutoRegion();
+                  } finally {
+                    setDetectingRegion(false);
+                  }
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0 disabled:opacity-60"
+              >
+                {detectingRegion ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3 h-3" />
+                )}
+                <span>Automático</span>
+              </button>
+            )}
           </div>
           <select
             value={prefs.countryCode ?? 'BR'}
@@ -674,7 +702,7 @@ export function InternationalSettingsView({
             ))}
           </select>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-            Define moeda local, impostos regionais e métodos de pagamento dos planos.
+            Detectado automaticamente pela sua região; ajuste manualmente quando preferir outra moeda ou país.
           </p>
         </section>
 
