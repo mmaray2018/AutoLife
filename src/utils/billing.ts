@@ -1,4 +1,13 @@
-import { BillingCycle, CurrencyCode, PaymentMethodType, PlanTier } from '../types/autolife';
+import {
+  BillingCycle,
+  CanonicalPlanId,
+  CountryCode,
+  CurrencyCode,
+  PaymentMethodType,
+  PlanCountryPrice,
+  PlanTier,
+  SubscriptionPlanCatalogItem,
+} from '../types/autolife';
 
 export interface CurrencyConfig {
   code: CurrencyCode;
@@ -7,7 +16,7 @@ export interface CurrencyConfig {
   region: string;
   locale: string;
   decimals: number;
-  /** Reference FX multiplier relative to 1.00 BRL */
+  /** Reference FX multiplier relative to 1.00 BRL (used for historical service-log TCO aggregation) */
   fxPerBrl: number;
   paymentMethods: PaymentMethodType[];
   paymentSummary: string;
@@ -106,9 +115,82 @@ export const CURRENCY_CATALOG: Record<CurrencyCode, CurrencyConfig> = {
 
 export const CURRENCY_LIST: CurrencyConfig[] = Object.values(CURRENCY_CATALOG);
 
+export interface CountryConfig {
+  code: CountryCode;
+  name: string;
+  defaultCurrency: CurrencyCode;
+  fallbackCountryCode: CountryCode;
+}
+
+export const COUNTRY_CATALOG: Record<CountryCode, CountryConfig> = {
+  BR: { code: 'BR', name: 'Brasil', defaultCurrency: 'BRL', fallbackCountryCode: 'BR' },
+  PT: { code: 'PT', name: 'Portugal', defaultCurrency: 'EUR', fallbackCountryCode: 'EU' },
+  US: { code: 'US', name: 'United States', defaultCurrency: 'USD', fallbackCountryCode: 'GLOBAL' },
+  GB: { code: 'GB', name: 'United Kingdom', defaultCurrency: 'GBP', fallbackCountryCode: 'GLOBAL' },
+  ES: { code: 'ES', name: 'España', defaultCurrency: 'EUR', fallbackCountryCode: 'EU' },
+  DE: { code: 'DE', name: 'Deutschland', defaultCurrency: 'EUR', fallbackCountryCode: 'EU' },
+  FR: { code: 'FR', name: 'France', defaultCurrency: 'EUR', fallbackCountryCode: 'EU' },
+  EU: { code: 'EU', name: 'Eurozone (EU)', defaultCurrency: 'EUR', fallbackCountryCode: 'EU' },
+  CA: { code: 'CA', name: 'Canada', defaultCurrency: 'CAD', fallbackCountryCode: 'GLOBAL' },
+  CH: { code: 'CH', name: 'Switzerland', defaultCurrency: 'CHF', fallbackCountryCode: 'GLOBAL' },
+  MX: { code: 'MX', name: 'México', defaultCurrency: 'MXN', fallbackCountryCode: 'GLOBAL' },
+  JP: { code: 'JP', name: 'Japan', defaultCurrency: 'JPY', fallbackCountryCode: 'GLOBAL' },
+  GLOBAL: { code: 'GLOBAL', name: 'International (Global)', defaultCurrency: 'USD', fallbackCountryCode: 'GLOBAL' },
+};
+
+export const COUNTRY_LIST: CountryConfig[] = Object.values(COUNTRY_CATALOG);
+
+export function inferCountryFromCurrency(currency: CurrencyCode): CountryCode {
+  switch (currency) {
+    case 'BRL':
+      return 'BR';
+    case 'EUR':
+      return 'EU';
+    case 'GBP':
+      return 'GB';
+    case 'CAD':
+      return 'CA';
+    case 'CHF':
+      return 'CH';
+    case 'MXN':
+      return 'MX';
+    case 'JPY':
+      return 'JP';
+    default:
+      return 'US';
+  }
+}
+
+export function normalizePlanTier(plan?: string | null): CanonicalPlanId {
+  switch (plan) {
+    case 'fleet':
+    case 'fleet_10':
+      return 'fleet_10';
+    case 'fleet_25':
+      return 'fleet_25';
+    case 'fleet_50':
+      return 'fleet_50';
+    case 'fleet_100':
+      return 'fleet_100';
+    case 'enterprise':
+      return 'enterprise';
+    case 'personal':
+    case 'free':
+    case 'plus':
+    default:
+      return 'personal';
+  }
+}
+
+export function isBusinessPlan(plan?: string | null): boolean {
+  const canonical = normalizePlanTier(plan);
+  return canonical !== 'personal';
+}
+
 /**
- * Converts a monetary amount recorded in `fromCurrency` into `toCurrency`
- * using reference FX rates so TCO & expense ledgers stay coherent globally.
+ * Converts a historical service log amount recorded in `fromCurrency` into `toCurrency`
+ * for unified multi-currency ledger totals. Subscription checkout prices ALWAYS come
+ * directly from the country/currency database tables — never via ad-hoc FX conversion.
  */
 export function convertCurrency(
   amount: number,
@@ -123,56 +205,597 @@ export function convertCurrency(
   return amountInBrl * toRate;
 }
 
+export function minorToMajor(minor: number, currency: CurrencyCode): number {
+  const decimals = CURRENCY_CATALOG[currency]?.decimals ?? 2;
+  return decimals === 0 ? minor : minor / Math.pow(10, decimals);
+}
+
+export interface PriceBreakdown {
+  subtotalMinor: number;
+  taxMinor: number;
+  processingFeeMinor: number;
+  totalMinor: number;
+  displayMonthlyMajor: number;
+  subtotalMajor: number;
+  taxMajor: number;
+  processingFeeMajor: number;
+  totalMajor: number;
+}
+
+export function computePriceBreakdown(
+  price: PlanCountryPrice,
+  cycle: BillingCycle,
+  currency: CurrencyCode
+): PriceBreakdown {
+  const subtotalMinor = cycle === 'annual' ? price.annualPriceMinor : price.monthlyPriceMinor;
+  const taxMinor = Math.round((subtotalMinor * (price.taxRatePercent || 0)) / 100);
+  const processingFeeMinor =
+    subtotalMinor > 0
+      ? Math.round((subtotalMinor * (price.processingFeePercent || 0)) / 100) +
+        (price.processingFeeFixedMinor || 0)
+      : 0;
+  const totalMinor = subtotalMinor + taxMinor + processingFeeMinor;
+  const monthlyEqMinor =
+    cycle === 'annual' ? Math.round(price.annualPriceMinor / 12) : price.monthlyPriceMinor;
+
+  return {
+    subtotalMinor,
+    taxMinor,
+    processingFeeMinor,
+    totalMinor,
+    displayMonthlyMajor: minorToMajor(monthlyEqMinor, currency),
+    subtotalMajor: minorToMajor(subtotalMinor, currency),
+    taxMajor: minorToMajor(taxMinor, currency),
+    processingFeeMajor: minorToMajor(processingFeeMinor, currency),
+    totalMajor: minorToMajor(totalMinor, currency),
+  };
+}
+
 /**
- * Localized SaaS tier pricing (clean market-specific price points per currency).
- * Annual cycle applies 20% discount (equivalent to ~2.4 months free).
+ * Offline fallback catalog strictly matching the `subscription_plans` and `plan_country_prices`
+ * tables in `supabase/schema.sql`. Authoritative runtime prices come from GET /api/billing/catalog.
  */
-export const LOCALIZED_PLAN_PRICES: Record<
-  PlanTier,
-  Record<CurrencyCode, { monthly: number; annualMonthlyEq: number; annualTotal: number }>
+const FALLBACK_PLAN_DEFS: Array<Omit<SubscriptionPlanCatalogItem, 'price'>> = [
+  {
+    id: 'personal',
+    slug: 'personal',
+    accountScope: 'personal',
+    name: 'Plano Particular',
+    description: 'Para proprietários individuais com 1 veículo e Passaporte Digital verificado.',
+    vehicleLimit: 1,
+    allowFleetPanel: false,
+    allowTeamMembers: false,
+    maxTeamMembers: 1,
+    features: [
+      '1 veículo cadastrado',
+      'Passaporte Digital do Veículo',
+      'Histórico imutável de quilometragem',
+      'Histórico de manutenção e despesas',
+      'Documentos e notas fiscais privados',
+      'Alertas preventivos por data e km',
+      'QR Code para consulta e compartilhamento autorizado',
+    ],
+    sortOrder: 1,
+  },
+  {
+    id: 'fleet_10',
+    slug: 'fleet-10',
+    accountScope: 'business',
+    name: 'Plano Frotas 10',
+    description: 'Painel central empresarial para até 10 carros e motocicletas com gestão de equipe.',
+    vehicleLimit: 10,
+    allowFleetPanel: true,
+    allowTeamMembers: true,
+    maxTeamMembers: 10,
+    features: [
+      'Até 10 veículos (carros e motos)',
+      'Painel central de gestão empresarial',
+      'Histórico individual, despesas e documentação',
+      'Controle de quilometragem e manutenção',
+      'Alertas de revisões e vencimentos',
+      'Relatórios gerais e individuais em PDF e CSV',
+      'Gestão de responsáveis e permissões por empresa',
+      'Passaporte Digital + QR Code de cada veículo',
+    ],
+    sortOrder: 2,
+  },
+  {
+    id: 'fleet_25',
+    slug: 'fleet-25',
+    accountScope: 'business',
+    name: 'Plano Frotas 25',
+    description: 'Expansão operacional para empresas com até 25 veículos ativos.',
+    vehicleLimit: 25,
+    allowFleetPanel: true,
+    allowTeamMembers: true,
+    maxTeamMembers: 25,
+    features: [
+      'Até 25 veículos na frota unificada',
+      'Todos os recursos do Plano Frotas 10',
+      'Convites de motoristas e gestores com permissões',
+      'Relatórios executivos consolidados',
+    ],
+    sortOrder: 3,
+  },
+  {
+    id: 'fleet_50',
+    slug: 'fleet-50',
+    accountScope: 'business',
+    name: 'Plano Frotas 50',
+    description: 'Escala corporativa para operações regionais com até 50 veículos.',
+    vehicleLimit: 50,
+    allowFleetPanel: true,
+    allowTeamMembers: true,
+    maxTeamMembers: 50,
+    features: [
+      'Até 50 veículos na frota unificada',
+      'Isolamento multiempresa dedicado',
+      'Permissões granulares por responsável',
+      'Auditoria de quilometragem e custos',
+    ],
+    sortOrder: 4,
+  },
+  {
+    id: 'fleet_100',
+    slug: 'fleet-100',
+    accountScope: 'business',
+    name: 'Plano Frotas 100',
+    description: 'Alta capacidade para grandes frotas, locadoras e entregas até 100 veículos.',
+    vehicleLimit: 100,
+    allowFleetPanel: true,
+    allowTeamMembers: true,
+    maxTeamMembers: 100,
+    features: [
+      'Até 100 veículos ativos',
+      'Gestão multi-equipe avançada',
+      'Exportação gerencial completa em PDF e CSV',
+      'Passaporte Digital verificável para toda a frota',
+    ],
+    sortOrder: 5,
+  },
+  {
+    id: 'enterprise',
+    slug: 'enterprise',
+    accountScope: 'business',
+    name: 'Empresarial Personalizado',
+    description: 'Acima de 100 veículos, SLA dedicado e limites configuráveis no banco.',
+    vehicleLimit: null,
+    allowFleetPanel: true,
+    allowTeamMembers: true,
+    maxTeamMembers: null,
+    features: [
+      'Acima de 100 veículos e equipes sob medida',
+      'Faturamento corporativo B2B',
+      'Impostos e contrato regional dedicados',
+      'Implantação prioritária',
+    ],
+    sortOrder: 6,
+  },
+];
+
+const FALLBACK_PRICES_BY_CURRENCY: Record<
+  CurrencyCode,
+  Record<CanonicalPlanId, Omit<PlanCountryPrice, 'planId' | 'countryCode' | 'currencyCode'>>
 > = {
-  free: {
-    BRL: { monthly: 0, annualMonthlyEq: 0, annualTotal: 0 },
-    USD: { monthly: 0, annualMonthlyEq: 0, annualTotal: 0 },
-    EUR: { monthly: 0, annualMonthlyEq: 0, annualTotal: 0 },
-    GBP: { monthly: 0, annualMonthlyEq: 0, annualTotal: 0 },
-    CAD: { monthly: 0, annualMonthlyEq: 0, annualTotal: 0 },
-    CHF: { monthly: 0, annualMonthlyEq: 0, annualTotal: 0 },
-    MXN: { monthly: 0, annualMonthlyEq: 0, annualTotal: 0 },
-    JPY: { monthly: 0, annualMonthlyEq: 0, annualTotal: 0 },
+  BRL: {
+    personal: {
+      monthlyPriceMinor: 499,
+      annualPriceMinor: 4790,
+      taxRatePercent: 0,
+      taxLabel: 'Impostos inclusos',
+      processingFeePercent: 3.99,
+      processingFeeFixedMinor: 39,
+    },
+    fleet_10: {
+      monthlyPriceMinor: 3990,
+      annualPriceMinor: 38300,
+      taxRatePercent: 0,
+      taxLabel: 'Impostos inclusos',
+      processingFeePercent: 3.99,
+      processingFeeFixedMinor: 39,
+    },
+    fleet_25: {
+      monthlyPriceMinor: 8990,
+      annualPriceMinor: 86300,
+      taxRatePercent: 0,
+      taxLabel: 'Impostos inclusos',
+      processingFeePercent: 3.99,
+      processingFeeFixedMinor: 39,
+    },
+    fleet_50: {
+      monthlyPriceMinor: 15990,
+      annualPriceMinor: 153500,
+      taxRatePercent: 0,
+      taxLabel: 'Impostos inclusos',
+      processingFeePercent: 3.99,
+      processingFeeFixedMinor: 39,
+    },
+    fleet_100: {
+      monthlyPriceMinor: 27990,
+      annualPriceMinor: 268700,
+      taxRatePercent: 0,
+      taxLabel: 'Impostos inclusos',
+      processingFeePercent: 3.99,
+      processingFeeFixedMinor: 39,
+    },
+    enterprise: {
+      monthlyPriceMinor: 49900,
+      annualPriceMinor: 479000,
+      taxRatePercent: 0,
+      taxLabel: 'Sob consulta B2B',
+      processingFeePercent: 0,
+      processingFeeFixedMinor: 0,
+    },
   },
-  plus: {
-    BRL: { monthly: 19.9, annualMonthlyEq: 15.9, annualTotal: 190.8 },
-    USD: { monthly: 4.99, annualMonthlyEq: 3.99, annualTotal: 47.88 },
-    EUR: { monthly: 4.99, annualMonthlyEq: 3.99, annualTotal: 47.88 },
-    GBP: { monthly: 3.99, annualMonthlyEq: 3.19, annualTotal: 38.28 },
-    CAD: { monthly: 6.99, annualMonthlyEq: 5.59, annualTotal: 67.08 },
-    CHF: { monthly: 4.5, annualMonthlyEq: 3.6, annualTotal: 43.2 },
-    MXN: { monthly: 89, annualMonthlyEq: 71.2, annualTotal: 854.4 },
-    JPY: { monthly: 750, annualMonthlyEq: 600, annualTotal: 7200 },
+  USD: {
+    personal: {
+      monthlyPriceMinor: 299,
+      annualPriceMinor: 2870,
+      taxRatePercent: 0,
+      taxLabel: 'Local taxes may apply',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_10: {
+      monthlyPriceMinor: 1490,
+      annualPriceMinor: 14300,
+      taxRatePercent: 0,
+      taxLabel: 'Local taxes may apply',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_25: {
+      monthlyPriceMinor: 2990,
+      annualPriceMinor: 28700,
+      taxRatePercent: 0,
+      taxLabel: 'Local taxes may apply',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_50: {
+      monthlyPriceMinor: 5490,
+      annualPriceMinor: 52700,
+      taxRatePercent: 0,
+      taxLabel: 'Local taxes may apply',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_100: {
+      monthlyPriceMinor: 9990,
+      annualPriceMinor: 95900,
+      taxRatePercent: 0,
+      taxLabel: 'Local taxes may apply',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    enterprise: {
+      monthlyPriceMinor: 19900,
+      annualPriceMinor: 191000,
+      taxRatePercent: 0,
+      taxLabel: 'Custom Enterprise',
+      processingFeePercent: 0,
+      processingFeeFixedMinor: 0,
+    },
   },
-  fleet: {
-    BRL: { monthly: 149, annualMonthlyEq: 119, annualTotal: 1428 },
-    USD: { monthly: 29.9, annualMonthlyEq: 23.9, annualTotal: 286.8 },
-    EUR: { monthly: 27.9, annualMonthlyEq: 22.3, annualTotal: 267.6 },
-    GBP: { monthly: 24.9, annualMonthlyEq: 19.9, annualTotal: 238.8 },
-    CAD: { monthly: 39.9, annualMonthlyEq: 31.9, annualTotal: 382.8 },
-    CHF: { monthly: 26.9, annualMonthlyEq: 21.5, annualTotal: 258 },
-    MXN: { monthly: 549, annualMonthlyEq: 439, annualTotal: 5268 },
-    JPY: { monthly: 4500, annualMonthlyEq: 3600, annualTotal: 43200 },
+  EUR: {
+    personal: {
+      monthlyPriceMinor: 299,
+      annualPriceMinor: 2870,
+      taxRatePercent: 21,
+      taxLabel: 'VAT / IVA estimada',
+      processingFeePercent: 2.5,
+      processingFeeFixedMinor: 25,
+    },
+    fleet_10: {
+      monthlyPriceMinor: 1390,
+      annualPriceMinor: 13340,
+      taxRatePercent: 21,
+      taxLabel: 'VAT / IVA estimada',
+      processingFeePercent: 2.5,
+      processingFeeFixedMinor: 25,
+    },
+    fleet_25: {
+      monthlyPriceMinor: 2790,
+      annualPriceMinor: 26780,
+      taxRatePercent: 21,
+      taxLabel: 'VAT / IVA estimada',
+      processingFeePercent: 2.5,
+      processingFeeFixedMinor: 25,
+    },
+    fleet_50: {
+      monthlyPriceMinor: 4990,
+      annualPriceMinor: 47900,
+      taxRatePercent: 21,
+      taxLabel: 'VAT / IVA estimada',
+      processingFeePercent: 2.5,
+      processingFeeFixedMinor: 25,
+    },
+    fleet_100: {
+      monthlyPriceMinor: 8990,
+      annualPriceMinor: 86300,
+      taxRatePercent: 21,
+      taxLabel: 'VAT / IVA estimada',
+      processingFeePercent: 2.5,
+      processingFeeFixedMinor: 25,
+    },
+    enterprise: {
+      monthlyPriceMinor: 17900,
+      annualPriceMinor: 171800,
+      taxRatePercent: 21,
+      taxLabel: 'VAT / IVA B2B',
+      processingFeePercent: 0,
+      processingFeeFixedMinor: 0,
+    },
+  },
+  GBP: {
+    personal: {
+      monthlyPriceMinor: 249,
+      annualPriceMinor: 2390,
+      taxRatePercent: 20,
+      taxLabel: 'UK VAT (20%)',
+      processingFeePercent: 2.5,
+      processingFeeFixedMinor: 20,
+    },
+    fleet_10: {
+      monthlyPriceMinor: 1190,
+      annualPriceMinor: 11420,
+      taxRatePercent: 20,
+      taxLabel: 'UK VAT (20%)',
+      processingFeePercent: 2.5,
+      processingFeeFixedMinor: 20,
+    },
+    fleet_25: {
+      monthlyPriceMinor: 2390,
+      annualPriceMinor: 22940,
+      taxRatePercent: 20,
+      taxLabel: 'UK VAT (20%)',
+      processingFeePercent: 2.5,
+      processingFeeFixedMinor: 20,
+    },
+    fleet_50: {
+      monthlyPriceMinor: 4290,
+      annualPriceMinor: 41180,
+      taxRatePercent: 20,
+      taxLabel: 'UK VAT (20%)',
+      processingFeePercent: 2.5,
+      processingFeeFixedMinor: 20,
+    },
+    fleet_100: {
+      monthlyPriceMinor: 7990,
+      annualPriceMinor: 76700,
+      taxRatePercent: 20,
+      taxLabel: 'UK VAT (20%)',
+      processingFeePercent: 2.5,
+      processingFeeFixedMinor: 20,
+    },
+    enterprise: {
+      monthlyPriceMinor: 15900,
+      annualPriceMinor: 152600,
+      taxRatePercent: 20,
+      taxLabel: 'UK VAT (20%)',
+      processingFeePercent: 0,
+      processingFeeFixedMinor: 0,
+    },
+  },
+  CAD: {
+    personal: {
+      monthlyPriceMinor: 399,
+      annualPriceMinor: 3830,
+      taxRatePercent: 5,
+      taxLabel: 'GST (5%)',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_10: {
+      monthlyPriceMinor: 1990,
+      annualPriceMinor: 19100,
+      taxRatePercent: 5,
+      taxLabel: 'GST (5%)',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_25: {
+      monthlyPriceMinor: 3990,
+      annualPriceMinor: 38300,
+      taxRatePercent: 5,
+      taxLabel: 'GST (5%)',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_50: {
+      monthlyPriceMinor: 7290,
+      annualPriceMinor: 69980,
+      taxRatePercent: 5,
+      taxLabel: 'GST (5%)',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_100: {
+      monthlyPriceMinor: 12990,
+      annualPriceMinor: 124700,
+      taxRatePercent: 5,
+      taxLabel: 'GST (5%)',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    enterprise: {
+      monthlyPriceMinor: 24900,
+      annualPriceMinor: 239000,
+      taxRatePercent: 5,
+      taxLabel: 'GST (5%)',
+      processingFeePercent: 0,
+      processingFeeFixedMinor: 0,
+    },
+  },
+  CHF: {
+    personal: {
+      monthlyPriceMinor: 290,
+      annualPriceMinor: 2780,
+      taxRatePercent: 8.1,
+      taxLabel: 'MWST (8.1%)',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_10: {
+      monthlyPriceMinor: 1390,
+      annualPriceMinor: 13340,
+      taxRatePercent: 8.1,
+      taxLabel: 'MWST (8.1%)',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_25: {
+      monthlyPriceMinor: 2790,
+      annualPriceMinor: 26780,
+      taxRatePercent: 8.1,
+      taxLabel: 'MWST (8.1%)',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_50: {
+      monthlyPriceMinor: 4990,
+      annualPriceMinor: 47900,
+      taxRatePercent: 8.1,
+      taxLabel: 'MWST (8.1%)',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    fleet_100: {
+      monthlyPriceMinor: 8990,
+      annualPriceMinor: 86300,
+      taxRatePercent: 8.1,
+      taxLabel: 'MWST (8.1%)',
+      processingFeePercent: 2.9,
+      processingFeeFixedMinor: 30,
+    },
+    enterprise: {
+      monthlyPriceMinor: 17900,
+      annualPriceMinor: 171800,
+      taxRatePercent: 8.1,
+      taxLabel: 'MWST (8.1%)',
+      processingFeePercent: 0,
+      processingFeeFixedMinor: 0,
+    },
+  },
+  MXN: {
+    personal: {
+      monthlyPriceMinor: 4900,
+      annualPriceMinor: 47000,
+      taxRatePercent: 16,
+      taxLabel: 'IVA (16%)',
+      processingFeePercent: 3.6,
+      processingFeeFixedMinor: 300,
+    },
+    fleet_10: {
+      monthlyPriceMinor: 29900,
+      annualPriceMinor: 287000,
+      taxRatePercent: 16,
+      taxLabel: 'IVA (16%)',
+      processingFeePercent: 3.6,
+      processingFeeFixedMinor: 300,
+    },
+    fleet_25: {
+      monthlyPriceMinor: 59900,
+      annualPriceMinor: 575000,
+      taxRatePercent: 16,
+      taxLabel: 'IVA (16%)',
+      processingFeePercent: 3.6,
+      processingFeeFixedMinor: 300,
+    },
+    fleet_50: {
+      monthlyPriceMinor: 109900,
+      annualPriceMinor: 1055000,
+      taxRatePercent: 16,
+      taxLabel: 'IVA (16%)',
+      processingFeePercent: 3.6,
+      processingFeeFixedMinor: 300,
+    },
+    fleet_100: {
+      monthlyPriceMinor: 199900,
+      annualPriceMinor: 1919000,
+      taxRatePercent: 16,
+      taxLabel: 'IVA (16%)',
+      processingFeePercent: 3.6,
+      processingFeeFixedMinor: 300,
+    },
+    enterprise: {
+      monthlyPriceMinor: 349900,
+      annualPriceMinor: 3359000,
+      taxRatePercent: 16,
+      taxLabel: 'IVA (16%)',
+      processingFeePercent: 0,
+      processingFeeFixedMinor: 0,
+    },
+  },
+  JPY: {
+    personal: {
+      monthlyPriceMinor: 390,
+      annualPriceMinor: 3740,
+      taxRatePercent: 10,
+      taxLabel: 'Consumption Tax (10%)',
+      processingFeePercent: 3.6,
+      processingFeeFixedMinor: 0,
+    },
+    fleet_10: {
+      monthlyPriceMinor: 1980,
+      annualPriceMinor: 19000,
+      taxRatePercent: 10,
+      taxLabel: 'Consumption Tax (10%)',
+      processingFeePercent: 3.6,
+      processingFeeFixedMinor: 0,
+    },
+    fleet_25: {
+      monthlyPriceMinor: 3980,
+      annualPriceMinor: 38200,
+      taxRatePercent: 10,
+      taxLabel: 'Consumption Tax (10%)',
+      processingFeePercent: 3.6,
+      processingFeeFixedMinor: 0,
+    },
+    fleet_50: {
+      monthlyPriceMinor: 7480,
+      annualPriceMinor: 71800,
+      taxRatePercent: 10,
+      taxLabel: 'Consumption Tax (10%)',
+      processingFeePercent: 3.6,
+      processingFeeFixedMinor: 0,
+    },
+    fleet_100: {
+      monthlyPriceMinor: 13800,
+      annualPriceMinor: 132480,
+      taxRatePercent: 10,
+      taxLabel: 'Consumption Tax (10%)',
+      processingFeePercent: 3.6,
+      processingFeeFixedMinor: 0,
+    },
+    enterprise: {
+      monthlyPriceMinor: 24800,
+      annualPriceMinor: 238080,
+      taxRatePercent: 10,
+      taxLabel: 'Consumption Tax (10%)',
+      processingFeePercent: 0,
+      processingFeeFixedMinor: 0,
+    },
   },
 };
 
-export function getLocalizedPlanPrice(
-  planId: PlanTier,
-  currency: CurrencyCode,
-  cycle: BillingCycle
-): { displayMonthly: number; billedTotal: number } {
-  const row = LOCALIZED_PLAN_PRICES[planId][currency] ?? LOCALIZED_PLAN_PRICES[planId].USD;
-  if (cycle === 'annual') {
-    return { displayMonthly: row.annualMonthlyEq, billedTotal: row.annualTotal };
-  }
-  return { displayMonthly: row.monthly, billedTotal: row.monthly };
+export function buildFallbackPlanCatalog(
+  countryCode: CountryCode,
+  currency: CurrencyCode
+): SubscriptionPlanCatalogItem[] {
+  const currSet = FALLBACK_PRICES_BY_CURRENCY[currency] ?? FALLBACK_PRICES_BY_CURRENCY.USD;
+  return FALLBACK_PLAN_DEFS.map((def) => {
+    const p = currSet[def.id];
+    return {
+      ...def,
+      price: {
+        planId: def.id,
+        countryCode,
+        currencyCode: currency,
+        ...p,
+      },
+    };
+  });
 }
 
 export const PAYMENT_METHOD_LABELS: Record<

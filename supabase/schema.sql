@@ -296,10 +296,22 @@ create table if not exists public.user_preferences (
 );
 
 alter table public.user_preferences
-  add column if not exists active_plan text not null default 'free',
+  add column if not exists active_plan text not null default 'personal',
+  add column if not exists country_code text not null default 'BR',
   add column if not exists whatsapp_number text not null default '',
   add column if not exists created_at timestamptz not null default now(),
   add column if not exists updated_at timestamptz not null default now();
+
+alter table public.user_preferences
+  drop constraint if exists user_preferences_active_plan_check;
+
+alter table public.user_preferences
+  add constraint user_preferences_active_plan_check check (
+    active_plan in (
+      'free', 'plus', 'fleet',
+      'personal', 'fleet_10', 'fleet_25', 'fleet_50', 'fleet_100', 'enterprise'
+    )
+  );
 
 drop trigger if exists trg_user_preferences_updated on public.user_preferences;
 create trigger trg_user_preferences_updated
@@ -359,15 +371,400 @@ create policy "Users manage own push subscriptions"
   with check (auth.uid() = user_id);
 
 -- ============================================================================
+-- ABA 6 — MONETIZACAO INTERNACIONAL, ASSINATURAS & GESTAO DE FROTAS B2B
+-- ============================================================================
+create table if not exists public.subscription_plans (
+  id text primary key,
+  slug text unique not null,
+  account_scope text not null check (account_scope in ('personal', 'business')),
+  name text not null,
+  description text not null,
+  vehicle_limit integer check (vehicle_limit is null or vehicle_limit > 0),
+  allow_fleet_panel boolean not null default false,
+  allow_team_members boolean not null default false,
+  max_team_members integer,
+  features jsonb not null default '[]'::jsonb,
+  sort_order integer not null default 0,
+  is_active boolean not null default true,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.subscription_plans enable row level security;
+
+drop policy if exists "Anyone reads active subscription plans" on public.subscription_plans;
+create policy "Anyone reads active subscription plans"
+  on public.subscription_plans for select
+  using (is_active = true);
+
+create table if not exists public.plan_country_prices (
+  id uuid primary key default gen_random_uuid(),
+  plan_id text not null references public.subscription_plans (id) on delete cascade,
+  country_code text not null,
+  currency_code text not null check (currency_code in ('BRL', 'USD', 'EUR', 'GBP', 'CAD', 'CHF', 'MXN', 'JPY')),
+  monthly_price_minor integer not null check (monthly_price_minor >= 0),
+  annual_price_minor integer not null check (annual_price_minor >= 0),
+  tax_rate_percent numeric(5, 2) not null default 0 check (tax_rate_percent >= 0),
+  tax_label text not null default '',
+  processing_fee_percent numeric(5, 2) not null default 0 check (processing_fee_percent >= 0),
+  processing_fee_fixed_minor integer not null default 0 check (processing_fee_fixed_minor >= 0),
+  is_active boolean not null default true,
+  updated_at timestamptz not null default now(),
+  unique (plan_id, country_code, currency_code)
+);
+
+alter table public.plan_country_prices enable row level security;
+
+drop policy if exists "Anyone reads active plan country prices" on public.plan_country_prices;
+create policy "Anyone reads active plan country prices"
+  on public.plan_country_prices for select
+  using (is_active = true);
+
+-- Idempotent seed of configurable plans & international prices
+insert into public.subscription_plans (
+  id, slug, account_scope, name, description, vehicle_limit,
+  allow_fleet_panel, allow_team_members, max_team_members, features, sort_order, is_active
+) values
+  (
+    'personal', 'personal', 'personal',
+    'Plano Particular',
+    'Para proprietários individuais com 1 veículo e Passaporte Digital verificado.',
+    1, false, false, 1,
+    '["1 veículo cadastrado","Passaporte Digital do Veículo","Histórico imutável de quilometragem","Histórico completo de manutenção","Documentos e notas fiscais privados","Alertas preventivos por data e km","QR Code para consulta","Compartilhamento autorizado do histórico"]'::jsonb,
+    1, true
+  ),
+  (
+    'fleet_10', 'fleet-10', 'business',
+    'Plano Frotas 10',
+    'Painel central empresarial para até 10 carros e motocicletas com gestão de equipe.',
+    10, true, true, 10,
+    '["Até 10 veículos (carros e motos)","Painel central de gestão empresarial","Histórico individual e geral de despesas","Controle de quilometragem e manutenção","Documentação e alertas de vencimento","Relatórios gerais e individuais em PDF/CSV","Gestão de responsáveis e permissões","Passaporte Digital + QR Code por veículo"]'::jsonb,
+    2, true
+  ),
+  (
+    'fleet_25', 'fleet-25', 'business',
+    'Plano Frotas 25',
+    'Expansão operacional para empresas com até 25 veículos ativos.',
+    25, true, true, 25,
+    '["Até 25 veículos na frota unificada","Todos os recursos do Plano Frotas 10","Convites ilimitados de motoristas e gestores","Relatórios executivos por centro de custo"]'::jsonb,
+    3, true
+  ),
+  (
+    'fleet_50', 'fleet-50', 'business',
+    'Plano Frotas 50',
+    'Escala corporativa para operações regionais com até 50 veículos.',
+    50, true, true, 50,
+    '["Até 50 veículos na frota unificada","Isolamento multiempresa dedicado","Permissões granulares por responsável","Auditoria completa de quilometragem e custos"]'::jsonb,
+    4, true
+  ),
+  (
+    'fleet_100', 'fleet-100', 'business',
+    'Plano Frotas 100',
+    'Alta capacidade para grandes frotas, locadoras e entregas urbanas até 100 veículos.',
+    100, true, true, 100,
+    '["Até 100 veículos ativos","Gestão multi-equipe avançada","Exportação gerencial completa em PDF e CSV","Passaporte Digital verificável para toda a frota"]'::jsonb,
+    5, true
+  ),
+  (
+    'enterprise', 'enterprise', 'business',
+    'Empresarial Personalizado',
+    'Acima de 100 veículos, SLA dedicado e limites sob medida no banco de dados.',
+    null, true, true, null,
+    '["Veículos e equipes sob medida","Contrato corporativo global","Impostos e faturamento B2B dedicados","Suporte prioritário de implantação"]'::jsonb,
+    6, true
+  )
+on conflict (id) do update set
+  account_scope = excluded.account_scope,
+  name = excluded.name,
+  description = excluded.description,
+  vehicle_limit = excluded.vehicle_limit,
+  allow_fleet_panel = excluded.allow_fleet_panel,
+  allow_team_members = excluded.allow_team_members,
+  max_team_members = excluded.max_team_members,
+  features = excluded.features,
+  sort_order = excluded.sort_order,
+  is_active = excluded.is_active;
+
+insert into public.plan_country_prices (
+  plan_id, country_code, currency_code, monthly_price_minor, annual_price_minor,
+  tax_rate_percent, tax_label, processing_fee_percent, processing_fee_fixed_minor, is_active
+) values
+  -- Brasil (BRL)
+  ('personal', 'BR', 'BRL', 499, 4790, 0.00, 'Impostos inclusos', 3.99, 39, true),
+  ('fleet_10', 'BR', 'BRL', 3990, 38300, 0.00, 'Impostos inclusos', 3.99, 39, true),
+  ('fleet_25', 'BR', 'BRL', 8990, 86300, 0.00, 'Impostos inclusos', 3.99, 39, true),
+  ('fleet_50', 'BR', 'BRL', 15990, 153500, 0.00, 'Impostos inclusos', 3.99, 39, true),
+  ('fleet_100', 'BR', 'BRL', 27990, 268700, 0.00, 'Impostos inclusos', 3.99, 39, true),
+  ('enterprise', 'BR', 'BRL', 49900, 479000, 0.00, 'Sob consulta B2B', 0.00, 0, true),
+  -- Estados Unidos / Global (USD)
+  ('personal', 'US', 'USD', 299, 2870, 0.00, 'Est. Sales Tax at checkout', 2.90, 30, true),
+  ('fleet_10', 'US', 'USD', 1490, 14300, 0.00, 'Est. Sales Tax at checkout', 2.90, 30, true),
+  ('fleet_25', 'US', 'USD', 2990, 28700, 0.00, 'Est. Sales Tax at checkout', 2.90, 30, true),
+  ('fleet_50', 'US', 'USD', 5490, 52700, 0.00, 'Est. Sales Tax at checkout', 2.90, 30, true),
+  ('fleet_100', 'US', 'USD', 9990, 95900, 0.00, 'Est. Sales Tax at checkout', 2.90, 30, true),
+  ('enterprise', 'US', 'USD', 19900, 191000, 0.00, 'Custom Enterprise', 0.00, 0, true),
+  ('personal', 'GLOBAL', 'USD', 299, 2870, 0.00, 'Local taxes may apply', 3.40, 30, true),
+  ('fleet_10', 'GLOBAL', 'USD', 1490, 14300, 0.00, 'Local taxes may apply', 3.40, 30, true),
+  ('fleet_25', 'GLOBAL', 'USD', 2990, 28700, 0.00, 'Local taxes may apply', 3.40, 30, true),
+  ('fleet_50', 'GLOBAL', 'USD', 5490, 52700, 0.00, 'Local taxes may apply', 3.40, 30, true),
+  ('fleet_100', 'GLOBAL', 'USD', 9990, 95900, 0.00, 'Local taxes may apply', 3.40, 30, true),
+  ('enterprise', 'GLOBAL', 'USD', 19900, 191000, 0.00, 'Custom Enterprise', 0.00, 0, true),
+  -- Zona do Euro (EUR: PT, ES, DE, FR, EU)
+  ('personal', 'EU', 'EUR', 299, 2870, 21.00, 'VAT / IVA estimada', 2.50, 25, true),
+  ('fleet_10', 'EU', 'EUR', 1390, 13340, 21.00, 'VAT / IVA estimada', 2.50, 25, true),
+  ('fleet_25', 'EU', 'EUR', 2790, 26780, 21.00, 'VAT / IVA estimada', 2.50, 25, true),
+  ('fleet_50', 'EU', 'EUR', 4990, 47900, 21.00, 'VAT / IVA estimada', 2.50, 25, true),
+  ('fleet_100', 'EU', 'EUR', 8990, 86300, 21.00, 'VAT / IVA estimada', 2.50, 25, true),
+  ('enterprise', 'EU', 'EUR', 17900, 171800, 21.00, 'VAT / IVA B2B', 0.00, 0, true),
+  ('personal', 'PT', 'EUR', 299, 2870, 23.00, 'IVA (23%)', 2.50, 25, true),
+  ('fleet_10', 'PT', 'EUR', 1390, 13340, 23.00, 'IVA (23%)', 2.50, 25, true),
+  ('fleet_25', 'PT', 'EUR', 2790, 26780, 23.00, 'IVA (23%)', 2.50, 25, true),
+  ('fleet_50', 'PT', 'EUR', 4990, 47900, 23.00, 'IVA (23%)', 2.50, 25, true),
+  ('fleet_100', 'PT', 'EUR', 8990, 86300, 23.00, 'IVA (23%)', 2.50, 25, true),
+  ('personal', 'DE', 'EUR', 299, 2870, 19.00, 'MwSt (19%)', 2.50, 25, true),
+  ('fleet_10', 'DE', 'EUR', 1390, 13340, 19.00, 'MwSt (19%)', 2.50, 25, true),
+  ('personal', 'ES', 'EUR', 299, 2870, 21.00, 'IVA (21%)', 2.50, 25, true),
+  ('fleet_10', 'ES', 'EUR', 1390, 13340, 21.00, 'IVA (21%)', 2.50, 25, true),
+  ('personal', 'FR', 'EUR', 299, 2870, 20.00, 'TVA (20%)', 2.50, 25, true),
+  ('fleet_10', 'FR', 'EUR', 1390, 13340, 20.00, 'TVA (20%)', 2.50, 25, true),
+  -- Reino Unido (GBP)
+  ('personal', 'GB', 'GBP', 249, 2390, 20.00, 'UK VAT (20%)', 2.50, 20, true),
+  ('fleet_10', 'GB', 'GBP', 1190, 11420, 20.00, 'UK VAT (20%)', 2.50, 20, true),
+  ('fleet_25', 'GB', 'GBP', 2390, 22940, 20.00, 'UK VAT (20%)', 2.50, 20, true),
+  ('fleet_50', 'GB', 'GBP', 4290, 41180, 20.00, 'UK VAT (20%)', 2.50, 20, true),
+  ('fleet_100', 'GB', 'GBP', 7990, 76700, 20.00, 'UK VAT (20%)', 2.50, 20, true),
+  ('enterprise', 'GB', 'GBP', 15900, 152600, 20.00, 'UK VAT (20%)', 0.00, 0, true),
+  -- Canada, Suica, Mexico, Japao
+  ('personal', 'CA', 'CAD', 399, 3830, 5.00, 'GST (5%)', 2.90, 30, true),
+  ('fleet_10', 'CA', 'CAD', 1990, 19100, 5.00, 'GST (5%)', 2.90, 30, true),
+  ('personal', 'CH', 'CHF', 290, 2780, 8.10, 'MWST (8.1%)', 2.90, 30, true),
+  ('fleet_10', 'CH', 'CHF', 1390, 13340, 8.10, 'MWST (8.1%)', 2.90, 30, true),
+  ('personal', 'MX', 'MXN', 4900, 47000, 16.00, 'IVA (16%)', 3.60, 300, true),
+  ('fleet_10', 'MX', 'MXN', 29900, 287000, 16.00, 'IVA (16%)', 3.60, 300, true),
+  ('personal', 'JP', 'JPY', 390, 3740, 10.00, 'Consumption Tax (10%)', 3.60, 0, true),
+  ('fleet_10', 'JP', 'JPY', 1980, 19000, 10.00, 'Consumption Tax (10%)', 3.60, 0, true)
+on conflict (plan_id, country_code, currency_code) do update set
+  monthly_price_minor = excluded.monthly_price_minor,
+  annual_price_minor = excluded.annual_price_minor,
+  tax_rate_percent = excluded.tax_rate_percent,
+  tax_label = excluded.tax_label,
+  processing_fee_percent = excluded.processing_fee_percent,
+  processing_fee_fixed_minor = excluded.processing_fee_fixed_minor,
+  is_active = excluded.is_active;
+
+create table if not exists public.user_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique references auth.users (id) on delete cascade,
+  plan_id text not null references public.subscription_plans (id),
+  country_code text not null default 'BR',
+  currency_code text not null default 'BRL',
+  billing_cycle text not null default 'monthly' check (billing_cycle in ('monthly', 'annual')),
+  status text not null default 'active' check (status in ('trialing', 'active', 'past_due', 'grace_period', 'canceled', 'expired')),
+  auto_renew boolean not null default true,
+  current_period_start timestamptz not null default now(),
+  current_period_end timestamptz not null default (now() + interval '30 days'),
+  grace_period_end timestamptz,
+  canceled_at timestamptz,
+  provider text not null default 'manual',
+  provider_subscription_id text,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_subscriptions enable row level security;
+
+drop policy if exists "Users manage own subscription" on public.user_subscriptions;
+create policy "Users manage own subscription"
+  on public.user_subscriptions for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create table if not exists public.subscription_payments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  subscription_id uuid references public.user_subscriptions (id) on delete set null,
+  plan_id text not null references public.subscription_plans (id),
+  amount_minor integer not null check (amount_minor >= 0),
+  tax_minor integer not null default 0,
+  processing_fee_minor integer not null default 0,
+  currency_code text not null,
+  country_code text not null default 'BR',
+  payment_method text not null,
+  provider text not null,
+  provider_payment_id text,
+  status text not null check (status in ('paid', 'pending', 'failed', 'refunded')),
+  paid_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_sub_payments_user on public.subscription_payments (user_id, created_at desc);
+
+alter table public.subscription_payments enable row level security;
+
+drop policy if exists "Users view own subscription payments" on public.subscription_payments;
+create policy "Users view own subscription payments"
+  on public.subscription_payments for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- Multi-tenant Organizations & Employees (strict isolation per company)
+create table if not exists public.organizations (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid not null references auth.users (id) on delete cascade,
+  name text not null,
+  tax_id text default '',
+  country_code text not null default 'BR',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.organization_members (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations (id) on delete cascade,
+  user_id uuid references auth.users (id) on delete set null,
+  member_email text not null,
+  member_name text not null default '',
+  role text not null check (role in ('admin', 'fleet_manager', 'driver', 'viewer')),
+  permissions jsonb not null default '{"canViewVehicles": true, "canEditVehicles": false, "canLogMaintenance": true, "canViewExpenses": false, "canManageTeam": false}'::jsonb,
+  invite_status text not null default 'pending' check (invite_status in ('pending', 'active', 'revoked')),
+  invite_token text unique not null default encode(gen_random_bytes(16), 'hex'),
+  invited_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (organization_id, member_email)
+);
+
+create or replace function public.user_has_org_access(target_org_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.organizations o
+    where o.id = target_org_id and o.owner_user_id = auth.uid()
+  )
+  or exists (
+    select 1 from public.organization_members m
+    where m.organization_id = target_org_id
+      and m.invite_status = 'active'
+      and (m.user_id = auth.uid() or lower(m.member_email) = lower(coalesce(auth.jwt() ->> 'email', '')))
+  );
+$$;
+
+alter table public.organizations enable row level security;
+alter table public.organization_members enable row level security;
+
+drop policy if exists "Owners and active members access organization" on public.organizations;
+create policy "Owners and active members access organization"
+  on public.organizations for select
+  using (public.user_has_org_access(id));
+
+drop policy if exists "Owners manage organization" on public.organizations;
+create policy "Owners manage organization"
+  on public.organizations for all
+  using (auth.uid() = owner_user_id)
+  with check (auth.uid() = owner_user_id);
+
+drop policy if exists "Org owners and admins manage members" on public.organization_members;
+create policy "Org owners and admins manage members"
+  on public.organization_members for all
+  using (
+    exists (
+      select 1 from public.organizations o
+      where o.id = organization_id and o.owner_user_id = auth.uid()
+    )
+    or user_id = auth.uid()
+    or lower(member_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  )
+  with check (
+    exists (
+      select 1 from public.organizations o
+      where o.id = organization_id and o.owner_user_id = auth.uid()
+    )
+  );
+
+-- Extend vehicles for multi-tenant isolation & responsible assignee
+alter table public.vehicles
+  add column if not exists organization_id uuid references public.organizations (id) on delete set null,
+  add column if not exists assigned_member_name text default '',
+  add column if not exists assigned_member_email text default '';
+
+drop policy if exists "Users manage own vehicles" on public.vehicles;
+create policy "Users manage own vehicles"
+  on public.vehicles for all
+  using (
+    auth.uid() = user_id
+    or (organization_id is not null and public.user_has_org_access(organization_id))
+  )
+  with check (
+    auth.uid() = user_id
+    or (organization_id is not null and public.user_has_org_access(organization_id))
+  );
+
+-- Immutable Odometer History (append-only, no UPDATE policy)
+create table if not exists public.odometer_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  vehicle_id text not null references public.vehicles (id) on delete cascade,
+  odometer_km integer not null check (odometer_km >= 0),
+  source text not null default 'manual' check (source in ('initial', 'manual', 'service_log', 'inspection')),
+  recorded_at timestamptz not null default now()
+);
+
+create index if not exists idx_odometer_vehicle_time on public.odometer_events (vehicle_id, recorded_at asc);
+
+alter table public.odometer_events enable row level security;
+
+drop policy if exists "Users read own odometer events" on public.odometer_events;
+create policy "Users read own odometer events"
+  on public.odometer_events for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users append own odometer events" on public.odometer_events;
+create policy "Users append own odometer events"
+  on public.odometer_events for insert
+  with check (auth.uid() = user_id);
+
+-- Digital Vehicle Passport Authorized Shares & QR Code Verification
+create table if not exists public.vehicle_passport_shares (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  vehicle_id text not null references public.vehicles (id) on delete cascade,
+  share_token text unique not null default encode(gen_random_bytes(16), 'hex'),
+  is_active boolean not null default true,
+  include_expenses boolean not null default false,
+  include_documents boolean not null default true,
+  passport_snapshot jsonb not null default '{}'::jsonb,
+  expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.vehicle_passport_shares enable row level security;
+
+drop policy if exists "Owners manage own passport shares" on public.vehicle_passport_shares;
+create policy "Owners manage own passport shares"
+  on public.vehicle_passport_shares for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Public reads active shared passport snapshot" on public.vehicle_passport_shares;
+create policy "Public reads active shared passport snapshot"
+  on public.vehicle_passport_shares for select
+  using (is_active = true and (expires_at is null or expires_at > now()));
+
+-- ============================================================================
 -- VERIFICACAO FINAL (Tabelas, RLS ativo e Bucket privado vehicle-attachments)
 -- ============================================================================
 select
   (select count(*) from information_schema.tables where table_schema = 'public' and table_name in (
     'vehicles', 'maintenance_items', 'service_logs', 'vehicle_attachments',
-    'charging_sessions', 'user_preferences', 'push_subscriptions'
+    'charging_sessions', 'user_preferences', 'push_subscriptions',
+    'subscription_plans', 'plan_country_prices', 'user_subscriptions', 'subscription_payments',
+    'organizations', 'organization_members', 'odometer_events', 'vehicle_passport_shares'
   )) as tabelas_criadas,
   (select count(*) from pg_tables where schemaname = 'public' and rowsecurity = true and tablename in (
     'vehicles', 'maintenance_items', 'service_logs', 'vehicle_attachments',
-    'charging_sessions', 'user_preferences', 'push_subscriptions'
+    'charging_sessions', 'user_preferences', 'push_subscriptions',
+    'subscription_plans', 'plan_country_prices', 'user_subscriptions', 'subscription_payments',
+    'organizations', 'organization_members', 'odometer_events', 'vehicle_passport_shares'
   )) as tabelas_com_rls_ativo,
   (select count(*) from storage.buckets where id = 'vehicle-attachments' and public = false) as bucket_privado_configurado;

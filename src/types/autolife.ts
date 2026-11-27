@@ -33,9 +33,38 @@ export type UnitSystem = 'metric' | 'imperial';
 export type CurrencyCode = 'BRL' | 'USD' | 'EUR' | 'GBP' | 'CAD' | 'CHF' | 'MXN' | 'JPY';
 export type ModuleId = 'health' | 'garage' | 'ev' | 'network' | 'settings';
 export type DrivingProfile = 'urban_severe' | 'mixed' | 'highway';
-export type PlanTier = 'free' | 'plus' | 'fleet';
+export type CanonicalPlanId =
+  | 'personal'
+  | 'fleet_10'
+  | 'fleet_25'
+  | 'fleet_50'
+  | 'fleet_100'
+  | 'enterprise';
+export type PlanTier = CanonicalPlanId | 'free' | 'plus' | 'fleet';
+export type AccountScope = 'personal' | 'business';
+export type SubscriptionStatus =
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'grace_period'
+  | 'canceled'
+  | 'expired';
 export type BillingCycle = 'monthly' | 'annual';
 export type PaymentMethodType = 'card' | 'pix' | 'sepa_debit' | 'apple_google_pay';
+export type CountryCode =
+  | 'BR'
+  | 'US'
+  | 'PT'
+  | 'ES'
+  | 'DE'
+  | 'FR'
+  | 'GB'
+  | 'CA'
+  | 'CH'
+  | 'MX'
+  | 'JP'
+  | 'EU'
+  | 'GLOBAL';
 
 export interface Vehicle {
   id: string;
@@ -59,6 +88,9 @@ export interface Vehicle {
   documentExpiryDate: string; // YYYY-MM-DD
   insuranceExpiryDate: string; // YYYY-MM-DD
   manualSpec?: VehicleManualSpec;
+  organizationId?: string;
+  assignedMemberName?: string;
+  assignedMemberEmail?: string;
 }
 
 export interface ManualSourceLink {
@@ -203,6 +235,7 @@ export interface UserPreferences {
   language: LanguageCode;
   units: UnitSystem;
   currency: CurrencyCode;
+  countryCode?: CountryCode;
   theme: 'light' | 'dark';
   oilReminderDays: number;
   tireReminderDays: number;
@@ -210,6 +243,157 @@ export interface UserPreferences {
   docReminderDays: number;
   activePlan?: PlanTier;
   whatsappNumber?: string;
+}
+
+export interface PlanCountryPrice {
+  planId: CanonicalPlanId;
+  countryCode: string;
+  currencyCode: CurrencyCode;
+  monthlyPriceMinor: number;
+  annualPriceMinor: number;
+  taxRatePercent: number;
+  taxLabel: string;
+  processingFeePercent: number;
+  processingFeeFixedMinor: number;
+}
+
+export interface SubscriptionPlanCatalogItem {
+  id: CanonicalPlanId;
+  slug: string;
+  accountScope: AccountScope;
+  name: string;
+  description: string;
+  vehicleLimit: number | null;
+  allowFleetPanel: boolean;
+  allowTeamMembers: boolean;
+  maxTeamMembers: number | null;
+  features: string[];
+  sortOrder: number;
+  price: PlanCountryPrice;
+}
+
+export interface UserSubscriptionRecord {
+  id: string;
+  userId: string;
+  planId: CanonicalPlanId;
+  countryCode: string;
+  currencyCode: CurrencyCode;
+  billingCycle: BillingCycle;
+  status: SubscriptionStatus;
+  autoRenew: boolean;
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  gracePeriodEnd?: string | null;
+  canceledAt?: string | null;
+  provider: string;
+  updatedAt: string;
+}
+
+export interface SubscriptionPaymentRecord {
+  id: string;
+  planId: CanonicalPlanId;
+  amountMinor: number;
+  taxMinor: number;
+  processingFeeMinor: number;
+  currencyCode: CurrencyCode;
+  countryCode: string;
+  paymentMethod: string;
+  provider: string;
+  providerPaymentId?: string;
+  status: 'paid' | 'pending' | 'failed' | 'refunded';
+  paidAt: string;
+}
+
+export interface OrganizationPermissions {
+  canViewVehicles: boolean;
+  canEditVehicles: boolean;
+  canLogMaintenance: boolean;
+  canViewExpenses: boolean;
+  canManageTeam: boolean;
+}
+
+export type OrganizationMemberRole = 'admin' | 'fleet_manager' | 'driver' | 'viewer';
+
+export interface OrganizationProfile {
+  id: string;
+  ownerUserId: string;
+  name: string;
+  taxId: string;
+  countryCode: string;
+  createdAt: string;
+}
+
+export interface OrganizationMember {
+  id: string;
+  organizationId: string;
+  userId?: string | null;
+  memberEmail: string;
+  memberName: string;
+  role: OrganizationMemberRole;
+  permissions: OrganizationPermissions;
+  inviteStatus: 'pending' | 'active' | 'revoked';
+  inviteToken: string;
+  createdAt: string;
+}
+
+export interface OdometerEvent {
+  id: string;
+  vehicleId: string;
+  odometerKm: number;
+  source: 'initial' | 'manual' | 'service_log' | 'inspection';
+  recordedAt: string;
+}
+
+export interface PassportSnapshotPayload {
+  vehicle: {
+    make: string;
+    model: string;
+    year: number;
+    plate: string;
+    vehicleType: VehicleType;
+    engineDisplacementCc?: number;
+    powertrain: PowertrainType;
+    odometerKm: number;
+    documentExpiryDate?: string;
+    insuranceExpiryDate?: string;
+  };
+  compliance: {
+    onTrack: number;
+    attention: number;
+    overdue: number;
+    total: number;
+  };
+  odometerHistory: Array<{
+    odometerKm: number;
+    recordedAt: string;
+    source: string;
+  }>;
+  serviceHistory: Array<{
+    date: string;
+    title: string;
+    odometerKm: number;
+    workshopName: string;
+    cost?: number;
+    currency?: CurrencyCode;
+  }>;
+  documentsSummary?: Array<{
+    fileCategory: AttachmentCategory;
+    fileName: string;
+    attachmentDate: string;
+  }>;
+  generatedAt: string;
+}
+
+export interface VehiclePassportShare {
+  id: string;
+  vehicleId: string;
+  shareToken: string;
+  isActive: boolean;
+  includeExpenses: boolean;
+  includeDocuments: boolean;
+  passportSnapshot: PassportSnapshotPayload;
+  expiresAt?: string | null;
+  createdAt: string;
 }
 
 export type AttachmentCategory =

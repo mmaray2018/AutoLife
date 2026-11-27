@@ -1037,44 +1037,562 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
     }
   });
 
-  // Multi-Currency SaaS Billing Catalog (authoritative server-side pricing in minor units)
-  const SERVER_PLAN_CATALOG: Record<
-    'plus' | 'fleet',
+  // ============================================================================
+  // International DB-Driven Billing Catalog, Subscriptions & Digital Passport
+  // ============================================================================
+  type ServerPlanId =
+    | 'personal'
+    | 'fleet_10'
+    | 'fleet_25'
+    | 'fleet_50'
+    | 'fleet_100'
+    | 'enterprise';
+
+  const CURRENCY_META_SERVER: Record<string, { symbol: string; decimals: number }> = {
+    BRL: { symbol: 'R$', decimals: 2 },
+    USD: { symbol: '$', decimals: 2 },
+    EUR: { symbol: '€', decimals: 2 },
+    GBP: { symbol: '£', decimals: 2 },
+    CAD: { symbol: 'CA$', decimals: 2 },
+    CHF: { symbol: 'CHF', decimals: 2 },
+    MXN: { symbol: 'MX$', decimals: 2 },
+    JPY: { symbol: '¥', decimals: 0 },
+  };
+
+  const COUNTRY_FALLBACK_REGION: Record<string, string> = {
+    BR: 'BR',
+    PT: 'EU',
+    ES: 'EU',
+    DE: 'EU',
+    FR: 'EU',
+    EU: 'EU',
+    US: 'GLOBAL',
+    GB: 'GLOBAL',
+    CA: 'GLOBAL',
+    CH: 'GLOBAL',
+    MX: 'GLOBAL',
+    JP: 'GLOBAL',
+    GLOBAL: 'GLOBAL',
+  };
+
+  const FALLBACK_PLANS_SERVER: Array<{
+    id: ServerPlanId;
+    slug: string;
+    accountScope: 'personal' | 'business';
+    name: string;
+    description: string;
+    vehicleLimit: number | null;
+    allowFleetPanel: boolean;
+    allowTeamMembers: boolean;
+    maxTeamMembers: number | null;
+    features: string[];
+    sortOrder: number;
+  }> = [
     {
-      name: string;
-      prices: Record<
-        string,
-        { monthlyMinor: number; annualMinor: number; zeroDecimal?: boolean; symbol: string }
-      >;
-    }
-  > = {
-    plus: {
-      name: 'AutoLife Plus (Multiveículos)',
-      prices: {
-        BRL: { monthlyMinor: 1990, annualMinor: 19080, symbol: 'R$' },
-        USD: { monthlyMinor: 499, annualMinor: 4788, symbol: '$' },
-        EUR: { monthlyMinor: 499, annualMinor: 4788, symbol: '€' },
-        GBP: { monthlyMinor: 399, annualMinor: 3828, symbol: '£' },
-        CAD: { monthlyMinor: 699, annualMinor: 6708, symbol: 'CA$' },
-        CHF: { monthlyMinor: 450, annualMinor: 4320, symbol: 'CHF' },
-        MXN: { monthlyMinor: 8900, annualMinor: 85440, symbol: 'MX$' },
-        JPY: { monthlyMinor: 750, annualMinor: 7200, zeroDecimal: true, symbol: '¥' },
-      },
+      id: 'personal',
+      slug: 'personal',
+      accountScope: 'personal',
+      name: 'Plano Particular',
+      description: 'Para proprietários individuais com 1 veículo e Passaporte Digital verificado.',
+      vehicleLimit: 1,
+      allowFleetPanel: false,
+      allowTeamMembers: false,
+      maxTeamMembers: 1,
+      features: [
+        '1 veículo cadastrado',
+        'Passaporte Digital do Veículo',
+        'Histórico imutável de quilometragem',
+        'Histórico de manutenção e despesas',
+        'Documentos e notas fiscais privados',
+        'Alertas preventivos por data e km',
+        'QR Code para consulta e compartilhamento autorizado',
+      ],
+      sortOrder: 1,
     },
-    fleet: {
-      name: 'AutoLife Frotas & Oficinas',
-      prices: {
-        BRL: { monthlyMinor: 14900, annualMinor: 142800, symbol: 'R$' },
-        USD: { monthlyMinor: 2990, annualMinor: 28680, symbol: '$' },
-        EUR: { monthlyMinor: 2790, annualMinor: 26760, symbol: '€' },
-        GBP: { monthlyMinor: 2490, annualMinor: 23880, symbol: '£' },
-        CAD: { monthlyMinor: 3990, annualMinor: 38280, symbol: 'CA$' },
-        CHF: { monthlyMinor: 2690, annualMinor: 25800, symbol: 'CHF' },
-        MXN: { monthlyMinor: 54900, annualMinor: 526800, symbol: 'MX$' },
-        JPY: { monthlyMinor: 4500, annualMinor: 43200, zeroDecimal: true, symbol: '¥' },
-      },
+    {
+      id: 'fleet_10',
+      slug: 'fleet-10',
+      accountScope: 'business',
+      name: 'Plano Frotas 10',
+      description: 'Painel central empresarial para até 10 carros e motocicletas com gestão de equipe.',
+      vehicleLimit: 10,
+      allowFleetPanel: true,
+      allowTeamMembers: true,
+      maxTeamMembers: 10,
+      features: [
+        'Até 10 veículos (carros e motos)',
+        'Painel central de gestão empresarial',
+        'Histórico individual, despesas e documentação',
+        'Controle de quilometragem e manutenção',
+        'Alertas de revisões e vencimentos',
+        'Relatórios gerais e individuais em PDF e CSV',
+        'Gestão de responsáveis e permissões por empresa',
+        'Passaporte Digital + QR Code de cada veículo',
+      ],
+      sortOrder: 2,
+    },
+    {
+      id: 'fleet_25',
+      slug: 'fleet-25',
+      accountScope: 'business',
+      name: 'Plano Frotas 25',
+      description: 'Expansão operacional para empresas com até 25 veículos ativos.',
+      vehicleLimit: 25,
+      allowFleetPanel: true,
+      allowTeamMembers: true,
+      maxTeamMembers: 25,
+      features: [
+        'Até 25 veículos na frota unificada',
+        'Todos os recursos do Plano Frotas 10',
+        'Convites de motoristas e gestores com permissões',
+        'Relatórios executivos consolidados',
+      ],
+      sortOrder: 3,
+    },
+    {
+      id: 'fleet_50',
+      slug: 'fleet-50',
+      accountScope: 'business',
+      name: 'Plano Frotas 50',
+      description: 'Escala corporativa para operações regionais com até 50 veículos.',
+      vehicleLimit: 50,
+      allowFleetPanel: true,
+      allowTeamMembers: true,
+      maxTeamMembers: 50,
+      features: [
+        'Até 50 veículos na frota unificada',
+        'Isolamento multiempresa dedicado',
+        'Permissões granulares por responsável',
+        'Auditoria de quilometragem e custos',
+      ],
+      sortOrder: 4,
+    },
+    {
+      id: 'fleet_100',
+      slug: 'fleet-100',
+      accountScope: 'business',
+      name: 'Plano Frotas 100',
+      description: 'Alta capacidade para grandes frotas, locadoras e entregas até 100 veículos.',
+      vehicleLimit: 100,
+      allowFleetPanel: true,
+      allowTeamMembers: true,
+      maxTeamMembers: 100,
+      features: [
+        'Até 100 veículos ativos',
+        'Gestão multi-equipe avançada',
+        'Exportação gerencial completa em PDF e CSV',
+        'Passaporte Digital verificável para toda a frota',
+      ],
+      sortOrder: 5,
+    },
+    {
+      id: 'enterprise',
+      slug: 'enterprise',
+      accountScope: 'business',
+      name: 'Empresarial Personalizado',
+      description: 'Acima de 100 veículos, SLA dedicado e limites configuráveis no banco.',
+      vehicleLimit: null,
+      allowFleetPanel: true,
+      allowTeamMembers: true,
+      maxTeamMembers: null,
+      features: [
+        'Acima de 100 veículos e equipes sob medida',
+        'Faturamento corporativo B2B',
+        'Impostos e contrato regional dedicados',
+        'Implantação prioritária',
+      ],
+      sortOrder: 6,
+    },
+  ];
+
+  const FALLBACK_CURRENCY_PRICES: Record<
+    string,
+    Record<
+      ServerPlanId,
+      {
+        monthlyPriceMinor: number;
+        annualPriceMinor: number;
+        taxRatePercent: number;
+        taxLabel: string;
+        processingFeePercent: number;
+        processingFeeFixedMinor: number;
+      }
+    >
+  > = {
+    BRL: {
+      personal: { monthlyPriceMinor: 499, annualPriceMinor: 4790, taxRatePercent: 0, taxLabel: 'Impostos inclusos', processingFeePercent: 3.99, processingFeeFixedMinor: 39 },
+      fleet_10: { monthlyPriceMinor: 3990, annualPriceMinor: 38300, taxRatePercent: 0, taxLabel: 'Impostos inclusos', processingFeePercent: 3.99, processingFeeFixedMinor: 39 },
+      fleet_25: { monthlyPriceMinor: 8990, annualPriceMinor: 86300, taxRatePercent: 0, taxLabel: 'Impostos inclusos', processingFeePercent: 3.99, processingFeeFixedMinor: 39 },
+      fleet_50: { monthlyPriceMinor: 15990, annualPriceMinor: 153500, taxRatePercent: 0, taxLabel: 'Impostos inclusos', processingFeePercent: 3.99, processingFeeFixedMinor: 39 },
+      fleet_100: { monthlyPriceMinor: 27990, annualPriceMinor: 268700, taxRatePercent: 0, taxLabel: 'Impostos inclusos', processingFeePercent: 3.99, processingFeeFixedMinor: 39 },
+      enterprise: { monthlyPriceMinor: 49900, annualPriceMinor: 479000, taxRatePercent: 0, taxLabel: 'Sob consulta B2B', processingFeePercent: 0, processingFeeFixedMinor: 0 },
+    },
+    USD: {
+      personal: { monthlyPriceMinor: 299, annualPriceMinor: 2870, taxRatePercent: 0, taxLabel: 'Local taxes may apply', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_10: { monthlyPriceMinor: 1490, annualPriceMinor: 14300, taxRatePercent: 0, taxLabel: 'Local taxes may apply', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_25: { monthlyPriceMinor: 2990, annualPriceMinor: 28700, taxRatePercent: 0, taxLabel: 'Local taxes may apply', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_50: { monthlyPriceMinor: 5490, annualPriceMinor: 52700, taxRatePercent: 0, taxLabel: 'Local taxes may apply', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_100: { monthlyPriceMinor: 9990, annualPriceMinor: 95900, taxRatePercent: 0, taxLabel: 'Local taxes may apply', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      enterprise: { monthlyPriceMinor: 19900, annualPriceMinor: 191000, taxRatePercent: 0, taxLabel: 'Custom Enterprise', processingFeePercent: 0, processingFeeFixedMinor: 0 },
+    },
+    EUR: {
+      personal: { monthlyPriceMinor: 299, annualPriceMinor: 2870, taxRatePercent: 21, taxLabel: 'VAT / IVA estimada', processingFeePercent: 2.5, processingFeeFixedMinor: 25 },
+      fleet_10: { monthlyPriceMinor: 1390, annualPriceMinor: 13340, taxRatePercent: 21, taxLabel: 'VAT / IVA estimada', processingFeePercent: 2.5, processingFeeFixedMinor: 25 },
+      fleet_25: { monthlyPriceMinor: 2790, annualPriceMinor: 26780, taxRatePercent: 21, taxLabel: 'VAT / IVA estimada', processingFeePercent: 2.5, processingFeeFixedMinor: 25 },
+      fleet_50: { monthlyPriceMinor: 4990, annualPriceMinor: 47900, taxRatePercent: 21, taxLabel: 'VAT / IVA estimada', processingFeePercent: 2.5, processingFeeFixedMinor: 25 },
+      fleet_100: { monthlyPriceMinor: 8990, annualPriceMinor: 86300, taxRatePercent: 21, taxLabel: 'VAT / IVA estimada', processingFeePercent: 2.5, processingFeeFixedMinor: 25 },
+      enterprise: { monthlyPriceMinor: 17900, annualPriceMinor: 171800, taxRatePercent: 21, taxLabel: 'VAT / IVA B2B', processingFeePercent: 0, processingFeeFixedMinor: 0 },
+    },
+    GBP: {
+      personal: { monthlyPriceMinor: 249, annualPriceMinor: 2390, taxRatePercent: 20, taxLabel: 'UK VAT (20%)', processingFeePercent: 2.5, processingFeeFixedMinor: 20 },
+      fleet_10: { monthlyPriceMinor: 1190, annualPriceMinor: 11420, taxRatePercent: 20, taxLabel: 'UK VAT (20%)', processingFeePercent: 2.5, processingFeeFixedMinor: 20 },
+      fleet_25: { monthlyPriceMinor: 2390, annualPriceMinor: 22940, taxRatePercent: 20, taxLabel: 'UK VAT (20%)', processingFeePercent: 2.5, processingFeeFixedMinor: 20 },
+      fleet_50: { monthlyPriceMinor: 4290, annualPriceMinor: 41180, taxRatePercent: 20, taxLabel: 'UK VAT (20%)', processingFeePercent: 2.5, processingFeeFixedMinor: 20 },
+      fleet_100: { monthlyPriceMinor: 7990, annualPriceMinor: 76700, taxRatePercent: 20, taxLabel: 'UK VAT (20%)', processingFeePercent: 2.5, processingFeeFixedMinor: 20 },
+      enterprise: { monthlyPriceMinor: 15900, annualPriceMinor: 152600, taxRatePercent: 20, taxLabel: 'UK VAT (20%)', processingFeePercent: 0, processingFeeFixedMinor: 0 },
+    },
+    CAD: {
+      personal: { monthlyPriceMinor: 399, annualPriceMinor: 3830, taxRatePercent: 5, taxLabel: 'GST (5%)', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_10: { monthlyPriceMinor: 1990, annualPriceMinor: 19100, taxRatePercent: 5, taxLabel: 'GST (5%)', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_25: { monthlyPriceMinor: 3990, annualPriceMinor: 38300, taxRatePercent: 5, taxLabel: 'GST (5%)', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_50: { monthlyPriceMinor: 7290, annualPriceMinor: 69980, taxRatePercent: 5, taxLabel: 'GST (5%)', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_100: { monthlyPriceMinor: 12990, annualPriceMinor: 124700, taxRatePercent: 5, taxLabel: 'GST (5%)', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      enterprise: { monthlyPriceMinor: 24900, annualPriceMinor: 239000, taxRatePercent: 5, taxLabel: 'GST (5%)', processingFeePercent: 0, processingFeeFixedMinor: 0 },
+    },
+    CHF: {
+      personal: { monthlyPriceMinor: 290, annualPriceMinor: 2780, taxRatePercent: 8.1, taxLabel: 'MWST (8.1%)', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_10: { monthlyPriceMinor: 1390, annualPriceMinor: 13340, taxRatePercent: 8.1, taxLabel: 'MWST (8.1%)', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_25: { monthlyPriceMinor: 2790, annualPriceMinor: 26780, taxRatePercent: 8.1, taxLabel: 'MWST (8.1%)', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_50: { monthlyPriceMinor: 4990, annualPriceMinor: 47900, taxRatePercent: 8.1, taxLabel: 'MWST (8.1%)', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      fleet_100: { monthlyPriceMinor: 8990, annualPriceMinor: 86300, taxRatePercent: 8.1, taxLabel: 'MWST (8.1%)', processingFeePercent: 2.9, processingFeeFixedMinor: 30 },
+      enterprise: { monthlyPriceMinor: 17900, annualPriceMinor: 171800, taxRatePercent: 8.1, taxLabel: 'MWST (8.1%)', processingFeePercent: 0, processingFeeFixedMinor: 0 },
+    },
+    MXN: {
+      personal: { monthlyPriceMinor: 4900, annualPriceMinor: 47000, taxRatePercent: 16, taxLabel: 'IVA (16%)', processingFeePercent: 3.6, processingFeeFixedMinor: 300 },
+      fleet_10: { monthlyPriceMinor: 29900, annualPriceMinor: 287000, taxRatePercent: 16, taxLabel: 'IVA (16%)', processingFeePercent: 3.6, processingFeeFixedMinor: 300 },
+      fleet_25: { monthlyPriceMinor: 59900, annualPriceMinor: 575000, taxRatePercent: 16, taxLabel: 'IVA (16%)', processingFeePercent: 3.6, processingFeeFixedMinor: 300 },
+      fleet_50: { monthlyPriceMinor: 109900, annualPriceMinor: 1055000, taxRatePercent: 16, taxLabel: 'IVA (16%)', processingFeePercent: 3.6, processingFeeFixedMinor: 300 },
+      fleet_100: { monthlyPriceMinor: 199900, annualPriceMinor: 1919000, taxRatePercent: 16, taxLabel: 'IVA (16%)', processingFeePercent: 3.6, processingFeeFixedMinor: 300 },
+      enterprise: { monthlyPriceMinor: 349900, annualPriceMinor: 3359000, taxRatePercent: 16, taxLabel: 'IVA (16%)', processingFeePercent: 0, processingFeeFixedMinor: 0 },
+    },
+    JPY: {
+      personal: { monthlyPriceMinor: 390, annualPriceMinor: 3740, taxRatePercent: 10, taxLabel: 'Consumption Tax (10%)', processingFeePercent: 3.6, processingFeeFixedMinor: 0 },
+      fleet_10: { monthlyPriceMinor: 1980, annualPriceMinor: 19000, taxRatePercent: 10, taxLabel: 'Consumption Tax (10%)', processingFeePercent: 3.6, processingFeeFixedMinor: 0 },
+      fleet_25: { monthlyPriceMinor: 3980, annualPriceMinor: 38200, taxRatePercent: 10, taxLabel: 'Consumption Tax (10%)', processingFeePercent: 3.6, processingFeeFixedMinor: 0 },
+      fleet_50: { monthlyPriceMinor: 7480, annualPriceMinor: 71800, taxRatePercent: 10, taxLabel: 'Consumption Tax (10%)', processingFeePercent: 3.6, processingFeeFixedMinor: 0 },
+      fleet_100: { monthlyPriceMinor: 13800, annualPriceMinor: 132480, taxRatePercent: 10, taxLabel: 'Consumption Tax (10%)', processingFeePercent: 3.6, processingFeeFixedMinor: 0 },
+      enterprise: { monthlyPriceMinor: 24800, annualPriceMinor: 238080, taxRatePercent: 10, taxLabel: 'Consumption Tax (10%)', processingFeePercent: 0, processingFeeFixedMinor: 0 },
     },
   };
+
+  function normalizeServerPlanId(raw?: string | null): ServerPlanId | null {
+    switch (raw) {
+      case 'personal':
+      case 'free':
+      case 'plus':
+        return 'personal';
+      case 'fleet':
+      case 'fleet_10':
+        return 'fleet_10';
+      case 'fleet_25':
+        return 'fleet_25';
+      case 'fleet_50':
+        return 'fleet_50';
+      case 'fleet_100':
+        return 'fleet_100';
+      case 'enterprise':
+        return 'enterprise';
+      default:
+        return null;
+    }
+  }
+
+  function getSupabaseServerConfig() {
+    const url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '')
+      .trim()
+      .replace(/\/+$/, '');
+    const anonKey = (process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '').trim();
+    const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    return {
+      url,
+      anonKey,
+      serviceRoleKey,
+      configured: Boolean(url && (serviceRoleKey || anonKey)),
+    };
+  }
+
+  async function supabaseRestFetch<T>(
+    restPath: string,
+    options: {
+      method?: string;
+      userToken?: string;
+      body?: unknown;
+      prefer?: string;
+    } = {}
+  ): Promise<{ ok: boolean; status: number; data: T | null }> {
+    const cfg = getSupabaseServerConfig();
+    if (!cfg.configured) return { ok: false, status: 503, data: null };
+
+    const authKey = options.userToken || cfg.serviceRoleKey || cfg.anonKey;
+    const apiKey = cfg.serviceRoleKey && !options.userToken ? cfg.serviceRoleKey : cfg.anonKey || cfg.serviceRoleKey;
+
+    const headers: Record<string, string> = {
+      apikey: apiKey,
+      Authorization: `Bearer ${authKey}`,
+      'Content-Type': 'application/json',
+    };
+    if (options.prefer) {
+      headers.Prefer = options.prefer;
+    }
+
+    const resp = await fetch(`${cfg.url}/rest/v1/${restPath}`, {
+      method: options.method || 'GET',
+      headers,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    });
+    const text = await resp.text();
+    let parsed: T | null = null;
+    if (text) {
+      try {
+        parsed = JSON.parse(text) as T;
+      } catch {
+        parsed = null;
+      }
+    }
+    return { ok: resp.ok, status: resp.status, data: parsed };
+  }
+
+  async function verifySupabaseUser(
+    req: Request
+  ): Promise<{ id: string; email?: string; token: string } | null> {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+    const token = authHeader.slice(7).trim();
+    if (!token) return null;
+
+    const cfg = getSupabaseServerConfig();
+    if (!cfg.url || !(cfg.anonKey || cfg.serviceRoleKey)) return null;
+
+    try {
+      const resp = await fetch(`${cfg.url}/auth/v1/user`, {
+        headers: {
+          apikey: cfg.anonKey || cfg.serviceRoleKey,
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!resp.ok) return null;
+      const user = (await resp.json()) as { id?: string; email?: string };
+      if (!user?.id) return null;
+      return { id: user.id, email: user.email, token };
+    } catch {
+      return null;
+    }
+  }
+
+  async function loadServerPlanCatalog(countryInput: string, currencyInput: string) {
+    const currencyCode = currencyInput in CURRENCY_META_SERVER ? currencyInput : 'BRL';
+    const countryCode = countryInput in COUNTRY_FALLBACK_REGION ? countryInput : 'BR';
+    const fallbackRegion = COUNTRY_FALLBACK_REGION[countryCode] || 'GLOBAL';
+    const currSet = FALLBACK_CURRENCY_PRICES[currencyCode] || FALLBACK_CURRENCY_PRICES.USD;
+
+    const fallbackCatalog = FALLBACK_PLANS_SERVER.map((plan) => ({
+      ...plan,
+      price: {
+        planId: plan.id,
+        countryCode,
+        currencyCode,
+        ...currSet[plan.id],
+      },
+    }));
+
+    const cfg = getSupabaseServerConfig();
+    if (!cfg.configured) {
+      return { plans: fallbackCatalog, source: 'fallback' as const };
+    }
+
+    try {
+      const [plansRes, pricesRes] = await Promise.all([
+        supabaseRestFetch<Array<Record<string, unknown>>>(
+          'subscription_plans?is_active=eq.true&order=sort_order.asc'
+        ),
+        supabaseRestFetch<Array<Record<string, unknown>>>(
+          `plan_country_prices?is_active=eq.true&currency_code=eq.${encodeURIComponent(currencyCode)}`
+        ),
+      ]);
+
+      if (!plansRes.ok || !Array.isArray(plansRes.data) || plansRes.data.length === 0) {
+        return { plans: fallbackCatalog, source: 'fallback' as const };
+      }
+
+      const dbPrices = Array.isArray(pricesRes.data) ? pricesRes.data : [];
+      const plans = plansRes.data.map((row) => {
+        const planId = normalizeServerPlanId(String(row.id)) || 'personal';
+        const exact =
+          dbPrices.find((p) => p.plan_id === planId && p.country_code === countryCode) ||
+          dbPrices.find((p) => p.plan_id === planId && p.country_code === fallbackRegion) ||
+          dbPrices.find((p) => p.plan_id === planId);
+
+        const fb = currSet[planId];
+        return {
+          id: planId,
+          slug: String(row.slug || planId),
+          accountScope: (row.account_scope === 'business' ? 'business' : 'personal') as
+            | 'personal'
+            | 'business',
+          name: String(row.name || planId),
+          description: String(row.description || ''),
+          vehicleLimit: row.vehicle_limit === null ? null : Number(row.vehicle_limit ?? 1),
+          allowFleetPanel: Boolean(row.allow_fleet_panel),
+          allowTeamMembers: Boolean(row.allow_team_members),
+          maxTeamMembers:
+            row.max_team_members === null ? null : Number(row.max_team_members ?? 1),
+          features: Array.isArray(row.features) ? row.features.map(String) : [],
+          sortOrder: Number(row.sort_order ?? 0),
+          price: exact
+            ? {
+                planId,
+                countryCode: String(exact.country_code || countryCode),
+                currencyCode: String(exact.currency_code || currencyCode),
+                monthlyPriceMinor: Number(exact.monthly_price_minor ?? fb.monthlyPriceMinor),
+                annualPriceMinor: Number(exact.annual_price_minor ?? fb.annualPriceMinor),
+                taxRatePercent: Number(exact.tax_rate_percent ?? fb.taxRatePercent),
+                taxLabel: String(exact.tax_label ?? fb.taxLabel),
+                processingFeePercent: Number(
+                  exact.processing_fee_percent ?? fb.processingFeePercent
+                ),
+                processingFeeFixedMinor: Number(
+                  exact.processing_fee_fixed_minor ?? fb.processingFeeFixedMinor
+                ),
+              }
+            : {
+                planId,
+                countryCode,
+                currencyCode,
+                ...fb,
+              },
+        };
+      });
+
+      return { plans, source: 'database' as const };
+    } catch {
+      return { plans: fallbackCatalog, source: 'fallback' as const };
+    }
+  }
+
+  function computeServerBreakdown(
+    price: {
+      monthlyPriceMinor: number;
+      annualPriceMinor: number;
+      taxRatePercent: number;
+      processingFeePercent: number;
+      processingFeeFixedMinor: number;
+    },
+    cycle: 'monthly' | 'annual'
+  ) {
+    const subtotalMinor = cycle === 'annual' ? price.annualPriceMinor : price.monthlyPriceMinor;
+    const taxMinor = Math.round((subtotalMinor * (price.taxRatePercent || 0)) / 100);
+    const processingFeeMinor =
+      subtotalMinor > 0
+        ? Math.round((subtotalMinor * (price.processingFeePercent || 0)) / 100) +
+          (price.processingFeeFixedMinor || 0)
+        : 0;
+    const totalMinor = subtotalMinor + taxMinor + processingFeeMinor;
+    return { subtotalMinor, taxMinor, processingFeeMinor, totalMinor };
+  }
+
+  async function persistVerifiedSubscriptionPayment(params: {
+    userId: string;
+    userToken: string;
+    planId: ServerPlanId;
+    countryCode: string;
+    currencyCode: string;
+    billingCycle: 'monthly' | 'annual';
+    amountMinor: number;
+    taxMinor: number;
+    processingFeeMinor: number;
+    paymentMethod: string;
+    provider: string;
+    providerPaymentId: string;
+  }) {
+    const cfg = getSupabaseServerConfig();
+    if (!cfg.configured) return;
+
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
+    const periodDays = params.billingCycle === 'annual' ? 365 : 30;
+    const periodEndIso = new Date(now + periodDays * 86_400_000).toISOString();
+
+    try {
+      const subUpsert = await supabaseRestFetch<Array<Record<string, unknown>>>(
+        'user_subscriptions?on_conflict=user_id',
+        {
+          method: 'POST',
+          userToken: params.userToken,
+          prefer: 'resolution=merge-duplicates,return=representation',
+          body: {
+            user_id: params.userId,
+            plan_id: params.planId,
+            country_code: params.countryCode,
+            currency_code: params.currencyCode,
+            billing_cycle: params.billingCycle,
+            status: 'active',
+            auto_renew: true,
+            current_period_start: nowIso,
+            current_period_end: periodEndIso,
+            grace_period_end: null,
+            canceled_at: null,
+            provider: params.provider,
+            provider_subscription_id: params.providerPaymentId,
+            updated_at: nowIso,
+          },
+        }
+      );
+
+      const subId = Array.isArray(subUpsert.data) && subUpsert.data[0]?.id ? subUpsert.data[0].id : null;
+
+      // Avoid duplicate payment records on refresh
+      const existingPay = await supabaseRestFetch<Array<{ id: string }>>(
+        `subscription_payments?user_id=eq.${encodeURIComponent(
+          params.userId
+        )}&provider_payment_id=eq.${encodeURIComponent(params.providerPaymentId)}&limit=1`,
+        { userToken: params.userToken }
+      );
+      if (!Array.isArray(existingPay.data) || existingPay.data.length === 0) {
+        await supabaseRestFetch('subscription_payments', {
+          method: 'POST',
+          userToken: params.userToken,
+          body: {
+            user_id: params.userId,
+            subscription_id: subId,
+            plan_id: params.planId,
+            amount_minor: params.amountMinor,
+            tax_minor: params.taxMinor,
+            processing_fee_minor: params.processingFeeMinor,
+            currency_code: params.currencyCode,
+            country_code: params.countryCode,
+            payment_method: params.paymentMethod,
+            provider: params.provider,
+            provider_payment_id: params.providerPaymentId,
+            status: 'paid',
+            paid_at: nowIso,
+          },
+        });
+      }
+
+      await supabaseRestFetch(`user_preferences?user_id=eq.${encodeURIComponent(params.userId)}`, {
+        method: 'PATCH',
+        userToken: params.userToken,
+        body: {
+          active_plan: params.planId,
+          country_code: params.countryCode,
+          currency: params.currencyCode,
+          updated_at: nowIso,
+        },
+      });
+    } catch {
+      // Non-fatal DB audit failure
+    }
+  }
 
   function getBillingGatewayConfig() {
     const stripeKey = process.env.STRIPE_SECRET_KEY?.trim() || '';
@@ -1121,31 +1639,318 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
       stripeConfigured,
       mercadoPagoConfigured,
       configured: stripeConfigured || mercadoPagoConfigured,
-      supportedCurrencies: Object.keys(SERVER_PLAN_CATALOG.plus.prices),
+      supportedCurrencies: Object.keys(CURRENCY_META_SERVER),
     });
   });
 
-  app.post('/api/billing/checkout-session', async (req: Request, res: Response) => {
-    const { planId, currency, billingCycle, paymentMethod, payerEmail } = req.body as {
+  app.get('/api/billing/catalog', async (req: Request, res: Response) => {
+    const rawCountry = typeof req.query.country === 'string' ? req.query.country.toUpperCase() : 'BR';
+    const rawCurrency = typeof req.query.currency === 'string' ? req.query.currency.toUpperCase() : 'BRL';
+    const country = rawCountry in COUNTRY_FALLBACK_REGION ? rawCountry : 'BR';
+    const currency = rawCurrency in CURRENCY_META_SERVER ? rawCurrency : 'BRL';
+
+    const catalog = await loadServerPlanCatalog(country, currency);
+    res.json({
+      countryCode: country,
+      currencyCode: currency,
+      source: catalog.source,
+      plans: catalog.plans,
+    });
+  });
+
+  app.get('/api/billing/subscription', async (req: Request, res: Response) => {
+    const user = await verifySupabaseUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+
+    const [subRes, payRes] = await Promise.all([
+      supabaseRestFetch<Array<Record<string, unknown>>>(
+        `user_subscriptions?user_id=eq.${encodeURIComponent(user.id)}&limit=1`,
+        { userToken: user.token }
+      ),
+      supabaseRestFetch<Array<Record<string, unknown>>>(
+        `subscription_payments?user_id=eq.${encodeURIComponent(user.id)}&order=created_at.desc&limit=30`,
+        { userToken: user.token }
+      ),
+    ]);
+
+    const rawSub = Array.isArray(subRes.data) && subRes.data[0] ? subRes.data[0] : null;
+    if (rawSub) {
+      const periodEndMs = Date.parse(String(rawSub.current_period_end || ''));
+      const nowMs = Date.now();
+      const sevenDaysMs = 7 * 86_400_000;
+      let status = String(rawSub.status || 'active');
+
+      // Evaluate expiration & 7-day grace period WITHOUT ever deleting vehicles or history
+      if (Number.isFinite(periodEndMs) && nowMs > periodEndMs) {
+        if ((status === 'active' || status === 'past_due') && nowMs <= periodEndMs + sevenDaysMs) {
+          status = 'grace_period';
+          const graceIso = new Date(periodEndMs + sevenDaysMs).toISOString();
+          rawSub.status = status;
+          rawSub.grace_period_end = graceIso;
+          void supabaseRestFetch(`user_subscriptions?id=eq.${encodeURIComponent(String(rawSub.id))}`, {
+            method: 'PATCH',
+            userToken: user.token,
+            body: { status, grace_period_end: graceIso, updated_at: new Date().toISOString() },
+          });
+        } else if (
+          (status === 'active' || status === 'past_due' || status === 'grace_period') &&
+          nowMs > periodEndMs + sevenDaysMs
+        ) {
+          status = 'expired';
+          rawSub.status = status;
+          void supabaseRestFetch(`user_subscriptions?id=eq.${encodeURIComponent(String(rawSub.id))}`, {
+            method: 'PATCH',
+            userToken: user.token,
+            body: { status, updated_at: new Date().toISOString() },
+          });
+        }
+      }
+    }
+
+    const subscription = rawSub
+      ? {
+          id: String(rawSub.id),
+          userId: String(rawSub.user_id),
+          planId: normalizeServerPlanId(String(rawSub.plan_id)) || 'personal',
+          countryCode: String(rawSub.country_code || 'BR'),
+          currencyCode: String(rawSub.currency_code || 'BRL'),
+          billingCycle: rawSub.billing_cycle === 'annual' ? 'annual' : 'monthly',
+          status: String(rawSub.status || 'active'),
+          autoRenew: Boolean(rawSub.auto_renew ?? true),
+          currentPeriodStart: String(rawSub.current_period_start || ''),
+          currentPeriodEnd: String(rawSub.current_period_end || ''),
+          gracePeriodEnd: rawSub.grace_period_end ? String(rawSub.grace_period_end) : null,
+          canceledAt: rawSub.canceled_at ? String(rawSub.canceled_at) : null,
+          provider: String(rawSub.provider || 'manual'),
+          updatedAt: String(rawSub.updated_at || ''),
+        }
+      : null;
+
+    const payments = Array.isArray(payRes.data)
+      ? payRes.data.map((row) => ({
+          id: String(row.id),
+          planId: normalizeServerPlanId(String(row.plan_id)) || 'personal',
+          amountMinor: Number(row.amount_minor ?? 0),
+          taxMinor: Number(row.tax_minor ?? 0),
+          processingFeeMinor: Number(row.processing_fee_minor ?? 0),
+          currencyCode: String(row.currency_code || 'BRL'),
+          countryCode: String(row.country_code || 'BR'),
+          paymentMethod: String(row.payment_method || 'card'),
+          provider: String(row.provider || 'stripe'),
+          providerPaymentId: row.provider_payment_id ? String(row.provider_payment_id) : undefined,
+          status: String(row.status || 'paid'),
+          paidAt: String(row.paid_at || row.created_at || ''),
+        }))
+      : [];
+
+    res.json({ subscription, payments });
+  });
+
+  app.post('/api/billing/subscription/manage', async (req: Request, res: Response) => {
+    const user = await verifySupabaseUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+
+    const { action, autoRenew, planId, countryCode, currencyCode, billingCycle } = req.body as {
+      action?: string;
+      autoRenew?: boolean;
       planId?: string;
+      countryCode?: string;
+      currencyCode?: string;
+      billingCycle?: string;
+    };
+
+    const nowIso = new Date().toISOString();
+
+    if (action === 'cancel') {
+      const resp = await supabaseRestFetch<Array<Record<string, unknown>>>(
+        `user_subscriptions?user_id=eq.${encodeURIComponent(user.id)}`,
+        {
+          method: 'PATCH',
+          userToken: user.token,
+          prefer: 'return=representation',
+          body: {
+            status: 'canceled',
+            auto_renew: false,
+            canceled_at: nowIso,
+            updated_at: nowIso,
+          },
+        }
+      );
+      const row = Array.isArray(resp.data) ? resp.data[0] : null;
+      res.json({
+        subscription: row
+          ? {
+              id: String(row.id),
+              userId: String(row.user_id),
+              planId: normalizeServerPlanId(String(row.plan_id)) || 'personal',
+              countryCode: String(row.country_code || 'BR'),
+              currencyCode: String(row.currency_code || 'BRL'),
+              billingCycle: row.billing_cycle === 'annual' ? 'annual' : 'monthly',
+              status: String(row.status || 'canceled'),
+              autoRenew: Boolean(row.auto_renew ?? false),
+              currentPeriodStart: String(row.current_period_start || nowIso),
+              currentPeriodEnd: String(row.current_period_end || nowIso),
+              gracePeriodEnd: row.grace_period_end ? String(row.grace_period_end) : null,
+              canceledAt: row.canceled_at ? String(row.canceled_at) : nowIso,
+              provider: String(row.provider || 'manual'),
+              updatedAt: nowIso,
+            }
+          : null,
+      });
+      return;
+    }
+
+    if (action === 'toggle_auto_renew') {
+      const resp = await supabaseRestFetch<Array<Record<string, unknown>>>(
+        `user_subscriptions?user_id=eq.${encodeURIComponent(user.id)}`,
+        {
+          method: 'PATCH',
+          userToken: user.token,
+          prefer: 'return=representation',
+          body: {
+            auto_renew: Boolean(autoRenew),
+            updated_at: nowIso,
+          },
+        }
+      );
+      const row = Array.isArray(resp.data) ? resp.data[0] : null;
+      res.json({
+        subscription: row
+          ? {
+              id: String(row.id),
+              userId: String(row.user_id),
+              planId: normalizeServerPlanId(String(row.plan_id)) || 'personal',
+              countryCode: String(row.country_code || 'BR'),
+              currencyCode: String(row.currency_code || 'BRL'),
+              billingCycle: row.billing_cycle === 'annual' ? 'annual' : 'monthly',
+              status: String(row.status || 'active'),
+              autoRenew: Boolean(row.auto_renew ?? true),
+              currentPeriodStart: String(row.current_period_start || nowIso),
+              currentPeriodEnd: String(row.current_period_end || nowIso),
+              gracePeriodEnd: row.grace_period_end ? String(row.grace_period_end) : null,
+              canceledAt: row.canceled_at ? String(row.canceled_at) : null,
+              provider: String(row.provider || 'manual'),
+              updatedAt: nowIso,
+            }
+          : null,
+      });
+      return;
+    }
+
+    if (action === 'change_plan') {
+      const normalized = normalizeServerPlanId(planId);
+      if (!normalized) {
+        res.status(400).json({ error: 'Invalid planId.' });
+        return;
+      }
+      const cycle = billingCycle === 'annual' ? 'annual' : 'monthly';
+      const periodEndIso = new Date(
+        Date.now() + (cycle === 'annual' ? 365 : 30) * 86_400_000
+      ).toISOString();
+      const safeCountry =
+        countryCode && countryCode.toUpperCase() in COUNTRY_FALLBACK_REGION
+          ? countryCode.toUpperCase()
+          : 'BR';
+      const safeCurr =
+        currencyCode && currencyCode.toUpperCase() in CURRENCY_META_SERVER
+          ? currencyCode.toUpperCase()
+          : 'BRL';
+
+      const resp = await supabaseRestFetch<Array<Record<string, unknown>>>(
+        'user_subscriptions?on_conflict=user_id',
+        {
+          method: 'POST',
+          userToken: user.token,
+          prefer: 'resolution=merge-duplicates,return=representation',
+          body: {
+            user_id: user.id,
+            plan_id: normalized,
+            country_code: safeCountry,
+            currency_code: safeCurr,
+            billing_cycle: cycle,
+            status: 'active',
+            auto_renew: true,
+            current_period_start: nowIso,
+            current_period_end: periodEndIso,
+            canceled_at: null,
+            provider: 'manual',
+            updated_at: nowIso,
+          },
+        }
+      );
+
+      await supabaseRestFetch(`user_preferences?user_id=eq.${encodeURIComponent(user.id)}`, {
+        method: 'PATCH',
+        userToken: user.token,
+        body: { active_plan: normalized, country_code: safeCountry, currency: safeCurr },
+      });
+
+      const row = Array.isArray(resp.data) ? resp.data[0] : null;
+      res.json({
+        subscription: row
+          ? {
+              id: String(row.id),
+              userId: String(row.user_id),
+              planId: normalized,
+              countryCode: safeCountry,
+              currencyCode: safeCurr,
+              billingCycle: cycle,
+              status: 'active',
+              autoRenew: true,
+              currentPeriodStart: String(row.current_period_start || nowIso),
+              currentPeriodEnd: String(row.current_period_end || periodEndIso),
+              gracePeriodEnd: null,
+              canceledAt: null,
+              provider: String(row.provider || 'manual'),
+              updatedAt: nowIso,
+            }
+          : null,
+      });
+      return;
+    }
+
+    res.status(400).json({ error: 'Unsupported subscription management action.' });
+  });
+
+  app.post('/api/billing/checkout-session', async (req: Request, res: Response) => {
+    const { planId, countryCode, currency, billingCycle, paymentMethod, payerEmail } = req.body as {
+      planId?: string;
+      countryCode?: string;
       currency?: string;
       billingCycle?: string;
       paymentMethod?: string;
       payerEmail?: string;
     };
 
-    if (planId !== 'plus' && planId !== 'fleet') {
-      res.status(400).json({ error: 'Invalid planId. Must be plus or fleet.' });
+    const canonicalPlanId = normalizeServerPlanId(planId);
+    if (!canonicalPlanId) {
+      res.status(400).json({ error: 'Plano selecionado inválido.' });
+      return;
+    }
+    if (canonicalPlanId === 'enterprise') {
+      res.status(400).json({
+        error:
+          'O Plano Empresarial Personalizado possui faturamento corporativo sob contrato. Entre em contato comercial para ativação.',
+      });
       return;
     }
 
-    const plan = SERVER_PLAN_CATALOG[planId];
     const curr = typeof currency === 'string' ? currency.toUpperCase() : 'BRL';
-    const priceSpec = plan.prices[curr];
-    if (!priceSpec) {
+    const currMeta = CURRENCY_META_SERVER[curr];
+    if (!currMeta) {
       res.status(400).json({ error: 'Unsupported currency code.' });
       return;
     }
+    const safeCountry =
+      typeof countryCode === 'string' && countryCode.toUpperCase() in COUNTRY_FALLBACK_REGION
+        ? countryCode.toUpperCase()
+        : 'BR';
 
     const cycle = billingCycle === 'annual' ? 'annual' : 'monthly';
     const method =
@@ -1164,11 +1969,18 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
       return;
     }
 
-    const unitAmount = cycle === 'annual' ? priceSpec.annualMinor : priceSpec.monthlyMinor;
-    const displayAmount = priceSpec.zeroDecimal ? unitAmount : unitAmount / 100;
-    const formattedAmount = `${priceSpec.symbol} ${displayAmount.toFixed(
-      priceSpec.zeroDecimal ? 0 : 2
-    )}`;
+    const catalog = await loadServerPlanCatalog(safeCountry, curr);
+    const planItem = catalog.plans.find((p) => p.id === canonicalPlanId);
+    if (!planItem) {
+      res.status(404).json({ error: 'Plano não encontrado no catálogo.' });
+      return;
+    }
+
+    const breakdown = computeServerBreakdown(planItem.price, cycle);
+    const unitAmount = breakdown.totalMinor;
+    const isZeroDec = currMeta.decimals === 0;
+    const displayAmount = isZeroDec ? unitAmount : unitAmount / 100;
+    const formattedAmount = `${currMeta.symbol} ${displayAmount.toFixed(isZeroDec ? 0 : 2)}`;
     const cleanEmail =
       typeof payerEmail === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail.trim())
         ? payerEmail.trim()
@@ -1196,18 +2008,24 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
           headers: {
             Authorization: `Bearer ${mpToken}`,
             'Content-Type': 'application/json',
-            'X-Idempotency-Key': `autolife-${planId}-${cycle}-${Date.now()}-${Math.random()
+            'X-Idempotency-Key': `autolife-${canonicalPlanId}-${cycle}-${Date.now()}-${Math.random()
               .toString(36)
               .slice(2, 8)}`,
           },
           body: JSON.stringify({
             transaction_amount: amountBrl,
-            description: `${plan.name} (${cycle === 'annual' ? 'Anual' : 'Mensal'})`,
+            description: `${planItem.name} (${cycle === 'annual' ? 'Anual' : 'Mensal'})`,
             payment_method_id: 'pix',
-            payer: {
-              email: cleanEmail,
-            },
-            external_reference: JSON.stringify({ planId, cycle, curr: 'BRL' }),
+            payer: { email: cleanEmail },
+            external_reference: JSON.stringify({
+              planId: canonicalPlanId,
+              countryCode: safeCountry,
+              cycle,
+              curr: 'BRL',
+              totalMinor: unitAmount,
+              taxMinor: breakdown.taxMinor,
+              processingFeeMinor: breakdown.processingFeeMinor,
+            }),
           }),
         });
 
@@ -1251,7 +2069,9 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
         params.set('mode', isOneTimePix ? 'payment' : 'subscription');
         params.set(
           'success_url',
-          `${baseUrl}/?checkout=success&plan=${encodeURIComponent(planId)}&session_id={CHECKOUT_SESSION_ID}`
+          `${baseUrl}/?checkout=success&plan=${encodeURIComponent(
+            canonicalPlanId
+          )}&session_id={CHECKOUT_SESSION_ID}`
         );
         params.set('cancel_url', `${baseUrl}/?checkout=cancelled`);
         if (cleanEmail !== 'pagamento@autolife.world') {
@@ -1271,7 +2091,7 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
         params.set('line_items[0][price_data][unit_amount]', String(unitAmount));
         params.set(
           'line_items[0][price_data][product_data][name]',
-          `${plan.name} (${cycle === 'annual' ? 'Anual' : 'Mensal'})`
+          `${planItem.name} (${cycle === 'annual' ? 'Anual' : 'Mensal'})`
         );
         if (!isOneTimePix) {
           params.set(
@@ -1279,9 +2099,14 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
             cycle === 'annual' ? 'year' : 'month'
           );
         }
-        params.set('metadata[planId]', planId);
+        params.set('metadata[planId]', canonicalPlanId);
+        params.set('metadata[countryCode]', safeCountry);
         params.set('metadata[currency]', curr);
         params.set('metadata[billingCycle]', cycle);
+        params.set('metadata[taxMinor]', String(breakdown.taxMinor));
+        params.set('metadata[processingFeeMinor]', String(breakdown.processingFeeMinor));
+        params.set('metadata[totalMinor]', String(breakdown.totalMinor));
+        params.set('metadata[paymentMethod]', method);
 
         const stripeResp = await fetch('https://api.stripe.com/v1/checkout/sessions', {
           method: 'POST',
@@ -1317,9 +2142,10 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
       // 3. Mercado Pago Checkout Pro fallback for Card payments when Stripe is not configured
       if (mercadoPagoConfigured && (method === 'card' || method === 'apple_google_pay')) {
         const mpCurr = curr === 'BRL' || curr === 'MXN' ? curr : 'BRL';
-        const mpPriceSpec = plan.prices[mpCurr];
-        const mpUnitMinor = cycle === 'annual' ? mpPriceSpec.annualMinor : mpPriceSpec.monthlyMinor;
-        const mpUnitPrice = Number((mpUnitMinor / 100).toFixed(2));
+        const mpCatalog = await loadServerPlanCatalog(mpCurr === 'MXN' ? 'MX' : 'BR', mpCurr);
+        const mpPlan = mpCatalog.plans.find((p) => p.id === canonicalPlanId) || planItem;
+        const mpBreak = computeServerBreakdown(mpPlan.price, cycle);
+        const mpUnitPrice = Number((mpBreak.totalMinor / 100).toFixed(2));
 
         const prefResp = await fetch('https://api.mercadopago.com/checkout/preferences', {
           method: 'POST',
@@ -1330,20 +2156,26 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
           body: JSON.stringify({
             items: [
               {
-                title: `${plan.name} (${cycle === 'annual' ? 'Anual' : 'Mensal'})`,
+                title: `${planItem.name} (${cycle === 'annual' ? 'Anual' : 'Mensal'})`,
                 quantity: 1,
                 currency_id: mpCurr,
                 unit_price: mpUnitPrice,
               },
             ],
-            payer: {
-              email: cleanEmail,
-            },
-            external_reference: JSON.stringify({ planId, cycle, curr: mpCurr }),
+            payer: { email: cleanEmail },
+            external_reference: JSON.stringify({
+              planId: canonicalPlanId,
+              countryCode: safeCountry,
+              cycle,
+              curr: mpCurr,
+              totalMinor: mpBreak.totalMinor,
+              taxMinor: mpBreak.taxMinor,
+              processingFeeMinor: mpBreak.processingFeeMinor,
+            }),
             back_urls: {
-              success: `${baseUrl}/?checkout=mp_success&plan=${encodeURIComponent(planId)}`,
+              success: `${baseUrl}/?checkout=mp_success&plan=${encodeURIComponent(canonicalPlanId)}`,
               failure: `${baseUrl}/?checkout=cancelled`,
-              pending: `${baseUrl}/?checkout=mp_pending&plan=${encodeURIComponent(planId)}`,
+              pending: `${baseUrl}/?checkout=mp_pending&plan=${encodeURIComponent(canonicalPlanId)}`,
             },
             auto_return: 'approved',
           }),
@@ -1403,19 +2235,46 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
       );
       const data = (await stripeResp.json()) as {
         payment_status?: string;
-        metadata?: { planId?: string };
+        amount_total?: number;
+        currency?: string;
+        metadata?: Record<string, string>;
       };
       if (!stripeResp.ok) {
         res.status(502).json({ error: 'Unable to verify checkout session.' });
         return;
       }
-      const planId =
-        data.metadata?.planId === 'plus' || data.metadata?.planId === 'fleet'
-          ? data.metadata.planId
-          : null;
+
+      const verified = data.payment_status === 'paid';
+      const planId = normalizeServerPlanId(data.metadata?.planId);
+      const countryCode = data.metadata?.countryCode || 'BR';
+      const currencyCode = (data.metadata?.currency || data.currency || 'BRL').toUpperCase();
+      const billingCycle = data.metadata?.billingCycle === 'annual' ? 'annual' : 'monthly';
+
+      if (verified && planId) {
+        const user = await verifySupabaseUser(req);
+        if (user) {
+          await persistVerifiedSubscriptionPayment({
+            userId: user.id,
+            userToken: user.token,
+            planId,
+            countryCode,
+            currencyCode,
+            billingCycle,
+            amountMinor: Number(data.amount_total ?? data.metadata?.totalMinor ?? 0),
+            taxMinor: Number(data.metadata?.taxMinor ?? 0),
+            processingFeeMinor: Number(data.metadata?.processingFeeMinor ?? 0),
+            paymentMethod: data.metadata?.paymentMethod || 'card',
+            provider: 'stripe',
+            providerPaymentId: sessionId,
+          });
+        }
+      }
+
       res.json({
-        verified: data.payment_status === 'paid',
+        verified,
         planId,
+        countryCode,
+        currencyCode,
       });
     } catch {
       res.status(500).json({ error: 'Failed to verify Stripe session.' });
@@ -1444,6 +2303,8 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
       );
       const data = (await mpResp.json()) as {
         status?: string;
+        transaction_amount?: number;
+        payment_method_id?: string;
         external_reference?: string;
       };
       if (!mpResp.ok) {
@@ -1451,25 +2312,112 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
         return;
       }
 
-      let planId: 'plus' | 'fleet' | null = null;
+      let planId: ServerPlanId | null = null;
+      let countryCode = 'BR';
+      let currencyCode = 'BRL';
+      let billingCycle: 'monthly' | 'annual' = 'monthly';
+      let taxMinor = 0;
+      let processingFeeMinor = 0;
+
       if (data.external_reference) {
         try {
-          const parsedRef = JSON.parse(data.external_reference) as { planId?: string };
-          if (parsedRef.planId === 'plus' || parsedRef.planId === 'fleet') {
-            planId = parsedRef.planId;
-          }
+          const parsedRef = JSON.parse(data.external_reference) as {
+            planId?: string;
+            countryCode?: string;
+            curr?: string;
+            cycle?: string;
+            taxMinor?: number;
+            processingFeeMinor?: number;
+          };
+          planId = normalizeServerPlanId(parsedRef.planId);
+          if (parsedRef.countryCode) countryCode = parsedRef.countryCode;
+          if (parsedRef.curr) currencyCode = parsedRef.curr;
+          if (parsedRef.cycle === 'annual') billingCycle = 'annual';
+          if (parsedRef.taxMinor) taxMinor = Number(parsedRef.taxMinor);
+          if (parsedRef.processingFeeMinor) processingFeeMinor = Number(parsedRef.processingFeeMinor);
         } catch {
           // Ignore malformed external_reference
         }
       }
 
+      const verified = data.status === 'approved';
+      if (verified && planId) {
+        const user = await verifySupabaseUser(req);
+        if (user) {
+          await persistVerifiedSubscriptionPayment({
+            userId: user.id,
+            userToken: user.token,
+            planId,
+            countryCode,
+            currencyCode,
+            billingCycle,
+            amountMinor: Math.round(Number(data.transaction_amount ?? 0) * 100),
+            taxMinor,
+            processingFeeMinor,
+            paymentMethod: data.payment_method_id || 'pix',
+            provider: 'mercadopago',
+            providerPaymentId: paymentId,
+          });
+        }
+      }
+
       res.json({
-        verified: data.status === 'approved',
+        verified,
         status: data.status || 'pending',
         planId,
+        countryCode,
+        currencyCode,
       });
     } catch {
       res.status(500).json({ error: 'Erro ao verificar pagamento Mercado Pago.' });
+    }
+  });
+
+  app.get('/api/passport/:token', async (req: Request, res: Response) => {
+    const token = typeof req.params.token === 'string' ? req.params.token.trim() : '';
+    if (!/^[a-f0-9]{16,64}$/i.test(token)) {
+      res.status(400).json({ error: 'Token do Passaporte Digital inválido.' });
+      return;
+    }
+
+    const cfg = getSupabaseServerConfig();
+    if (!cfg.configured) {
+      res.status(503).json({ error: 'Consulta pública indisponível no momento.' });
+      return;
+    }
+
+    try {
+      const shareRes = await supabaseRestFetch<Array<Record<string, unknown>>>(
+        `vehicle_passport_shares?share_token=eq.${encodeURIComponent(
+          token
+        )}&is_active=eq.true&limit=1`
+      );
+      const row = Array.isArray(shareRes.data) ? shareRes.data[0] : null;
+      if (!row) {
+        res.status(404).json({ error: 'Passaporte não encontrado ou compartilhamento revogado.' });
+        return;
+      }
+
+      if (row.expires_at && Date.parse(String(row.expires_at)) <= Date.now()) {
+        res.status(410).json({ error: 'Este link de compartilhamento expirou.' });
+        return;
+      }
+
+      res.json({
+        share: {
+          id: String(row.id),
+          vehicleId: String(row.vehicle_id),
+          shareToken: String(row.share_token),
+          isActive: Boolean(row.is_active),
+          includeExpenses: Boolean(row.include_expenses),
+          includeDocuments: Boolean(row.include_documents),
+          passportSnapshot: row.passport_snapshot,
+          expiresAt: row.expires_at ? String(row.expires_at) : null,
+          createdAt: String(row.created_at || ''),
+        },
+      });
+    } catch {
+      res.status(500).json({ error: 'Falha ao consultar Passaporte Digital.' });
     }
   });
 

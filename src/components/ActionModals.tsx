@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { AlertTriangle, Bike, Car, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Bike, Car, Lock, Trash2, X } from 'lucide-react';
 import { Translations } from '../data/i18n';
 import {
   CurrencyCode,
   MaintenanceItem,
   PowertrainType,
+  UserPreferences,
+  UserSubscriptionRecord,
   Vehicle,
   VehicleType,
 } from '../types/autolife';
+import { isBusinessPlan } from '../utils/billing';
 
 interface LogCheckModalProps {
   vehicle: Vehicle;
@@ -170,11 +173,30 @@ export function LogCheckModal({
 
 interface AddVehicleModalProps {
   t: Translations;
+  prefs: UserPreferences;
+  vehiclesCount: number;
+  vehicleLimit: number | null;
+  subscriptionStatus?: UserSubscriptionRecord['status'];
+  onOpenPlans?: () => void;
   onClose: () => void;
   onAdd: (vehicle: Vehicle) => void;
 }
 
-export function AddVehicleModal({ t, onClose, onAdd }: AddVehicleModalProps) {
+export function AddVehicleModal({
+  t,
+  prefs,
+  vehiclesCount,
+  vehicleLimit,
+  subscriptionStatus,
+  onOpenPlans,
+  onClose,
+  onAdd,
+}: AddVehicleModalProps) {
+  const hasBusinessAccess = isBusinessPlan(prefs.activePlan);
+  const isExpiredLocked = subscriptionStatus === 'expired' && vehiclesCount >= 1;
+  const isLimitReached =
+    isExpiredLocked || (vehicleLimit !== null && vehiclesCount >= vehicleLimit);
+
   const [vehicleType, setVehicleType] = useState<VehicleType>('car');
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
@@ -188,7 +210,9 @@ export function AddVehicleModal({ t, onClose, onAdd }: AddVehicleModalProps) {
   const [weeklyKm, setWeeklyKm] = useState('250');
   const [documentExpiryDate, setDocumentExpiryDate] = useState('');
   const [insuranceExpiryDate, setInsuranceExpiryDate] = useState('');
-  const [fleetGroup, setFleetGroup] = useState<'personal' | 'fleet'>('personal');
+  const [fleetGroup, setFleetGroup] = useState<'personal' | 'fleet'>(
+    hasBusinessAccess ? 'fleet' : 'personal'
+  );
 
   const handleSwitchVehicleType = (nextType: VehicleType) => {
     setVehicleType(nextType);
@@ -259,6 +283,50 @@ export function AddVehicleModal({ t, onClose, onAdd }: AddVehicleModalProps) {
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {isLimitReached ? (
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
+                <Lock className="w-4 h-4 shrink-0" />
+                <span>
+                  {isExpiredLocked
+                    ? 'Assinatura expirada para novos cadastros'
+                    : `Limite de ${vehicleLimit} veículo(s) atingido`}
+                </span>
+              </div>
+              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                {isExpiredLocked
+                  ? 'Seus veículos e históricos continuam preservados e acessíveis. Renove ou contrate um plano para liberar novos cadastros.'
+                  : hasBusinessAccess
+                  ? `Sua empresa já utiliza ${vehiclesCount} de ${vehicleLimit} veículos contratados. Contrate uma faixa maior (25, 50 ou 100 veículos) para expandir sua frota.`
+                  : 'O Plano Particular contempla 1 veículo. Para cadastrar mais veículos ou gerenciar frota empresarial, escolha um Plano Frotas.'}
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+              >
+                {t.actions.close}
+              </button>
+              {onOpenPlans && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenPlans();
+                  }}
+                  className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {hasBusinessAccess ? 'Expandir Frota' : 'Ver Planos de Frota'}
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
 
         {/* Vehicle Type Selector (Car vs Motorcycle) */}
         <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-slate-100 dark:bg-slate-800">
@@ -470,19 +538,21 @@ export function AddVehicleModal({ t, onClose, onAdd }: AddVehicleModalProps) {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-              Perfil de Uso (Particular ou Empresa)
-            </label>
-            <select
-              value={fleetGroup}
-              onChange={(e) => setFleetGroup(e.target.value as 'personal' | 'fleet')}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-            >
-              <option value="personal">{t.garage.modePersonal}</option>
-              <option value="fleet">{t.garage.modeFleet}</option>
-            </select>
-          </div>
+          {hasBusinessAccess && (
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                Classificação do Veículo na Empresa
+              </label>
+              <select
+                value={fleetGroup}
+                onChange={(e) => setFleetGroup(e.target.value as 'personal' | 'fleet')}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              >
+                <option value="fleet">{t.garage.modeFleet}</option>
+                <option value="personal">{t.garage.modePersonal}</option>
+              </select>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <button
@@ -500,6 +570,8 @@ export function AddVehicleModal({ t, onClose, onAdd }: AddVehicleModalProps) {
             </button>
           </div>
         </form>
+          </>
+        )}
       </div>
     </div>
   );

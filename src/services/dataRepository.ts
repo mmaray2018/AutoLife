@@ -1,11 +1,11 @@
 import { supabase } from '../lib/supabaseClient';
 import {
   ChargingSession,
+  CountryCode,
   CurrencyCode,
   DrivingProfile,
   MaintenanceCategory,
   MaintenanceItem,
-  PlanTier,
   PowertrainType,
   ServiceLog,
   UserPreferences,
@@ -14,6 +14,7 @@ import {
   VehicleType,
 } from '../types/autolife';
 import { UNSET_DATE_SENTINEL, isDateRecorded } from '../utils/autolife';
+import { inferCountryFromCurrency, normalizePlanTier } from '../utils/billing';
 
 export interface CloudSnapshot {
   vehicles: Vehicle[];
@@ -61,6 +62,9 @@ export async function fetchCloudSnapshot(userId: string): Promise<CloudSnapshot 
     documentExpiryDate: isDateRecorded(row.document_expiry_date) ? row.document_expiry_date : '',
     insuranceExpiryDate: isDateRecorded(row.insurance_expiry_date) ? row.insurance_expiry_date : '',
     manualSpec: (row.manual_spec as VehicleManualSpec | null) ?? undefined,
+    organizationId: row.organization_id ?? undefined,
+    assignedMemberName: row.assigned_member_name ?? '',
+    assignedMemberEmail: row.assigned_member_email ?? '',
   }));
 
   const items: MaintenanceItem[] = (itemRes.data ?? []).map((row) => ({
@@ -104,17 +108,19 @@ export async function fetchCloudSnapshot(userId: string): Promise<CloudSnapshot 
   }));
 
   const p = prefRes.data;
+  const resolvedCurrency = ((p?.currency as CurrencyCode) ?? 'BRL') as CurrencyCode;
   const prefs: UserPreferences | null = p
     ? {
         language: p.language,
         units: p.units,
-        currency: p.currency,
+        currency: resolvedCurrency,
+        countryCode: (p.country_code as CountryCode) || inferCountryFromCurrency(resolvedCurrency),
         theme: p.theme,
         oilReminderDays: p.oil_reminder_days,
         tireReminderDays: p.tire_reminder_days,
         coolantReminderDays: p.coolant_reminder_days,
         docReminderDays: p.doc_reminder_days,
-        activePlan: (p.active_plan as PlanTier) ?? 'free',
+        activePlan: normalizePlanTier(p.active_plan),
         whatsappNumber: p.whatsapp_number ?? '',
       }
     : null;
@@ -124,7 +130,7 @@ export async function fetchCloudSnapshot(userId: string): Promise<CloudSnapshot 
 
 export async function syncVehicleToCloud(userId: string, v: Vehicle): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from('vehicles').upsert({
+  const basePayload = {
     id: v.id,
     user_id: userId,
     vehicle_type: v.vehicleType ?? 'car',
@@ -151,8 +157,28 @@ export async function syncVehicleToCloud(userId: string, v: Vehicle): Promise<vo
       ? v.insuranceExpiryDate
       : UNSET_DATE_SENTINEL,
     manual_spec: v.manualSpec ?? null,
+  };
+
+  const { error } = await supabase.from('vehicles').upsert({
+    ...basePayload,
+    organization_id: v.organizationId ?? null,
+    assigned_member_name: v.assignedMemberName ?? '',
+    assigned_member_email: v.assignedMemberEmail ?? '',
   });
-  if (error) throw error;
+
+  if (error) {
+    const msg = error.message?.toLowerCase() || '';
+    if (
+      msg.includes('organization_id') ||
+      msg.includes('assigned_member_name') ||
+      msg.includes('assigned_member_email')
+    ) {
+      const retry = await supabase.from('vehicles').upsert(basePayload);
+      if (retry.error) throw retry.error;
+      return;
+    }
+    throw error;
+  }
 }
 
 export async function deleteVehicleFromCloud(userId: string, vehicleId: string): Promise<void> {
@@ -278,13 +304,14 @@ export async function syncPreferencesToCloud(
   prefs: UserPreferences
 ): Promise<void> {
   if (!supabase) return;
+  const canonicalPlan = normalizePlanTier(prefs.activePlan);
   const basePayload = {
     user_id: userId,
     language: prefs.language,
     units: prefs.units,
     currency: prefs.currency,
     theme: prefs.theme,
-    active_plan: prefs.activePlan ?? 'free',
+    active_plan: canonicalPlan,
     oil_reminder_days: prefs.oilReminderDays,
     tire_reminder_days: prefs.tireReminderDays,
     coolant_reminder_days: prefs.coolantReminderDays,
@@ -294,11 +321,13 @@ export async function syncPreferencesToCloud(
 
   const { error } = await supabase.from('user_preferences').upsert({
     ...basePayload,
+    country_code: prefs.countryCode ?? inferCountryFromCurrency(prefs.currency),
     whatsapp_number: prefs.whatsappNumber ?? '',
   });
 
   if (error) {
-    if (error.message?.toLowerCase().includes('whatsapp_number')) {
+    const msg = error.message?.toLowerCase() || '';
+    if (msg.includes('whatsapp_number') || msg.includes('country_code')) {
       const retry = await supabase.from('user_preferences').upsert(basePayload);
       if (retry.error) throw retry.error;
       return;

@@ -6,7 +6,9 @@ import {
   Car,
   CheckCircle2,
   Cloud,
+  CreditCard,
   ExternalLink,
+  Globe,
   Loader2,
   LogOut,
   MessageCircle,
@@ -25,13 +27,16 @@ import {
   unsubscribePush,
 } from '../services/pushClient';
 import {
+  CountryCode,
   MaintenanceItem,
   ServiceLog,
   UnitSystem,
   UserPreferences,
+  UserSubscriptionRecord,
   Vehicle,
 } from '../types/autolife';
 import { formatDistance } from '../utils/autolife';
+import { COUNTRY_CATALOG, COUNTRY_LIST } from '../utils/billing';
 import {
   buildWhatsAppUrl,
   formatWhatsAppDisplay,
@@ -49,6 +54,10 @@ interface InternationalSettingsViewProps {
   cloudUserId: string | null;
   cloudUserEmail: string | null;
   cloudUserName: string | null;
+  vehicleLimit: number | null;
+  activePlanName: string;
+  subscription: UserSubscriptionRecord | null;
+  onOpenPlans: () => void;
   onSyncNow: () => Promise<void>;
   onSelectVehicle: (id: string) => void;
   onOpenAddVehicle: () => void;
@@ -66,6 +75,10 @@ export function InternationalSettingsView({
   cloudUserId,
   cloudUserEmail,
   cloudUserName,
+  vehicleLimit,
+  activePlanName,
+  subscription,
+  onOpenPlans,
   onSyncNow,
   onSelectVehicle,
   onOpenAddVehicle,
@@ -412,22 +425,34 @@ export function InternationalSettingsView({
             <div className="flex items-center gap-2">
               <Car className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
               <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-                Meus Veículos ({vehicles.length})
+                Meus Veículos ({vehicles.length}
+                {vehicleLimit !== null ? ` / ${vehicleLimit}` : ''})
               </h2>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Adicione um novo veículo ou remova um cadastrado (ao apagar, todo o histórico e fotos dele também são excluídos).
+              Plano ativo: <strong>{activePlanName}</strong>
+              {subscription ? ` (${subscription.status})` : ''} · Ao apagar um veículo, todo o histórico e fotos dele também são excluídos.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={onOpenAddVehicle}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white transition-colors whitespace-nowrap shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>{t.actions.addVehicle}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenPlans}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span>Planos</span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenAddVehicle}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white transition-colors whitespace-nowrap shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{t.actions.addVehicle}</span>
+            </button>
+          </div>
         </div>
 
         {vehicles.length === 0 ? (
@@ -621,8 +646,38 @@ export function InternationalSettingsView({
         )}
       </section>
 
-      {/* Units & Theme (2 columns) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Country, Units & Theme */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <h2 className="font-display text-sm font-semibold text-slate-900 dark:text-slate-100">
+              País / Região de Faturamento
+            </h2>
+          </div>
+          <select
+            value={prefs.countryCode ?? 'BR'}
+            onChange={(e) => {
+              const code = e.target.value as CountryCode;
+              const cfg = COUNTRY_CATALOG[code];
+              onUpdatePrefs({
+                countryCode: code,
+                currency: cfg?.defaultCurrency ?? prefs.currency,
+              });
+            }}
+            className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+          >
+            {COUNTRY_LIST.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name} ({c.defaultCurrency})
+              </option>
+            ))}
+          </select>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+            Define moeda local, impostos regionais e métodos de pagamento dos planos.
+          </p>
+        </section>
+
         <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3">
           <h2 className="font-display text-sm font-semibold text-slate-900 dark:text-slate-100">
             {t.settings.unitsLabel}

@@ -70,6 +70,8 @@ export function GlobalNetworkView({
   const [selectedPartner, setSelectedPartner] = useState<NetworkPartner | null>(null);
   const [visitConfirmed, setVisitConfirmed] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [manualLocationQuery, setManualLocationQuery] = useState('');
+  const [locating, setLocating] = useState(false);
   const [geoMessage, setGeoMessage] = useState<string | null>(null);
 
   // Add real workshop / place modal state
@@ -94,20 +96,54 @@ export function GlobalNetworkView({
   const handleLocateMe = () => {
     setGeoMessage(null);
     if (!navigator.geolocation) {
-      setGeoMessage('Geolocalização não suportada neste navegador.');
+      setGeoMessage(
+        'Geolocalização não suportada neste navegador. Informe sua cidade ou bairro abaixo para buscar no Google Maps.'
+      );
       return;
     }
+
+    setLocating(true);
+    const onSuccess = (pos: GeolocationPosition) => {
+      setLocating(false);
+      setGeoMessage(null);
+      setUserCoords({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+      });
+    };
+
+    const handleFinalError = (err: GeolocationPositionError) => {
+      setLocating(false);
+      if (err.code === 1) {
+        setGeoMessage(
+          'Permissão de localização bloqueada no navegador. Libere o acesso no cadeado da URL ou informe sua cidade/bairro abaixo.'
+        );
+      } else if (err.code === 2) {
+        setGeoMessage(
+          'Localização do dispositivo indisponível no momento. Digite sua cidade ou bairro abaixo para buscar oficinas próximas.'
+        );
+      } else {
+        setGeoMessage(
+          'Tempo esgotado ao obter coordenadas GPS. Informe sua cidade/bairro abaixo para buscar no Google Maps.'
+        );
+      }
+    };
+
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserCoords({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
+      onSuccess,
+      (firstErr) => {
+        if (firstErr.code === 1) {
+          handleFinalError(firstErr);
+          return;
+        }
+        // Fallback attempt with high accuracy disabled / shorter max age if coarse check failed
+        navigator.geolocation.getCurrentPosition(
+          onSuccess,
+          handleFinalError,
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        );
       },
-      () => {
-        setGeoMessage('Não foi possível obter sua localização atual.');
-      },
-      { timeout: 6000 }
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
     );
   };
 
@@ -169,12 +205,19 @@ export function GlobalNetworkView({
         : vehicle?.vehicleType === 'motorcycle'
         ? 'moto'
         : '';
-    const terms = [baseCategory, vehicleHint, searchQuery.trim()].filter(Boolean).join(' ');
-    if (userCoords) {
+    const terms = [
+      baseCategory,
+      vehicleHint,
+      searchQuery.trim(),
+      manualLocationQuery.trim(),
+    ]
+      .filter(Boolean)
+      .join(' ');
+    if (userCoords && !manualLocationQuery.trim()) {
       return `https://www.google.com/maps/search/${encodeURIComponent(terms)}/@${userCoords.lat},${userCoords.lng},14z`;
     }
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(terms)}`;
-  }, [categoryFilter, vehicleFilter, vehicle?.vehicleType, searchQuery, userCoords]);
+  }, [categoryFilter, vehicleFilter, vehicle?.vehicleType, searchQuery, manualLocationQuery, userCoords]);
 
   const handleCreatePlace = (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,11 +279,18 @@ export function GlobalNetworkView({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
+            disabled={locating}
             onClick={handleLocateMe}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 w-fit"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 w-fit disabled:opacity-60"
           >
             <LocateFixed className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>{userCoords ? 'Localização ativa' : 'Usar minha localização'}</span>
+            <span>
+              {locating
+                ? 'Obtendo GPS...'
+                : userCoords
+                ? 'Localização ativa'
+                : 'Usar minha localização'}
+            </span>
           </button>
 
           <button
@@ -255,7 +305,16 @@ export function GlobalNetworkView({
       </div>
 
       {geoMessage && (
-        <div className="text-xs text-amber-700 dark:text-amber-300">{geoMessage}</div>
+        <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 text-xs text-amber-800 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <span>{geoMessage}</span>
+          <input
+            type="text"
+            value={manualLocationQuery}
+            onChange={(e) => setManualLocationQuery(e.target.value)}
+            placeholder="Cidade / Bairro (ex.: Lisboa, São Paulo)"
+            className="px-2.5 py-1.5 text-xs rounded-md border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 sm:w-64"
+          />
+        </div>
       )}
 
       {/* Filters & Real Map Lookup Toolbar */}
@@ -311,13 +370,24 @@ export function GlobalNetworkView({
               ))}
             </div>
 
-            <div className="relative w-full xl:w-64">
+            <div className="relative w-full xl:w-52">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t.network.searchPlaceholder}
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+              />
+            </div>
+
+            <div className="relative w-full xl:w-48">
+              <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={manualLocationQuery}
+                onChange={(e) => setManualLocationQuery(e.target.value)}
+                placeholder="Cidade / Região"
                 className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
               />
             </div>

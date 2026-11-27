@@ -771,3 +771,114 @@ export async function sharePdfViaWebShare(params: {
     return 'unsupported';
   }
 }
+
+export function generateFleetSummaryPdf(params: {
+  organizationName: string;
+  vehicles: Vehicle[];
+  maintenanceItems: MaintenanceItem[];
+  logs: ServiceLog[];
+  chargingSessions: ChargingSession[];
+  prefs: UserPreferences;
+}): { blob: Blob; filename: string } {
+  const { organizationName, vehicles, maintenanceItems, logs, chargingSessions, prefs } = params;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  let y = 16;
+
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageWidth, 30, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text(pdfSafe(`AutoLife World · Relatório Geral da Frota`), margin, 13);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(
+    pdfSafe(`${organizationName || 'Frota Empresarial'} · Emitido em ${todayIso()} · ${vehicles.length} veículo(s)`),
+    margin,
+    21
+  );
+
+  y = 38;
+  const currentMonth = todayIso().slice(0, 7);
+  const monthlySpend =
+    logs
+      .filter((l) => l.date.startsWith(currentMonth))
+      .reduce((acc, l) => acc + convertCurrency(l.cost, l.currency ?? 'BRL', prefs.currency), 0) +
+    chargingSessions
+      .filter((c) => c.date.startsWith(currentMonth))
+      .reduce((acc, c) => acc + convertCurrency(c.cost, c.currency ?? 'BRL', prefs.currency), 0);
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text(
+    pdfSafe(
+      `Gastos do Mês (${currentMonth}): ${formatCurrency(monthlySpend, prefs.currency)} · Odômetro Total: ${vehicles
+        .reduce((acc, v) => acc + v.odometerKm, 0)
+        .toLocaleString('pt-BR')} km`
+    ),
+    margin,
+    y
+  );
+  y += 8;
+
+  for (const v of vehicles) {
+    if (y > pageHeight - 28) {
+      doc.addPage();
+      y = 18;
+    }
+    const vItems = maintenanceItems.filter((i) => i.vehicleId === v.id);
+    const overdue = vItems.filter(
+      (i) => computeMaintenanceStatus(i, v, prefs).status === MaintenanceStatus.OVERDUE
+    ).length;
+    const attention = vItems.filter(
+      (i) => computeMaintenanceStatus(i, v, prefs).status === MaintenanceStatus.ATTENTION
+    ).length;
+    const vSpend = logs
+      .filter((l) => l.vehicleId === v.id)
+      .reduce((acc, l) => acc + convertCurrency(l.cost, l.currency ?? 'BRL', prefs.currency), 0);
+
+    doc.setDrawColor(226, 232, 240);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(
+      pdfSafe(`${v.make} ${v.model} (${v.year}) · ${v.plate}`),
+      margin,
+      y
+    );
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text(
+      pdfSafe(
+        `Odômetro: ${formatDistance(v.odometerKm, prefs.units)} · Atrasos: ${overdue} · Atenção: ${attention} · Gasto acumulado: ${formatCurrency(
+          vSpend,
+          prefs.currency
+        )} · Responsável: ${v.assignedMemberName || 'Não atribuído'}`
+      ),
+      margin,
+      y
+    );
+    y += 4.5;
+    doc.text(
+      pdfSafe(
+        `Doc: ${isDateRecorded(v.documentExpiryDate) ? v.documentExpiryDate : 'Não informado'} · Seguro: ${
+          isDateRecorded(v.insuranceExpiryDate) ? v.insuranceExpiryDate : 'Não informado'
+        }`
+      ),
+      margin,
+      y
+    );
+    doc.setTextColor(15, 23, 42);
+    y += 5;
+  }
+
+  const filename = `Relatorio-Geral-Frota-${todayIso()}.pdf`;
+  return { blob: doc.output('blob'), filename };
+}

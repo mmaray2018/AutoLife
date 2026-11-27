@@ -13,6 +13,7 @@ import { HealthMaintenanceView } from './components/HealthMaintenanceView';
 import { InternationalSettingsView } from './components/InternationalSettingsView';
 import { OfflineIndicator } from './components/PWAInstallButton';
 import { SidebarNav } from './components/SidebarNav';
+import { PublicPassportView } from './components/VehiclePassportModal';
 import { TRANSLATIONS } from './data/i18n';
 import {
   DEFAULT_PREFERENCES,
@@ -34,24 +35,48 @@ import {
   syncVehicleToCloud,
 } from './services/dataRepository';
 import {
+  appendOdometerEvent,
+  fetchBillingCatalog,
+  fetchOdometerEvents,
+  fetchOrCreateOrganization,
+  fetchOrganizationMembers,
+  fetchPublicPassportByToken,
+  fetchUserSubscriptionState,
+  getAccessToken,
+} from './services/enterpriseRepository';
+import {
   buildScheduledMaintenanceReminders,
   syncPushScheduleIfActive,
 } from './services/pushClient';
 import {
   ChargingSession,
+  CountryCode,
   CurrencyCode,
   DrivingProfile,
   MaintenanceCategory,
   MaintenanceItem,
   ModuleId,
+  OdometerEvent,
+  OrganizationMember,
+  OrganizationProfile,
   PowertrainType,
   ServiceLog,
+  SubscriptionPaymentRecord,
+  SubscriptionPlanCatalogItem,
   UserPreferences,
+  UserSubscriptionRecord,
   Vehicle,
   VehicleAttachment,
+  VehiclePassportShare,
 } from './types/autolife';
 import { todayIso } from './utils/autolife';
-import { CURRENCY_CATALOG } from './utils/billing';
+import {
+  CURRENCY_CATALOG,
+  buildFallbackPlanCatalog,
+  inferCountryFromCurrency,
+  isBusinessPlan,
+  normalizePlanTier,
+} from './utils/billing';
 import { sanitizeWhatsAppNumber } from './utils/whatsapp';
 
 const STORAGE_KEY = 'autolife_world_state_v2';
@@ -402,6 +427,32 @@ export default function App() {
   const [onboardingWhatsappInput, setOnboardingWhatsappInput] = useState('');
   const [onboardingWhatsappError, setOnboardingWhatsappError] = useState<string | null>(null);
   const [dismissedWhatsappPrompt, setDismissedWhatsappPrompt] = useState(false);
+
+  const [publicPassportToken, setPublicPassportToken] = useState<string | null>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('passport');
+    } catch {
+      return null;
+    }
+  });
+  const [publicPassportShare, setPublicPassportShare] = useState<VehiclePassportShare | null>(null);
+  const [publicPassportLoading, setPublicPassportLoading] = useState(false);
+  const [publicPassportError, setPublicPassportError] = useState<string | null>(null);
+
+  const [catalogPlans, setCatalogPlans] = useState<SubscriptionPlanCatalogItem[]>(() =>
+    buildFallbackPlanCatalog(
+      DEFAULT_PREFERENCES.countryCode ?? 'BR',
+      DEFAULT_PREFERENCES.currency
+    )
+  );
+  const [catalogSource, setCatalogSource] = useState<'database' | 'fallback'>('fallback');
+  const [subscription, setSubscription] = useState<UserSubscriptionRecord | null>(null);
+  const [payments, setPayments] = useState<SubscriptionPaymentRecord[]>([]);
+  const [organization, setOrganization] = useState<OrganizationProfile | null>(null);
+  const [orgMembers, setOrgMembers] = useState<OrganizationMember[]>([]);
+  const [odometerEvents, setOdometerEvents] = useState<OdometerEvent[]>([]);
+  const [plansFocusTick, setPlansFocusTick] = useState(0);
+
   const latestStateRef = useRef(state);
   const hadAuthenticatedSessionRef = useRef(false);
   const userSelectedModuleRef = useRef(false);
@@ -425,6 +476,116 @@ export default function App() {
     state.vehicles.find((v) => v.id === state.activeVehicleId) ?? state.vehicles[0] ?? null;
   const activeVehicleId = activeVehicle?.id ?? '';
   const t = TRANSLATIONS[state.prefs.language] ?? TRANSLATIONS.pt;
+  const effectiveCountry: CountryCode =
+    state.prefs.countryCode ?? inferCountryFromCurrency(state.prefs.currency);
+
+  const normalizedActivePlan = normalizePlanTier(state.prefs.activePlan);
+  const activePlanItem =
+    catalogPlans.find((p) => p.id === normalizedActivePlan) ?? catalogPlans[0] ?? null;
+  const vehicleLimit =
+    activePlanItem?.vehicleLimit ?? (isBusinessPlan(normalizedActivePlan) ? 10 : 1);
+  const activePlanName = activePlanItem?.name ?? 'Plano Particular';
+
+  useEffect(() => {
+    if (!publicPassportToken) {
+      setPublicPassportShare(null);
+      setPublicPassportError(null);
+      setPublicPassportLoading(false);
+      return;
+    }
+    let mounted = true;
+    setPublicPassportLoading(true);
+    setPublicPassportError(null);
+    fetchPublicPassportByToken(publicPassportToken)
+      .then((share) => {
+        if (!mounted) return;
+        if (!share) {
+          setPublicPassportError(
+            'Passaporte não encontrado, expirado ou compartilhamento desativado pelo proprietário.'
+          );
+          setPublicPassportShare(null);
+        } else {
+          setPublicPassportShare(share);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setPublicPassportError('Não foi possível validar este Passaporte Digital.');
+        }
+      })
+      .finally(() => {
+        if (mounted) setPublicPassportLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [publicPassportToken]);
+
+  useEffect(() => {
+    let active = true;
+    fetchBillingCatalog(effectiveCountry, state.prefs.currency)
+      .then((res) => {
+        if (!active) return;
+        if (res.plans.length > 0) {
+          setCatalogPlans(res.plans);
+          setCatalogSource(res.source);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [effectiveCountry, state.prefs.currency]);
+
+  const refreshSubscriptionAndEnterpriseData = async (
+    userId: string,
+    countryCode: CountryCode
+  ) => {
+    const token = await getAccessToken();
+    const [subRes, org, odoEvents] = await Promise.all([
+      fetchUserSubscriptionState(token, userId),
+      fetchOrCreateOrganization(userId, countryCode),
+      fetchOdometerEvents(userId),
+    ]);
+    setSubscription(subRes.subscription);
+    setPayments(subRes.payments);
+    setOdometerEvents(odoEvents);
+    setOrganization(org);
+    if (org) {
+      const members = await fetchOrganizationMembers(org.id);
+      setOrgMembers(members);
+    } else {
+      setOrgMembers([]);
+    }
+
+    if (
+      subRes.subscription &&
+      (subRes.subscription.status === 'active' ||
+        subRes.subscription.status === 'trialing' ||
+        subRes.subscription.status === 'past_due' ||
+        subRes.subscription.status === 'grace_period')
+    ) {
+      const canonical = normalizePlanTier(subRes.subscription.planId);
+      if (normalizePlanTier(latestStateRef.current.prefs.activePlan) !== canonical) {
+        setState((prev) => ({
+          ...prev,
+          prefs: { ...prev.prefs, activePlan: canonical },
+        }));
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!cloudUserId) {
+      setSubscription(null);
+      setPayments([]);
+      setOrganization(null);
+      setOrgMembers([]);
+      setOdometerEvents([]);
+      return;
+    }
+    void refreshSubscriptionAndEnterpriseData(cloudUserId, effectiveCountry).catch(() => {});
+  }, [cloudUserId]);
 
   useEffect(() => {
     if (!cloudUserId || !activeVehicleId || !isSupabaseConfigured()) {
@@ -632,16 +793,30 @@ export default function App() {
     const sessionId = params.get('session_id');
     const mpPaymentId = params.get('payment_id') || params.get('collection_id');
 
+    const applyVerifiedPlan = async (planIdRaw: unknown) => {
+      if (typeof planIdRaw !== 'string' || !planIdRaw) return;
+      const canonical = normalizePlanTier(planIdRaw);
+      setState((prev) => {
+        const nextPrefs = { ...prev.prefs, activePlan: canonical };
+        if (cloudUserId) void syncPreferencesToCloud(cloudUserId, nextPrefs);
+        return { ...prev, prefs: nextPrefs };
+      });
+      if (cloudUserId) {
+        await refreshSubscriptionAndEnterpriseData(cloudUserId, effectiveCountry).catch(() => {});
+      }
+    };
+
     if (checkoutState === 'success' && sessionId) {
-      fetch(`/api/billing/verify-session?session_id=${encodeURIComponent(sessionId)}`)
+      getAccessToken()
+        .then((token) =>
+          fetch(`/api/billing/verify-session?session_id=${encodeURIComponent(sessionId)}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          })
+        )
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data?.verified && (data.planId === 'plus' || data.planId === 'fleet')) {
-            setState((prev) => {
-              const nextPrefs = { ...prev.prefs, activePlan: data.planId };
-              if (cloudUserId) void syncPreferencesToCloud(cloudUserId, nextPrefs);
-              return { ...prev, prefs: nextPrefs };
-            });
+          if (data?.verified && data.planId) {
+            return applyVerifiedPlan(data.planId);
           }
         })
         .catch(() => {})
@@ -649,15 +824,16 @@ export default function App() {
           window.history.replaceState({}, '', window.location.pathname);
         });
     } else if (checkoutState === 'mp_success' && mpPaymentId) {
-      fetch(`/api/billing/verify-mp-payment?payment_id=${encodeURIComponent(mpPaymentId)}`)
+      getAccessToken()
+        .then((token) =>
+          fetch(`/api/billing/verify-mp-payment?payment_id=${encodeURIComponent(mpPaymentId)}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          })
+        )
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data?.verified && (data.planId === 'plus' || data.planId === 'fleet')) {
-            setState((prev) => {
-              const nextPrefs = { ...prev.prefs, activePlan: data.planId };
-              if (cloudUserId) void syncPreferencesToCloud(cloudUserId, nextPrefs);
-              return { ...prev, prefs: nextPrefs };
-            });
+          if (data?.verified && data.planId) {
+            return applyVerifiedPlan(data.planId);
           }
         })
         .catch(() => {})
@@ -718,7 +894,33 @@ export default function App() {
     setState((prev) => ({ ...prev, activeVehicleId: id }));
   };
 
+  const recordImmutableOdometer = (
+    vehicleId: string,
+    odometerKm: number,
+    source: OdometerEvent['source']
+  ) => {
+    const safeKm = Math.max(0, Math.round(odometerKm));
+    const localEvent: OdometerEvent = {
+      id: `odo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      vehicleId,
+      odometerKm: safeKm,
+      source,
+      recordedAt: new Date().toISOString(),
+    };
+    setOdometerEvents((prev) => [...prev, localEvent]);
+    if (cloudUserId) {
+      void appendOdometerEvent(cloudUserId, vehicleId, safeKm, source).then((persisted) => {
+        if (persisted) {
+          setOdometerEvents((prev) =>
+            prev.map((ev) => (ev.id === localEvent.id ? persisted : ev))
+          );
+        }
+      });
+    }
+  };
+
   const handleUpdateOdometer = (vehicleId: string, newKm: number) => {
+    recordImmutableOdometer(vehicleId, newKm, 'manual');
     setState((prev) => {
       const updatedVehicles = prev.vehicles.map((v) =>
         v.id === vehicleId ? { ...v, odometerKm: newKm } : v
@@ -744,17 +946,61 @@ export default function App() {
     });
   };
 
+  const handleAssignVehicleMember = (
+    vehicleId: string,
+    memberName: string,
+    memberEmail: string
+  ) => {
+    setState((prev) => {
+      const updatedVehicles = prev.vehicles.map((v) =>
+        v.id === vehicleId
+          ? {
+              ...v,
+              organizationId: organization?.id ?? v.organizationId ?? undefined,
+              assignedMemberName: memberName,
+              assignedMemberEmail: memberEmail,
+            }
+          : v
+      );
+      const changed = updatedVehicles.find((v) => v.id === vehicleId);
+      if (cloudUserId && changed) void syncVehicleToCloud(cloudUserId, changed);
+      return { ...prev, vehicles: updatedVehicles };
+    });
+  };
+
+  const handleOpenPlans = () => {
+    handleSelectModule('garage');
+    setPlansFocusTick((tick) => tick + 1);
+  };
+
   const handleAddVehicle = (newVehicle: Vehicle) => {
-    const newChecklist = buildDefaultChecklistForVehicle(newVehicle);
+    const isExpiredLocked =
+      subscription?.status === 'expired' && state.vehicles.length >= 1;
+    const isOverLimit =
+      isExpiredLocked || (vehicleLimit !== null && state.vehicles.length >= vehicleLimit);
+    if (isOverLimit) {
+      setShowAddVehicleModal(false);
+      handleOpenPlans();
+      return;
+    }
+
+    const enrichedVehicle: Vehicle = {
+      ...newVehicle,
+      organizationId: isBusinessPlan(normalizedActivePlan)
+        ? (organization?.id ?? undefined)
+        : undefined,
+    };
+    const newChecklist = buildDefaultChecklistForVehicle(enrichedVehicle);
     if (cloudUserId) {
-      void syncVehicleToCloud(cloudUserId, newVehicle).then(() =>
+      void syncVehicleToCloud(cloudUserId, enrichedVehicle).then(() =>
         Promise.all(newChecklist.map((it) => syncMaintenanceItemToCloud(cloudUserId, it)))
       );
     }
+    recordImmutableOdometer(enrichedVehicle.id, enrichedVehicle.odometerKm, 'initial');
     setState((prev) => ({
       ...prev,
-      vehicles: [...prev.vehicles, newVehicle],
-      activeVehicleId: newVehicle.id,
+      vehicles: [...prev.vehicles, enrichedVehicle],
+      activeVehicleId: enrichedVehicle.id,
       items: [...prev.items, ...newChecklist],
     }));
     setShowAddVehicleModal(false);
@@ -821,6 +1067,7 @@ export default function App() {
       void syncMaintenanceItemToCloud(cloudUserId, updatedItem);
       void insertServiceLogToCloud(cloudUserId, newLog);
     }
+    recordImmutableOdometer(activeVehicle.id, payload.odometerKm, 'service_log');
 
     setState((prev) => {
       const updatedVehicles = prev.vehicles.map((v) =>
@@ -852,6 +1099,8 @@ export default function App() {
       existingVehicle && log.odometerKm > existingVehicle.odometerKm
         ? { ...existingVehicle, odometerKm: log.odometerKm }
         : existingVehicle;
+
+    recordImmutableOdometer(log.vehicleId, log.odometerKm, 'service_log');
 
     setState((prev) => {
       const updatedVehicles = prev.vehicles.map((v) => {
@@ -915,6 +1164,20 @@ export default function App() {
       setShowLogModal(true);
     }
   };
+
+  if (publicPassportToken) {
+    return (
+      <PublicPassportView
+        share={publicPassportShare}
+        loading={publicPassportLoading}
+        error={publicPassportError}
+        onExitPublicView={() => {
+          setPublicPassportToken(null);
+          window.history.replaceState({}, '', window.location.pathname);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -1083,6 +1346,14 @@ export default function App() {
               attachments={attachments}
               attachmentsLoading={attachmentsLoading}
               attachmentsError={attachmentsError}
+              catalogPlans={catalogPlans}
+              catalogSource={catalogSource}
+              subscription={subscription}
+              payments={payments}
+              organization={organization}
+              orgMembers={orgMembers}
+              odometerEvents={odometerEvents}
+              focusPlansSignal={plansFocusTick}
               onAttachmentCreated={(att) => setAttachments((prev) => [att, ...prev])}
               onAttachmentDeleted={(id) =>
                 setAttachments((prev) => prev.filter((item) => item.id !== id))
@@ -1090,12 +1361,21 @@ export default function App() {
               onSelectVehicle={handleSelectVehicle}
               onUpdateOdometer={handleUpdateOdometer}
               onUpdateDrivingProfile={handleUpdateDrivingProfile}
+              onAssignVehicleMember={handleAssignVehicleMember}
               onDeleteVehicle={requestDeleteVehicle}
               onOpenAddVehicle={() => setShowAddVehicleModal(true)}
               onUpdatePrefs={updatePrefs}
               onAddServiceLog={handleAddServiceLog}
               onAddChargingSession={handleAddChargingSession}
               onMarkMaintenanceChecked={handleMarkMaintenanceChecked}
+              onOrganizationUpdated={(org) => setOrganization(org)}
+              onMembersChanged={(nextMembers) => setOrgMembers(nextMembers)}
+              onSubscriptionUpdated={(sub) => setSubscription(sub)}
+              onRefreshSubscription={async () => {
+                if (cloudUserId) {
+                  await refreshSubscriptionAndEnterpriseData(cloudUserId, effectiveCountry);
+                }
+              }}
               logs={state.logs}
               prefs={state.prefs}
               t={t}
@@ -1139,6 +1419,10 @@ export default function App() {
               cloudUserId={cloudUserId}
               cloudUserEmail={cloudUserEmail}
               cloudUserName={cloudUserName}
+              vehicleLimit={vehicleLimit}
+              activePlanName={activePlanName}
+              subscription={subscription}
+              onOpenPlans={handleOpenPlans}
               onSyncNow={handleSyncAllToCloud}
               onSelectVehicle={handleSelectVehicle}
               onOpenAddVehicle={() => setShowAddVehicleModal(true)}
@@ -1175,6 +1459,14 @@ export default function App() {
       {showAddVehicleModal && (
         <AddVehicleModal
           t={t}
+          prefs={state.prefs}
+          vehiclesCount={state.vehicles.length}
+          vehicleLimit={vehicleLimit}
+          subscriptionStatus={subscription?.status}
+          onOpenPlans={() => {
+            setShowAddVehicleModal(false);
+            handleOpenPlans();
+          }}
           onClose={() => setShowAddVehicleModal(false)}
           onAdd={handleAddVehicle}
         />
