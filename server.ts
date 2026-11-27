@@ -1307,10 +1307,24 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
     }
   }
 
+  function normalizeServerSupabaseUrl(rawUrl: string): string {
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return '';
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        return parsed.origin;
+      }
+    } catch {
+      // Fallback below
+    }
+    return trimmed.replace(/\/rest\/v1\/?.*$/i, '').replace(/\/+$/, '');
+  }
+
   function getSupabaseServerConfig() {
-    const url = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '')
-      .trim()
-      .replace(/\/+$/, '');
+    const url = normalizeServerSupabaseUrl(
+      process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || ''
+    );
     const anonKey = (process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '').trim();
     const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
     return {
@@ -1334,13 +1348,19 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
     if (!cfg.configured) return { ok: false, status: 503, data: null };
 
     const authKey = options.userToken || cfg.serviceRoleKey || cfg.anonKey;
-    const apiKey = cfg.serviceRoleKey && !options.userToken ? cfg.serviceRoleKey : cfg.anonKey || cfg.serviceRoleKey;
+    const apiKey =
+      cfg.serviceRoleKey && !options.userToken
+        ? cfg.serviceRoleKey
+        : cfg.anonKey || cfg.serviceRoleKey;
 
     const headers: Record<string, string> = {
       apikey: apiKey,
-      Authorization: `Bearer ${authKey}`,
       'Content-Type': 'application/json',
     };
+    const isJwt = authKey.split('.').length === 3;
+    if (options.userToken || isJwt) {
+      headers.Authorization = `Bearer ${authKey}`;
+    }
     if (options.prefer) {
       headers.Prefer = options.prefer;
     }
