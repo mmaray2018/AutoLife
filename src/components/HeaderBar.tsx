@@ -74,12 +74,12 @@ export function HeaderBar({
   const currentCurrency = CURRENCY_CATALOG[currency] ?? CURRENCY_CATALOG.BRL;
 
   return (
-    <header className="h-16 px-4 sm:px-6 lg:px-8 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+    <header className="h-16 px-4 sm:px-6 lg:px-8 bg-white/90 dark:bg-[#091120]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/10 flex items-center justify-between gap-3 shrink-0">
       <div className="flex items-center gap-3 min-w-0">
         <button
           type="button"
           onClick={onOpenMobileNav}
-          className="lg:hidden p-2 -ml-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-blue-600"
+          className="lg:hidden p-2 -ml-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-500"
           aria-label="Menu"
         >
           <Menu className="w-5 h-5" />
@@ -101,7 +101,7 @@ export function HeaderBar({
               <span className="text-slate-300 dark:text-slate-600 hidden md:inline" aria-hidden="true">
                 /
               </span>
-              <span className="text-slate-500 dark:text-slate-400 truncate hidden md:inline">
+              <span className="text-slate-500 dark:text-sky-300/90 truncate hidden md:inline">
                 {activeVehicle.make} {activeVehicle.model}
               </span>
             </>
@@ -118,7 +118,7 @@ export function HeaderBar({
             onClick={() => setOpenMenu((prev) => (prev === 'lang' ? null : 'lang'))}
             aria-label={t.settings.languageLabel}
             aria-expanded={openMenu === 'lang'}
-            className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-medium transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#0c1629] text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-[#101d36] text-xs font-medium transition-colors whitespace-nowrap shrink-0"
           >
             <span aria-hidden="true" className="text-sm leading-none">
               {currentLang.flag}
@@ -128,7 +128,7 @@ export function HeaderBar({
           </button>
 
           {openMenu === 'lang' && (
-            <div className="absolute right-0 mt-1.5 w-44 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg py-1 z-50">
+            <div className="absolute right-0 mt-1.5 w-44 rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629] shadow-xl py-1 z-50">
               {LANGUAGE_OPTIONS.map((opt) => {
                 const active = opt.code === language;
                 return (
@@ -141,8 +141,8 @@ export function HeaderBar({
                     }}
                     className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between gap-2 transition-colors ${
                       active
-                        ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold'
-                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        ? 'bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300 font-semibold'
+                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5'
                     }`}
                   >
                     <span className="flex items-center gap-2">
@@ -166,7 +166,7 @@ export function HeaderBar({
             onClick={() => setOpenMenu((prev) => (prev === 'currency' ? null : 'currency'))}
             aria-label={t.settings.currencyLabel}
             aria-expanded={openMenu === 'currency'}
-            className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-medium transition-colors whitespace-nowrap shrink-0 tabular-nums"
+            className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#0c1629] text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-[#101d36] text-xs font-medium transition-colors whitespace-nowrap shrink-0 tabular-nums"
           >
             <span aria-hidden="true" className="text-sm leading-none">
               {CURRENCY_FLAGS[currentCurrency.code]}
@@ -176,7 +176,7 @@ export function HeaderBar({
           </button>
 
           {openMenu === 'currency' && (
-            <div className="absolute right-0 mt-1.5 w-48 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg py-1 z-50">
+            <div className="absolute right-0 mt-1.5 w-48 rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629] shadow-xl py-1 z-50">
               {CURRENCY_LIST.map((item) => {
                 const active = item.code === currency;
                 return (
@@ -189,8 +189,8 @@ export function HeaderBar({
                     }}
                     className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between gap-2 transition-colors tabular-nums ${
                       active
-                        ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold'
-                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        ? 'bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300 font-semibold'
+                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5'
                     }`}
                   >
                     <span className="flex items-center gap-2 truncate">
@@ -214,7 +214,7 @@ export function HeaderBar({
         <button
           type="button"
           onClick={onPrimaryAction}
-          className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-sky-500 dark:hover:bg-sky-400 text-white dark:text-slate-950 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
         >
           <Plus className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline">{primaryActionLabel}</span>

@@ -31,8 +31,8 @@ export function WhatsAppConnectButton({
   const waUrl = buildWhatsAppUrl(whatsappNumber, language, message);
 
   const defaultClass = compact
-    ? 'inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0'
-    : 'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0';
+    ? 'inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629]/80 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors whitespace-nowrap shrink-0'
+    : 'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629]/80 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors whitespace-nowrap shrink-0';
 
   if (waUrl) {
     return (
@@ -83,11 +83,11 @@ export function WhatsAppConnectButton({
 
       {showSetupModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/80 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4 text-left">
+          <div className="autolife-glass rounded-2xl max-w-md w-full p-6 space-y-4 text-left">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="font-display text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -101,7 +101,7 @@ export function WhatsAppConnectButton({
               <button
                 type="button"
                 onClick={() => setShowSetupModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                 aria-label="Fechar"
               >
                 <X className="w-4 h-4" />
@@ -119,7 +119,7 @@ export function WhatsAppConnectButton({
                   placeholder="Ex.: +55 11 99999-8888"
                   value={phoneInput}
                   onChange={(e) => setPhoneInput(e.target.value)}
-                  className="w-full px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  className="w-full px-3 py-2 text-sm font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                 />
               </div>
 
@@ -131,13 +131,13 @@ export function WhatsAppConnectButton({
                 <button
                   type="button"
                   onClick={() => setShowSetupModal(false)}
-                  className="px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                  className="px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-3.5 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white"
+                  className="px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 text-white"
                 >
                   Salvar WhatsApp
                 </button>
@@ -151,7 +151,7 @@ export function WhatsAppConnectButton({
                       if (clean) onSaveWhatsApp(phoneInput.trim());
                       setShowSetupModal(false);
                     }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white"
                   >
                     <span>Salvar e Abrir WhatsApp</span>
                     <ExternalLink className="w-3.5 h-3.5" />

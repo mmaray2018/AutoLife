@@ -179,9 +179,9 @@ export function FleetTeamSection({
 
   if (!cloudUserId) {
     return (
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-3">
+      <section className="autolife-glass rounded-2xl p-6 space-y-3">
         <div className="flex items-center gap-2">
-          <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <Users className="w-4 h-4 text-sky-600 dark:text-sky-400" />
           <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
             Empresa &amp; Equipe de Motoristas
           </h2>
@@ -192,7 +192,7 @@ export function FleetTeamSection({
         <button
           type="button"
           onClick={onOpenCloudSettings}
-          className="px-3.5 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white"
+          className="px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white"
         >
           Conectar Conta Empresarial
         </button>
@@ -201,11 +201,11 @@ export function FleetTeamSection({
   }
 
   return (
-    <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+    <section className="autolife-glass rounded-2xl overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-200/80 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <div className="flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <Building2 className="w-4 h-4 text-sky-600 dark:text-sky-400" />
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
               Estrutura Empresarial &amp; Responsáveis da Frota
             </h2>
@@ -235,7 +235,7 @@ export function FleetTeamSection({
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               placeholder="Ex.: Transportes Silva Ltda"
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
@@ -247,14 +247,14 @@ export function FleetTeamSection({
               value={taxId}
               onChange={(e) => setTaxId(e.target.value)}
               placeholder="Documento fiscal"
-              className="w-full px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full px-3 py-2 text-sm font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
           </div>
           <div className="flex items-center gap-2">
             <select
               value={orgCountry}
               onChange={(e) => setOrgCountry(e.target.value as CountryCode)}
-              className="flex-1 px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="flex-1 px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             >
               {COUNTRY_LIST.map((c) => (
                 <option key={c.code} value={c.code}>
@@ -265,7 +265,7 @@ export function FleetTeamSection({
             <button
               type="submit"
               disabled={orgSaving || !organization}
-              className="px-3.5 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
+              className="px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
             >
               {orgSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : orgSaved ? '✓ Salvo' : 'Salvar'}
             </button>
@@ -275,10 +275,10 @@ export function FleetTeamSection({
         {/* Invite Employee Form */}
         <form
           onSubmit={handleInviteMember}
-          className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-3"
+          className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60 space-y-3"
         >
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 dark:text-slate-100">
-            <UserPlus className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <UserPlus className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
             <span>Convidar Funcionário / Responsável</span>
           </div>
 
@@ -289,7 +289,7 @@ export function FleetTeamSection({
               placeholder="Nome completo"
               value={inviteName}
               onChange={(e) => setInviteName(e.target.value)}
-              className="px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+              className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
             <input
               type="email"
@@ -297,7 +297,7 @@ export function FleetTeamSection({
               placeholder="funcionario@empresa.com"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
-              className="px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+              className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
             <select
               value={inviteRole}
@@ -306,7 +306,7 @@ export function FleetTeamSection({
                 setInviteRole(nextRole);
                 setInvitePerms(DEFAULT_ROLE_PERMISSIONS[nextRole]);
               }}
-              className="px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+              className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             >
               {(Object.keys(ROLE_LABELS) as OrganizationMemberRole[]).map((role) => (
                 <option key={role} value={role}>
@@ -326,7 +326,7 @@ export function FleetTeamSection({
                     onChange={(e) =>
                       setInvitePerms((prev) => ({ ...prev, [perm.key]: e.target.checked }))
                     }
-                    className="rounded border-slate-300 text-blue-600"
+                    className="rounded border-slate-300 text-sky-600"
                   />
                   <span>{perm.label}</span>
                 </label>
@@ -336,7 +336,7 @@ export function FleetTeamSection({
             <button
               type="submit"
               disabled={inviteBusy || !organization}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
             >
               {inviteBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
               <span>Convidar Funcionário</span>
@@ -344,11 +344,11 @@ export function FleetTeamSection({
           </div>
         </form>
 
-        {feedback && <p className="text-xs text-blue-600 dark:text-blue-400">{feedback}</p>}
+        {feedback && <p className="text-xs text-sky-600 dark:text-sky-400">{feedback}</p>}
 
         {/* Team Member List */}
         {members.length > 0 && (
-          <div className="divide-y divide-slate-200 dark:divide-slate-800">
+          <div className="divide-y divide-slate-200/80 dark:divide-white/10">
             {members.map((member) => (
               <div
                 key={member.id}
@@ -357,7 +357,7 @@ export function FleetTeamSection({
                 <div>
                   <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                     {member.memberName || member.memberEmail}{' '}
-                    <span className="text-xs font-normal text-slate-500">
+                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
                       · {ROLE_LABELS[member.role]} ·{' '}
                       {member.inviteStatus === 'active'
                         ? 'Ativo'
@@ -377,10 +377,10 @@ export function FleetTeamSection({
                       key={perm.key}
                       type="button"
                       onClick={() => void handleToggleMemberPermission(member, perm.key)}
-                      className={`inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded border transition-colors whitespace-nowrap ${
+                      className={`inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-lg border transition-colors whitespace-nowrap ${
                         member.permissions[perm.key]
-                          ? 'border-blue-300 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300'
-                          : 'border-slate-200 dark:border-slate-800 text-slate-400'
+                          ? 'border-sky-300 dark:border-sky-500/40 bg-sky-50/70 dark:bg-sky-950/35 text-sky-700 dark:text-sky-300'
+                          : 'border-slate-200 dark:border-white/10 text-slate-400'
                       }`}
                     >
                       {member.permissions[perm.key] && <Check className="w-3 h-3" />}
@@ -391,7 +391,7 @@ export function FleetTeamSection({
                   <button
                     type="button"
                     onClick={() => void handleToggleStatus(member)}
-                    className="px-2.5 py-1 text-[11px] font-medium rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+                    className="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-slate-200 dark:border-white/15 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
                   >
                     {member.inviteStatus === 'revoked' ? 'Reativar' : 'Suspender'}
                   </button>
@@ -399,7 +399,7 @@ export function FleetTeamSection({
                   <button
                     type="button"
                     onClick={() => void handleDeleteMember(member.id)}
-                    className="p-1.5 rounded text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400"
                     aria-label="Remover funcionário"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

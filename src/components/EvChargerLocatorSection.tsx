@@ -823,7 +823,7 @@ function EvLocatorMapWorkspace({
   }, [stations, minKwFilter, connectorFilter]);
 
   return (
-    <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 sm:p-6 space-y-5">
+    <section className="autolife-glass rounded-2xl p-5 sm:p-6 space-y-5">
       {/* Header + Live GPS Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -842,7 +842,7 @@ function EvLocatorMapWorkspace({
           <button
             type="button"
             onClick={handleLocateNow}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white transition-colors whitespace-nowrap shrink-0"
           >
             <LocateFixed className="w-3.5 h-3.5" />
             <span>{copy.locateNow}</span>
@@ -851,10 +851,10 @@ function EvLocatorMapWorkspace({
           <button
             type="button"
             onClick={() => setLiveTracking((prev) => !prev)}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border transition-colors whitespace-nowrap shrink-0 ${
               liveTracking
-                ? 'bg-emerald-600 border-emerald-600 text-white'
-                : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+                ? 'bg-emerald-600 border-emerald-500 text-white'
+                : 'border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
             }`}
           >
             <Radio className={`w-3.5 h-3.5 ${liveTracking ? 'animate-pulse' : ''}`} />
@@ -874,25 +874,25 @@ function EvLocatorMapWorkspace({
                 value={addressQuery}
                 onChange={(e) => setAddressQuery(e.target.value)}
                 placeholder={copy.searchPlaceholder}
-                className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
             <button
               type="submit"
-              className="px-3.5 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white shrink-0"
+              className="px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white shrink-0"
             >
               {copy.searchButton}
             </button>
           </form>
 
           {suggestions.length > 0 && (
-            <ul className="absolute z-30 left-0 right-16 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
+            <ul className="absolute z-30 left-0 right-16 mt-1 bg-white dark:bg-[#0c1629] border border-slate-200 dark:border-white/15 rounded-xl shadow-lg divide-y divide-slate-100 dark:divide-white/10 overflow-hidden">
               {suggestions.map((suggestion, idx) => (
                 <li key={suggestion.placePrediction?.placeId || idx}>
                   <button
                     type="button"
                     onClick={() => void selectSuggestionPlace(suggestion)}
-                    className="w-full text-left px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    className="w-full text-left px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5"
                   >
                     {suggestion.placePrediction?.text.text}
                   </button>
@@ -907,7 +907,7 @@ function EvLocatorMapWorkspace({
             aria-label={copy.radiusLabel}
             value={radiusMeters}
             onChange={(e) => setRadiusMeters(Number(e.target.value))}
-            className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
           >
             <option value={5000}>{copy.radiusLabel}: 5 km</option>
             <option value={15000}>{copy.radiusLabel}: 15 km</option>
@@ -921,7 +921,7 @@ function EvLocatorMapWorkspace({
             aria-label="Potência mínima"
             value={minKwFilter}
             onChange={(e) => setMinKwFilter(Number(e.target.value))}
-            className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
           >
             <option value={0}>{copy.powerFilterAll}</option>
             <option value={50}>{copy.powerFilterFast}</option>
@@ -934,7 +934,7 @@ function EvLocatorMapWorkspace({
             aria-label="Tipo de conector"
             value={connectorFilter}
             onChange={(e) => setConnectorFilter(e.target.value)}
-            className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
           >
             <option value="ALL">{copy.connectorAll}</option>
             <option value="CCS_COMBO_2">CCS2 (Combo 2)</option>
@@ -969,9 +969,9 @@ function EvLocatorMapWorkspace({
 
       {/* Active Route Summary Banner */}
       {activeRoute && (
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-lg border border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-xs sm:text-sm">
-          <div className="flex items-center gap-2 text-blue-900 dark:text-blue-200">
-            <Route className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-xl border border-sky-200 dark:border-sky-500/40 bg-sky-50 dark:bg-sky-950/35 text-xs sm:text-sm">
+          <div className="flex items-center gap-2 text-sky-900 dark:text-sky-200">
+            <Route className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
             <span>
               {copy.routeBannerTitle} <strong>{activeRoute.stationName}</strong>:{' '}
               <span className="font-mono font-semibold tabular-nums">
@@ -986,7 +986,7 @@ function EvLocatorMapWorkspace({
           <button
             type="button"
             onClick={() => setActiveRoute(null)}
-            className="text-xs font-medium text-blue-700 dark:text-blue-300 underline"
+            className="text-xs font-medium text-sky-700 dark:text-sky-300 underline"
           >
             {copy.clearRoute}
           </button>
@@ -996,7 +996,7 @@ function EvLocatorMapWorkspace({
       {/* Map + Station List Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* Google Map */}
-        <div className="lg:col-span-7 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 h-[380px] sm:h-[440px] relative">
+        <div className="lg:col-span-7 rounded-2xl overflow-hidden border border-slate-200 dark:border-white/15 h-[380px] sm:h-[440px] relative">
           <GoogleMap
             mapId="DEMO_MAP_ID"
             defaultCenter={searchCenter}
@@ -1103,17 +1103,17 @@ function EvLocatorMapWorkspace({
         </div>
 
         {/* Live Sorted Station List */}
-        <div className="lg:col-span-5 flex flex-col border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/70 dark:bg-slate-950/40 h-[380px] sm:h-[440px]">
-          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-300">
+        <div className="lg:col-span-5 flex flex-col border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden bg-slate-50/70 dark:bg-[#081020]/60 h-[380px] sm:h-[440px]">
+          <div className="px-4 py-3 border-b border-slate-200/80 dark:border-white/10 bg-white dark:bg-[#0c1629]/80 flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-300">
             <span className="tabular-nums">
               {isSearching
                 ? copy.searching
                 : `${filteredStations.length} ${copy.stationsFound}`}
             </span>
-            {isSearching && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />}
+            {isSearching && <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-500" />}
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800">
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-200/80 dark:divide-white/10">
             {filteredStations.length === 0 && !isSearching ? (
               <div className="p-6 text-center text-xs text-slate-500 dark:text-slate-400">
                 {copy.noStations}
@@ -1126,8 +1126,8 @@ function EvLocatorMapWorkspace({
                     key={station.id}
                     className={`p-4 space-y-2 transition-colors ${
                       isSelected
-                        ? 'bg-amber-50/80 dark:bg-amber-950/20'
-                        : 'hover:bg-white dark:hover:bg-slate-900/80'
+                        ? 'bg-sky-50/80 dark:bg-sky-950/30'
+                        : 'hover:bg-white dark:hover:bg-white/[0.03]'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -1153,7 +1153,7 @@ function EvLocatorMapWorkspace({
                       </button>
 
                       <div className="text-right shrink-0">
-                        <div className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400 tabular-nums">
+                        <div className="font-mono text-xs font-semibold text-sky-600 dark:text-sky-400 tabular-nums">
                           {formatDistance(station.distanceMeters / 1000, prefs.units)}
                         </div>
                         {station.rating !== null && (
@@ -1171,7 +1171,7 @@ function EvLocatorMapWorkspace({
                         {station.connectors.map((c, idx) => (
                           <span
                             key={`${station.id}-${c.type}-${idx}`}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/80 dark:bg-[#081020]/80 border border-slate-200 dark:border-white/10"
                           >
                             <Zap className="w-3 h-3 text-emerald-500" />
                             <span>
@@ -1194,7 +1194,7 @@ function EvLocatorMapWorkspace({
                         type="button"
                         onClick={() => void handleComputeRoute(station)}
                         disabled={isRouting}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium whitespace-nowrap"
                       >
                         <Navigation className="w-3 h-3" />
                         <span>{copy.traceRoute}</span>
@@ -1204,7 +1204,7 @@ function EvLocatorMapWorkspace({
                         href={station.directionsUri}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-medium"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 text-xs font-medium whitespace-nowrap"
                       >
                         <ExternalLink className="w-3 h-3" />
                         <span>{copy.openInMaps}</span>
@@ -1213,7 +1213,7 @@ function EvLocatorMapWorkspace({
                       <button
                         type="button"
                         onClick={() => onSelectStationForLog(station.name)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-xs font-medium"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-700/60 bg-emerald-50 dark:bg-emerald-950/35 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-xs font-medium whitespace-nowrap"
                       >
                         <BatteryCharging className="w-3 h-3" />
                         <span>{copy.useInSession}</span>
@@ -1266,8 +1266,8 @@ export function EvChargerLocatorSection({
 
   if (loadingConfig) {
     return (
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
-        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+      <section className="autolife-glass rounded-2xl p-6 flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+        <Loader2 className="w-4 h-4 animate-spin text-sky-500" />
         <span>{copy.searching}</span>
       </section>
     );
@@ -1275,7 +1275,7 @@ export function EvChargerLocatorSection({
 
   if (!mapsApiKey) {
     return (
-      <section className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/60 rounded-xl p-6 space-y-2">
+      <section className="autolife-glass !border-amber-200 dark:!border-amber-700/50 rounded-2xl p-6 space-y-2">
         <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{copy.missingKeyTitle}</span>

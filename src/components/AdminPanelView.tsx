@@ -323,7 +323,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
+            <ShieldCheck className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0" />
             <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">
               Painel Admin — Liberação de Planos
             </h1>
@@ -337,7 +337,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
           type="button"
           onClick={() => void loadUsers()}
           disabled={loadingUsers}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0 disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl autolife-glass text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-white/10 whitespace-nowrap shrink-0 disabled:opacity-60"
         >
           {loadingUsers ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -349,7 +349,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
       </div>
 
       {needsSqlSetup && (
-        <section className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-800 rounded-xl p-5 space-y-3">
+        <section className="bg-amber-50/70 dark:bg-amber-950/25 border border-amber-300 dark:border-amber-800/70 rounded-2xl p-5 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="font-display text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -362,22 +362,22 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
             <button
               type="button"
               onClick={() => void handleCopySql()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white hover:bg-slate-800 dark:hover:bg-blue-700 whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 text-white hover:bg-slate-800 dark:hover:bg-sky-500 whitespace-nowrap shrink-0"
             >
               {copiedSql ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copiedSql ? 'SQL copiado' : 'Copiar SQL único'}</span>
             </button>
           </div>
-          <pre className="p-3 rounded-lg bg-slate-950 text-slate-200 text-[11px] font-mono overflow-x-auto max-h-48">
+          <pre className="p-3 rounded-xl bg-[#040812] text-slate-200 text-[11px] font-mono overflow-x-auto max-h-48 border border-white/10">
             {ADMIN_SETUP_SQL}
           </pre>
         </section>
       )}
 
       {/* Grant / Upgrade Plan Form */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
+      <section className="autolife-glass rounded-2xl p-6 space-y-4">
         <div className="flex items-center gap-2">
-          <Crown className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+          <Crown className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
           <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
             Liberar ou Alterar Plano por E-mail
           </h2>
@@ -404,7 +404,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               placeholder="cliente@gmail.com"
               value={targetEmail}
               onChange={(e) => setTargetEmail(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
           </div>
 
@@ -419,7 +419,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               id="admin-target-plan"
               value={targetPlanId}
               onChange={(e) => setTargetPlanId(e.target.value as CanonicalPlanId)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             >
               {PLAN_OPTIONS.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -440,7 +440,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               id="admin-duration-days"
               value={durationDays}
               onChange={(e) => setDurationDays(Number(e.target.value))}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             >
               {DURATION_OPTIONS.map((d) => (
                 <option key={d.days} value={d.days}>
@@ -457,7 +457,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
             <button
               type="submit"
               disabled={grantBusy}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
             >
               {grantBusy ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -471,7 +471,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
 
         {feedback && (
           <div
-            className={`p-3 rounded-lg border text-xs ${
+            className={`p-3 rounded-xl border text-xs ${
               feedback.mode === 'success'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300'
                 : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900 text-red-700 dark:text-red-300'
@@ -483,8 +483,8 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
       </section>
 
       {/* Registered Accounts Directory */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <section className="autolife-glass rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
@@ -499,7 +499,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               placeholder="Buscar por e-mail ou nome..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -516,7 +516,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               : 'Nenhuma conta encontrada.'}
           </div>
         ) : (
-          <div className="divide-y divide-slate-200 dark:divide-slate-800 tabular-nums">
+          <div className="divide-y divide-slate-200 dark:divide-white/10 tabular-nums">
             {filteredUsers.map((user) => {
               const expiryLabel = user.currentPeriodEnd
                 ? new Date(user.currentPeriodEnd).toLocaleDateString('pt-BR')
@@ -553,7 +553,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
                         setTargetEmail(user.email);
                         setTargetPlanId(user.activePlan);
                       }}
-                      className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
+                      className="px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 whitespace-nowrap shrink-0"
                     >
                       Selecionar
                     </button>
@@ -562,7 +562,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
                         type="button"
                         disabled={grantBusy}
                         onClick={() => void handleGrantPlan(user.email, 'enterprise', 365)}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
+                        className="px-3 py-1.5 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
                       >
                         Liberar Enterprise (1 ano)
                       </button>

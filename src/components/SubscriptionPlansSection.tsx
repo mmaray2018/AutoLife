@@ -353,7 +353,7 @@ export function SubscriptionPlansSection({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629]/85">
             <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               aria-label="País de cobrança"
@@ -362,7 +362,7 @@ export function SubscriptionPlansSection({
               className="text-xs font-medium bg-transparent text-slate-800 dark:text-slate-100 focus:outline-none"
             >
               {COUNTRY_LIST.map((c) => (
-                <option key={c.code} value={c.code} className="dark:bg-slate-900">
+                <option key={c.code} value={c.code} className="dark:bg-[#0c1629]">
                   {c.name} ({c.defaultCurrency})
                 </option>
               ))}
@@ -373,22 +373,22 @@ export function SubscriptionPlansSection({
             aria-label="Moeda de cobrança"
             value={prefs.currency}
             onChange={(e) => onUpdatePrefs({ currency: e.target.value as CurrencyCode })}
-            className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+            className="px-2.5 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629]/85 text-slate-800 dark:text-slate-100"
           >
             {CURRENCY_LIST.map((c) => (
-              <option key={c.code} value={c.code}>
+              <option key={c.code} value={c.code} className="dark:bg-[#0c1629]">
                 {c.code} ({c.symbol})
               </option>
             ))}
           </select>
 
-          <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 w-fit shrink-0">
+          <div className="inline-flex rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629]/85 p-1 w-fit shrink-0">
             <button
               type="button"
               onClick={() => setBillingCycle('monthly')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 billingCycle === 'monthly'
-                  ? 'bg-slate-900 text-white dark:bg-blue-600'
+                  ? 'bg-slate-900 text-white dark:bg-sky-600'
                   : 'text-slate-600 dark:text-slate-400'
               }`}
             >
@@ -397,9 +397,9 @@ export function SubscriptionPlansSection({
             <button
               type="button"
               onClick={() => setBillingCycle('annual')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 billingCycle === 'annual'
-                  ? 'bg-slate-900 text-white dark:bg-blue-600'
+                  ? 'bg-slate-900 text-white dark:bg-sky-600'
                   : 'text-slate-600 dark:text-slate-400'
               }`}
             >
@@ -410,7 +410,7 @@ export function SubscriptionPlansSection({
       </div>
 
       {/* Active Subscription Management + Grace Period & History */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4">
+      <div className="autolife-glass rounded-2xl p-5 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -425,7 +425,7 @@ export function SubscriptionPlansSection({
                 {currentLimit !== null ? ` / ${currentLimit}` : ''} veículo(s)
               </span>
               {subscription && (
-                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                <span className="text-xs font-semibold text-sky-600 dark:text-sky-400">
                   · {SUBSCRIPTION_STATUS_LABELS[subscription.status]}
                 </span>
               )}
@@ -447,7 +447,7 @@ export function SubscriptionPlansSection({
                 type="button"
                 disabled={subBusy}
                 onClick={() => void handleToggleAutoRenew()}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
+                className="px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0"
               >
                 Renovação automática: {subscription.autoRenew ? 'Ativa' : 'Desativada'}
               </button>
@@ -456,7 +456,7 @@ export function SubscriptionPlansSection({
                   type="button"
                   disabled={subBusy}
                   onClick={() => void handleCancelSubscription()}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 whitespace-nowrap shrink-0"
+                  className="px-3 py-1.5 text-xs font-medium rounded-xl border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 whitespace-nowrap shrink-0"
                 >
                   Cancelar assinatura
                 </button>
@@ -466,7 +466,7 @@ export function SubscriptionPlansSection({
         </div>
 
         {(subscription?.status === 'grace_period' || subscription?.status === 'past_due') && (
-          <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">
+          <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>
               Assinatura em período de tolerância até{' '}
@@ -479,12 +479,12 @@ export function SubscriptionPlansSection({
         )}
 
         {payments.length > 0 && (
-          <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+          <div className="pt-3 border-t border-slate-200/80 dark:border-white/10 space-y-2">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
               <Receipt className="w-3.5 h-3.5" />
               <span>Histórico de Pagamentos</span>
             </div>
-            <div className="divide-y divide-slate-200 dark:divide-slate-800 max-h-36 overflow-y-auto text-xs tabular-nums">
+            <div className="divide-y divide-slate-200/80 dark:divide-white/10 max-h-36 overflow-y-auto text-xs tabular-nums">
               {payments.map((pay) => (
                 <div key={pay.id} className="py-2 flex items-center justify-between gap-3">
                   <div>
@@ -511,10 +511,10 @@ export function SubscriptionPlansSection({
           const br = computePriceBreakdown(personalPlan.price, billingCycle, prefs.currency);
           const isCurrent = activePlanId === 'personal';
           return (
-            <div className="bg-white dark:bg-slate-900 border border-blue-600 dark:border-blue-500 rounded-xl p-5 flex flex-col justify-between gap-4">
+            <div className="autolife-health-hero rounded-2xl p-5 flex flex-col justify-between gap-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
                     <User className="w-3.5 h-3.5" />
                     <span>{personalPlan.name}</span>
                   </span>
@@ -539,7 +539,7 @@ export function SubscriptionPlansSection({
 
                 <p className="text-xs text-slate-600 dark:text-slate-400">{personalPlan.description}</p>
 
-                <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-200/80 dark:border-white/10">
                   {personalPlan.features.map((feat) => (
                     <li key={feat} className="flex items-start gap-1.5">
                       <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -552,7 +552,7 @@ export function SubscriptionPlansSection({
               <button
                 type="button"
                 onClick={() => handleOpenCheckout(personalPlan)}
-                className="w-full py-2.5 px-3 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap shrink-0"
+                className="w-full py-2.5 px-3 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white whitespace-nowrap shrink-0 shadow-sm shadow-sky-950/25"
               >
                 {isCurrent ? 'Renovar / Trocar Moeda' : `Assinar Plano Particular (${prefs.currency})`}
               </button>
@@ -569,16 +569,14 @@ export function SubscriptionPlansSection({
             return (
               <div
                 key={plan.id}
-                className={`bg-white dark:bg-slate-900 border rounded-xl p-5 flex flex-col justify-between gap-4 ${
-                  isCurrent
-                    ? 'border-blue-600 dark:border-blue-500'
-                    : 'border-slate-200 dark:border-slate-800'
+                className={`autolife-glass rounded-2xl p-5 flex flex-col justify-between gap-4 ${
+                  isCurrent ? '!border-sky-500 dark:!border-sky-400/75' : ''
                 }`}
               >
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                      <Building2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      <Building2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
                       <span>{plan.name}</span>
                     </span>
                     {isCurrent && (
@@ -602,10 +600,10 @@ export function SubscriptionPlansSection({
                     </div>
                   </div>
 
-                  <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-200/80 dark:border-white/10">
                     {plan.features.slice(0, 4).map((feat) => (
                       <li key={feat} className="flex items-start gap-1.5">
-                        <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                        <Check className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
                         <span>{feat}</span>
                       </li>
                     ))}
@@ -615,7 +613,7 @@ export function SubscriptionPlansSection({
                 {isEnterprise ? (
                   <a
                     href="mailto:empresas@autolife.world?subject=Plano%20Empresarial%20Personalizado%20AutoLife"
-                    className="w-full py-2 px-3 text-center text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
+                    className="w-full py-2 px-3 text-center text-xs font-medium rounded-xl border border-slate-300 dark:border-white/15 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0"
                   >
                     Falar com Consultor B2B
                   </a>
@@ -623,7 +621,7 @@ export function SubscriptionPlansSection({
                   <button
                     type="button"
                     onClick={() => handleOpenCheckout(plan)}
-                    className="w-full py-2 px-3 text-xs font-medium rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white text-white whitespace-nowrap shrink-0"
+                    className="w-full py-2 px-3 text-xs font-medium rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-sky-600 dark:hover:bg-sky-500 text-white whitespace-nowrap shrink-0"
                   >
                     {isCurrent
                       ? 'Gerenciar / Renovar'
@@ -639,14 +637,14 @@ export function SubscriptionPlansSection({
       {/* Multi-Currency Checkout Modal */}
       {activeModalPlan && activeModalBreakdown && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/80 backdrop-blur-xs overflow-y-auto"
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-lg w-full p-6 space-y-5 my-8">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div className="autolife-glass rounded-2xl max-w-lg w-full p-6 space-y-5 my-8 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200/80 dark:border-white/10 pb-4">
               <div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
                   {pixCheckout ? <QrCode className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
                   <span>{pixCheckout ? 'Pagamento Instantâneo via Pix' : 'Pagamento Seguro Internacional'}</span>
                 </div>
@@ -670,7 +668,7 @@ export function SubscriptionPlansSection({
 
             {pixCheckout ? (
               <div className="space-y-4">
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex flex-col items-center text-center space-y-3">
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#081020]/60 flex flex-col items-center text-center space-y-3">
                   <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
                     Escaneie o QR Code no app do seu banco ({pixCheckout.formattedAmount})
                   </div>
@@ -678,7 +676,7 @@ export function SubscriptionPlansSection({
                     <img
                       src={`data:image/png;base64,${pixCheckout.qrCodeBase64}`}
                       alt="QR Code Pix"
-                      className="w-48 h-48 rounded-lg bg-white p-2 border border-slate-200"
+                      className="w-48 h-48 rounded-xl bg-white p-2 border border-slate-200"
                     />
                   ) : null}
                   <div className="w-full space-y-1.5 text-left">
@@ -690,12 +688,12 @@ export function SubscriptionPlansSection({
                         type="text"
                         readOnly
                         value={pixCheckout.qrCode}
-                        className="flex-1 px-2.5 py-1.5 text-[11px] font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200"
+                        className="flex-1 px-2.5 py-1.5 text-[11px] font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200"
                       />
                       <button
                         type="button"
                         onClick={() => void handleCopyPixCode()}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white whitespace-nowrap shrink-0"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 text-white whitespace-nowrap shrink-0"
                       >
                         {pixCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                         <span>{pixCopied ? 'Copiado' : 'Copiar'}</span>
@@ -706,7 +704,7 @@ export function SubscriptionPlansSection({
 
                 {checkoutFeedback && (
                   <div
-                    className={`p-3 rounded-lg border text-xs ${
+                    className={`p-3 rounded-xl border text-xs ${
                       checkoutFeedback.mode === 'success'
                         ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300'
                         : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900 text-red-700 dark:text-red-300'
@@ -724,7 +722,7 @@ export function SubscriptionPlansSection({
                       setPixConfirmed(false);
                       setCheckoutFeedback(null);
                     }}
-                    className="px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                    className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"
                   >
                     Trocar forma de pagamento
                   </button>
@@ -735,7 +733,7 @@ export function SubscriptionPlansSection({
                         setCheckoutPlan(null);
                         setPixCheckout(null);
                       }}
-                      className="px-4 py-2 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className="px-4 py-2 text-xs font-medium rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white"
                     >
                       Concluir
                     </button>
@@ -744,7 +742,7 @@ export function SubscriptionPlansSection({
                       type="button"
                       disabled={pixVerifying}
                       onClick={() => void handleManualVerifyPix()}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-60"
                     >
                       {pixVerifying ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -768,7 +766,7 @@ export function SubscriptionPlansSection({
                       onChange={(e) =>
                         handleCurrencyChangeInCheckout(e.target.value as CurrencyCode)
                       }
-                      className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                      className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                     >
                       {CURRENCY_LIST.map((c) => (
                         <option key={c.code} value={c.code}>
@@ -786,10 +784,10 @@ export function SubscriptionPlansSection({
                       <button
                         type="button"
                         onClick={() => setBillingCycle('monthly')}
-                        className={`py-2 px-2 text-xs font-medium rounded-lg border ${
+                        className={`py-2 px-2 text-xs font-medium rounded-xl border ${
                           billingCycle === 'monthly'
-                            ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 text-slate-900 dark:text-slate-100'
-                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                            ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 text-slate-900 dark:text-sky-100'
+                            : 'border-slate-200 dark:border-white/15 text-slate-600 dark:text-slate-300'
                         }`}
                       >
                         Mensal
@@ -797,10 +795,10 @@ export function SubscriptionPlansSection({
                       <button
                         type="button"
                         onClick={() => setBillingCycle('annual')}
-                        className={`py-2 px-2 text-xs font-medium rounded-lg border ${
+                        className={`py-2 px-2 text-xs font-medium rounded-xl border ${
                           billingCycle === 'annual'
-                            ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 text-slate-900 dark:text-slate-100'
-                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                            ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40 text-slate-900 dark:text-sky-100'
+                            : 'border-slate-200 dark:border-white/15 text-slate-600 dark:text-slate-300'
                         }`}
                       >
                         Anual (-20%)
@@ -822,10 +820,10 @@ export function SubscriptionPlansSection({
                           key={method}
                           type="button"
                           onClick={() => handleSelectCheckoutMethod(method)}
-                          className={`w-full p-3 rounded-lg border text-left flex items-center justify-between gap-3 transition-colors ${
+                          className={`w-full p-3 rounded-xl border text-left flex items-center justify-between gap-3 transition-colors ${
                             selected
-                              ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30'
-                              : 'border-slate-200 dark:border-slate-800'
+                              ? 'border-sky-500 bg-sky-50/70 dark:bg-sky-950/40'
+                              : 'border-slate-200 dark:border-white/10'
                           }`}
                         >
                           <div>
@@ -836,7 +834,7 @@ export function SubscriptionPlansSection({
                               {info.subtitle}
                             </div>
                           </div>
-                          {selected && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
+                          {selected && <Check className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />}
                         </button>
                       );
                     })}
@@ -853,13 +851,13 @@ export function SubscriptionPlansSection({
                       placeholder="seu@email.com"
                       value={payerEmail}
                       onChange={(e) => setPayerEmail(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                     />
                   </div>
                 )}
 
                 {/* Transparent Price Breakdown (Subtotal + Tax + Processing Fee) */}
-                <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1.5 text-xs tabular-nums">
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#081020]/60 border border-slate-200 dark:border-white/10 space-y-1.5 text-xs tabular-nums">
                   <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
                     <span>Subtotal do plano ({billingCycle === 'annual' ? 'Anual' : 'Mensal'})</span>
                     <span className="font-mono">
@@ -878,7 +876,7 @@ export function SubscriptionPlansSection({
                       {formatCurrency(activeModalBreakdown.processingFeeMajor, prefs.currency)}
                     </span>
                   </div>
-                  <div className="pt-1.5 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                  <div className="pt-1.5 border-t border-slate-200 dark:border-white/10 flex items-center justify-between">
                     <span className="font-semibold text-slate-900 dark:text-slate-100">Total final</span>
                     <span className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
                       {formatCurrency(activeModalBreakdown.totalMajor, prefs.currency)}
@@ -888,7 +886,7 @@ export function SubscriptionPlansSection({
 
                 {checkoutFeedback && (
                   <div
-                    className={`p-3 rounded-lg border text-xs ${
+                    className={`p-3 rounded-xl border text-xs ${
                       checkoutFeedback.mode === 'success'
                         ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300'
                         : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900 text-red-700 dark:text-red-300'
@@ -902,7 +900,7 @@ export function SubscriptionPlansSection({
                   <button
                     type="button"
                     onClick={() => setCheckoutPlan(null)}
-                    className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                    className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"
                   >
                     {t.actions.cancel}
                   </button>
@@ -910,7 +908,7 @@ export function SubscriptionPlansSection({
                     type="button"
                     disabled={isCheckingOut}
                     onClick={() => void handleConfirmCheckout()}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60"
+                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-60"
                   >
                     {isCheckingOut && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                     <span>

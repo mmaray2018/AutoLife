@@ -281,9 +281,9 @@ export function GlobalNetworkView({
             type="button"
             disabled={locating}
             onClick={handleLocateMe}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 w-fit disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl autolife-glass text-slate-800 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-white/10 transition-colors whitespace-nowrap shrink-0 w-fit disabled:opacity-60"
           >
-            <LocateFixed className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <LocateFixed className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
             <span>
               {locating
                 ? 'Obtendo GPS...'
@@ -296,7 +296,7 @@ export function GlobalNetworkView({
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white transition-colors whitespace-nowrap shrink-0 w-fit"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white transition-colors whitespace-nowrap shrink-0 w-fit"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Adicionar Local</span>
@@ -305,22 +305,22 @@ export function GlobalNetworkView({
       </div>
 
       {geoMessage && (
-        <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 text-xs text-amber-800 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 text-xs text-amber-800 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <span>{geoMessage}</span>
           <input
             type="text"
             value={manualLocationQuery}
             onChange={(e) => setManualLocationQuery(e.target.value)}
             placeholder="Cidade / Bairro (ex.: Lisboa, São Paulo)"
-            className="px-2.5 py-1.5 text-xs rounded-md border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 sm:w-64"
+            className="px-2.5 py-1.5 text-xs rounded-xl border border-amber-300 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100 sm:w-64"
           />
         </div>
       )}
 
       {/* Filters & Real Map Lookup Toolbar */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-4">
+      <div className="autolife-glass rounded-2xl p-4 space-y-4">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
+          <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-[#081020] border border-slate-200/60 dark:border-white/10 rounded-xl w-fit">
             {(
               [
                 { id: 'all', label: t.network.allCategories },
@@ -335,9 +335,9 @@ export function GlobalNetworkView({
                 key={tab.id}
                 type="button"
                 onClick={() => setCategoryFilter(tab.id)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                   categoryFilter === tab.id
-                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                    ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
               >
@@ -347,7 +347,7 @@ export function GlobalNetworkView({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
+            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-[#081020] border border-slate-200/60 dark:border-white/10 rounded-xl w-fit">
               {(
                 [
                   { id: 'all', label: t.network.allCategories },
@@ -359,9 +359,9 @@ export function GlobalNetworkView({
                   key={vt.id}
                   type="button"
                   onClick={() => setVehicleFilter(vt.id)}
-                  className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                     vehicleFilter === vt.id
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                      ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                   }`}
                 >
@@ -377,7 +377,7 @@ export function GlobalNetworkView({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t.network.searchPlaceholder}
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
               />
             </div>
 
@@ -388,7 +388,7 @@ export function GlobalNetworkView({
                 value={manualLocationQuery}
                 onChange={(e) => setManualLocationQuery(e.target.value)}
                 placeholder="Cidade / Região"
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
               />
             </div>
 
@@ -396,7 +396,7 @@ export function GlobalNetworkView({
               href={liveMapsSearchUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/60 transition-colors whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl border border-sky-200 dark:border-sky-400/35 bg-sky-50/70 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-500/20 transition-colors whitespace-nowrap shrink-0"
             >
               <MapPin className="w-3.5 h-3.5" />
               <span>Buscar no Google Maps</span>
@@ -408,7 +408,7 @@ export function GlobalNetworkView({
 
       {/* Saved Trusted Places */}
       {filteredPartners.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center space-y-4">
+        <div className="autolife-glass rounded-2xl p-10 text-center space-y-4">
           <MapPin className="w-9 h-9 text-slate-400 mx-auto" />
           <div className="space-y-1">
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
@@ -424,7 +424,7 @@ export function GlobalNetworkView({
             <button
               type="button"
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Adicionar Local</span>
@@ -433,7 +433,7 @@ export function GlobalNetworkView({
               href={liveMapsSearchUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5"
             >
               <span>Buscar no Google Maps</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -451,12 +451,12 @@ export function GlobalNetworkView({
             return (
               <article
                 key={partner.id}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between gap-4"
+                className="autolife-glass rounded-2xl p-5 flex flex-col justify-between gap-4"
               >
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                      <div className="text-xs font-medium text-sky-600 dark:text-sky-400">
                         {t.network[partner.category]} · {partner.city}
                         {partner.country ? `, ${partner.country}` : ''}
                       </div>
@@ -467,7 +467,7 @@ export function GlobalNetworkView({
                     <button
                       type="button"
                       onClick={() => handleDeletePlace(partner.id)}
-                      className="p-1.5 rounded text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors shrink-0"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors shrink-0"
                       aria-label="Remover local"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -486,7 +486,7 @@ export function GlobalNetworkView({
                   )}
                 </div>
 
-                <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                <div className="pt-3 border-t border-slate-200 dark:border-white/10 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-xs tabular-nums">
                     {partner.liveDistanceKm !== null && (
                       <>
@@ -522,7 +522,7 @@ export function GlobalNetworkView({
                       href={mapsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="p-1.5 rounded-xl border border-slate-200 dark:border-white/15 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
                       title="Abrir rota no mapa"
                       aria-label="Abrir rota no mapa"
                     >
@@ -534,7 +534,7 @@ export function GlobalNetworkView({
                         setSelectedPartner(partner);
                         setVisitConfirmed(false);
                       }}
-                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors whitespace-nowrap shrink-0"
+                      className="px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 text-white hover:bg-slate-800 dark:hover:bg-sky-500 transition-colors whitespace-nowrap shrink-0"
                     >
                       {t.actions.schedule}
                     </button>
@@ -549,11 +549,11 @@ export function GlobalNetworkView({
       {/* Add Place Modal */}
       {showAddModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/80 backdrop-blur-xs overflow-y-auto"
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4 my-8">
+          <div className="autolife-glass rounded-2xl max-w-md w-full p-6 space-y-4 my-8">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
                 Adicionar Local de Confiança
@@ -561,7 +561,7 @@ export function GlobalNetworkView({
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                 aria-label={t.actions.close}
               >
                 <X className="w-5 h-5" />
@@ -578,7 +578,7 @@ export function GlobalNetworkView({
                   required
                   value={placeName}
                   onChange={(e) => setPlaceName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                 />
               </div>
 
@@ -592,7 +592,7 @@ export function GlobalNetworkView({
                     onChange={(e) =>
                       setPlaceCategory(e.target.value as NetworkPartner['category'])
                     }
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   >
                     <option value="workshop">{t.network.workshop}</option>
                     <option value="ev_charger">{t.network.ev_charger}</option>
@@ -610,7 +610,7 @@ export function GlobalNetworkView({
                     type="text"
                     value={placeCity}
                     onChange={(e) => setPlaceCity(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   />
                 </div>
               </div>
@@ -624,7 +624,7 @@ export function GlobalNetworkView({
                     type="text"
                     value={placeAddress}
                     onChange={(e) => setPlaceAddress(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   />
                 </div>
                 <div>
@@ -635,7 +635,7 @@ export function GlobalNetworkView({
                     type="text"
                     value={placeCountry}
                     onChange={(e) => setPlaceCountry(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   />
                 </div>
               </div>
@@ -648,7 +648,7 @@ export function GlobalNetworkView({
                   type="text"
                   value={placeSpecialties}
                   onChange={(e) => setPlaceSpecialties(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                 />
               </div>
 
@@ -658,7 +658,7 @@ export function GlobalNetworkView({
                     type="checkbox"
                     checked={supportsCar}
                     onChange={(e) => setSupportsCar(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600"
+                    className="rounded border-slate-300 text-sky-600"
                   />
                   <span>{t.vehicleTypes.car}</span>
                 </label>
@@ -667,7 +667,7 @@ export function GlobalNetworkView({
                     type="checkbox"
                     checked={supportsMoto}
                     onChange={(e) => setSupportsMoto(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600"
+                    className="rounded border-slate-300 text-sky-600"
                   />
                   <span>{t.vehicleTypes.motorcycle}</span>
                 </label>
@@ -677,13 +677,13 @@ export function GlobalNetworkView({
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                  className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"
                 >
                   {t.actions.cancel}
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                  className="px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white"
                 >
                   {t.actions.save}
                 </button>
@@ -696,11 +696,11 @@ export function GlobalNetworkView({
       {/* Workshop Service Brief Modal */}
       {selectedPartner && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/80 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-lg w-full p-6 space-y-5">
+          <div className="autolife-glass rounded-2xl max-w-lg w-full p-6 space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -713,7 +713,7 @@ export function GlobalNetworkView({
               <button
                 type="button"
                 onClick={() => setSelectedPartner(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                 aria-label={t.actions.close}
               >
                 <X className="w-5 h-5" />
@@ -723,7 +723,7 @@ export function GlobalNetworkView({
             <div className="text-sm text-slate-600 dark:text-slate-300 space-y-3">
               <p>{t.network.checklistDesc}</p>
               {vehicle && (
-                <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-xs space-y-1 tabular-nums">
+                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#081020]/70 text-xs space-y-1 tabular-nums">
                   <div className="font-semibold text-slate-900 dark:text-slate-100">
                     {vehicle.make} {vehicle.model} ({vehicle.year}) · {vehicle.plate}
                   </div>
@@ -741,7 +741,7 @@ export function GlobalNetworkView({
                     return (
                       <li
                         key={item.id}
-                        className="flex items-center justify-between gap-2 py-1 border-b border-slate-100 dark:border-slate-800"
+                        className="flex items-center justify-between gap-2 py-1 border-b border-slate-100 dark:border-white/10"
                       >
                         <span className="font-medium text-slate-800 dark:text-slate-200">
                           {loc ? loc.title : item.titleKey}
@@ -774,14 +774,14 @@ export function GlobalNetworkView({
               <button
                 type="button"
                 onClick={() => setSelectedPartner(null)}
-                className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"
               >
                 {t.actions.close}
               </button>
               <button
                 type="button"
                 onClick={() => setVisitConfirmed(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white"
               >
                 {visitConfirmed ? <Check className="w-3.5 h-3.5" /> : null}
                 <span>{visitConfirmed ? '✓' : t.actions.schedule}</span>

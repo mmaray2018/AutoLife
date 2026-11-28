@@ -63,6 +63,7 @@ import { SubscriptionPlansSection } from './SubscriptionPlansSection';
 import { VehicleMedicalRecordPanel } from './VehicleMedicalRecordPanel';
 import { VehiclePassportModal } from './VehiclePassportModal';
 import { VehicleVaultSection } from './VehicleVaultSection';
+import { VehicleVisual } from './VehicleVisual';
 import { WhatsAppConnectButton } from './WhatsAppConnectButton';
 
 interface GarageFleetViewProps {
@@ -316,8 +317,8 @@ export function GarageFleetView({
           </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center space-y-4">
-          <Car className="w-10 h-10 text-slate-400 mx-auto" />
+        <div className="autolife-glass rounded-2xl p-10 text-center space-y-4">
+          <Car className="w-10 h-10 text-sky-500 dark:text-sky-400 mx-auto" />
           <div className="space-y-1">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-slate-100">
               Sua garagem está vazia
@@ -506,9 +507,83 @@ export function GarageFleetView({
         </div>
       </div>
 
+      {/* Active Vehicle Visual Banner + Multi-Vehicle Quick Switcher */}
+      <section className="autolife-glass rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="w-28 sm:w-36 h-20 sm:h-24 rounded-xl overflow-hidden border border-slate-200 dark:border-sky-400/25 bg-slate-900 shrink-0">
+            <VehicleVisual
+              vehicle={activeVehicle}
+              attachments={attachments}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="min-w-0 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-sky-600 dark:text-sky-400">
+              {activeVehicle.vehicleType === 'motorcycle' ? (
+                <Bike className="w-3.5 h-3.5 shrink-0" />
+              ) : (
+                <Car className="w-3.5 h-3.5 shrink-0" />
+              )}
+              <span>
+                {t.vehicleTypes[activeVehicle.vehicleType ?? 'car']}
+                {activeVehicle.vehicleType === 'motorcycle' && activeVehicle.engineDisplacementCc
+                  ? ` ${activeVehicle.engineDisplacementCc}cc`
+                  : ''}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="truncate">{t.powertrain[activeVehicle.powertrain]}</span>
+            </div>
+            <h2 className="font-display text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate">
+              {activeVehicle.make} {activeVehicle.model} ({activeVehicle.year})
+            </h2>
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs font-mono text-slate-500 dark:text-slate-400 tabular-nums">
+              <span>{activeVehicle.plate}</span>
+              <span aria-hidden="true">·</span>
+              <span className="text-slate-800 dark:text-sky-300 font-semibold">
+                {formatDistance(activeVehicle.odometerKm, prefs.units)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {vehicles.length > 1 && (
+            <select
+              aria-label="Selecionar veículo"
+              value={activeVehicle.id}
+              onChange={(e) => onSelectVehicle(e.target.value)}
+              className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
+            >
+              {vehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.vehicleType === 'motorcycle' ? `[${t.vehicleTypes.motorcycle}] ` : ''}
+                  {v.make} {v.model} ({v.year})
+                </option>
+              ))}
+            </select>
+          )}
+          <button
+            type="button"
+            onClick={onOpenAddVehicle}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#101d36] transition-colors whitespace-nowrap shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+            <span>{t.actions.addVehicle}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onDeleteVehicle(activeVehicle.id)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors whitespace-nowrap shrink-0"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Remover</span>
+          </button>
+        </div>
+      </section>
+
       {/* B2B Fleet Mode OR Gate OR Personal Specs */}
       {viewMode === 'fleet' && !hasBusinessAccess ? (
-        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <section className="autolife-glass rounded-2xl p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
               <Building2 className="w-4 h-4" />
@@ -581,7 +656,7 @@ export function GarageFleetView({
 
           {/* Enterprise Fleet KPI Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 tabular-nums">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+            <div className="autolife-glass rounded-2xl p-4">
               <div className="text-xs text-slate-500 dark:text-slate-400">Veículos na Frota</div>
               <div className="mt-1 font-display text-xl font-bold text-slate-900 dark:text-slate-100">
                 {vehicles.length}
@@ -590,13 +665,13 @@ export function GarageFleetView({
                 </span>
               </div>
             </div>
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+            <div className="autolife-glass rounded-2xl p-4">
               <div className="text-xs text-slate-500 dark:text-slate-400">Odômetro Total</div>
               <div className="mt-1 font-display text-xl font-bold text-slate-900 dark:text-slate-100">
                 {formatDistance(fleetKpis.totalOdometer, prefs.units)}
               </div>
             </div>
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+            <div className="autolife-glass rounded-2xl p-4">
               <div className="text-xs text-slate-500 dark:text-slate-400">Manutenções Atrasadas</div>
               <div
                 className={`mt-1 font-display text-xl font-bold ${
@@ -608,7 +683,7 @@ export function GarageFleetView({
                 {fleetKpis.overdueVehicles} veículo(s)
               </div>
             </div>
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
+            <div className="autolife-glass rounded-2xl p-4">
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 Revisões / Docs Próximos
               </div>
@@ -616,7 +691,7 @@ export function GarageFleetView({
                 {fleetKpis.upcomingRevisions} rev · {fleetKpis.expiringDocuments} doc
               </div>
             </div>
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 col-span-2 lg:col-span-1">
+            <div className="autolife-glass rounded-2xl p-4 col-span-2 lg:col-span-1">
               <div className="text-xs text-slate-500 dark:text-slate-400">Gastos no Mês Atual</div>
               <div className="mt-1 font-display text-xl font-bold text-slate-900 dark:text-slate-100">
                 {formatCurrency(fleetKpis.monthlySpend, prefs.currency)}
@@ -625,7 +700,7 @@ export function GarageFleetView({
           </div>
 
           {/* Fleet Matrix Table */}
-          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+          <section className="autolife-glass rounded-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
@@ -746,13 +821,15 @@ export function GarageFleetView({
                                   });
                                 }, 60);
                               }}
-                              className="text-left hover:underline focus-visible:outline-2 focus-visible:outline-blue-600 flex items-center gap-2"
+                              className="text-left hover:underline focus-visible:outline-2 focus-visible:outline-sky-500 flex items-center gap-2.5"
                             >
-                              {vType === 'motorcycle' ? (
-                                <Bike className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                              ) : (
-                                <Car className="w-4 h-4 text-slate-400 shrink-0" />
-                              )}
+                              <div className="w-10 h-7 rounded-md overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-900 shrink-0">
+                                <VehicleVisual
+                                  vehicle={v}
+                                  attachments={attachments}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
                               <span>
                                 {v.make} {v.model} ({v.year})
                               </span>
@@ -880,7 +957,7 @@ export function GarageFleetView({
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Active Vehicle Specs, Odometer & Predictive Driving Profile */}
-          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-5">
+          <section className="autolife-glass rounded-2xl p-6 space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
@@ -1008,7 +1085,7 @@ export function GarageFleetView({
           </section>
 
           {/* Documentation Expiry */}
-          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
+          <section className="autolife-glass rounded-2xl p-6 space-y-4">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-slate-500" />
               <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
@@ -1202,7 +1279,7 @@ export function GarageFleetView({
       </div>
 
       {/* Service & TCO Cost Ledger */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+      <section className="autolife-glass rounded-2xl overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">

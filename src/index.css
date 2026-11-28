@@ -21,6 +21,42 @@
   }
 }
 
+@layer components {
+  .autolife-shell-bg {
+    background-color: #f8fafc;
+  }
+
+  .dark .autolife-shell-bg {
+    background-color: #060b16;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(14, 165, 233, 0.14), transparent 65%),
+      radial-gradient(ellipse 60% 45% at 100% 20%, rgba(37, 99, 235, 0.08), transparent 60%);
+  }
+
+  .autolife-glass {
+    @apply bg-white/95 dark:bg-[#0c1629]/85 backdrop-blur-md border border-slate-200/90 dark:border-white/10 shadow-sm dark:shadow-[0_12px_32px_-16px_rgba(2,6,23,0.8)];
+  }
+
+  .autolife-health-hero {
+    @apply bg-white/95 dark:bg-[#0b1528]/90 backdrop-blur-md border border-sky-500/70 dark:border-sky-400/75;
+    box-shadow:
+      0 10px 30px -12px rgba(14, 165, 233, 0.2),
+      0 0 0 1px rgba(56, 189, 248, 0.12);
+  }
+
+  .dark .autolife-health-hero {
+    background-image: linear-gradient(
+      145deg,
+      rgba(16, 29, 54, 0.94) 0%,
+      rgba(11, 21, 40, 0.92) 55%,
+      rgba(8, 16, 32, 0.96) 100%
+    );
+    box-shadow:
+      0 0 34px -8px rgba(56, 189, 248, 0.36),
+      inset 0 1px 0 0 rgba(125, 211, 252, 0.16);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

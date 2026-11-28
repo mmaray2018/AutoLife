@@ -943,7 +943,7 @@ export function VehicleMedicalRecordPanel({
     daysBetween(todayIso(), vehicle.insuranceExpiryDate) > prefs.docReminderDays;
 
   return (
-    <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+    <section className="autolife-glass rounded-2xl overflow-hidden">
       <input
         ref={inlineCameraRef}
         type="file"
@@ -961,10 +961,10 @@ export function VehicleMedicalRecordPanel({
       />
 
       {/* Zone 1: Clinical Header */}
-      <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="px-5 py-4 border-b border-slate-200/80 dark:border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <Stethoscope className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <Stethoscope className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
             <h2 className="font-display text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 truncate">
               Prontuário &amp; Ficha Médica — {vehicle.make} {vehicle.model} ({vehicle.year})
             </h2>
@@ -999,7 +999,7 @@ export function VehicleMedicalRecordPanel({
                 setEditingWhatsapp(false);
               }
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors whitespace-nowrap shrink-0"
             title="Gerar e enviar todo o histórico de manutenção via WhatsApp"
           >
             <Share2 className="w-3.5 h-3.5" />
@@ -1010,7 +1010,7 @@ export function VehicleMedicalRecordPanel({
           <button
             type="button"
             onClick={() => openModal('maintenance')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white transition-colors whitespace-nowrap shrink-0 shadow-sm shadow-sky-950/25"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Adicionar Registro</span>
@@ -1019,7 +1019,7 @@ export function VehicleMedicalRecordPanel({
       </div>
 
       {/* Zone 2: 4-Metric Clinical Summary Strip (Flat hairline-divided grid, zero nested cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 tabular-nums">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200/80 dark:divide-white/10 border-b border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/50 tabular-nums">
         <div className="px-5 py-3.5 space-y-1">
           <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
             Radar de Atenção
@@ -1099,8 +1099,8 @@ export function VehicleMedicalRecordPanel({
 
       {/* Zone 3: Reminder Radar — Tying future obligations directly to medical record actions */}
       {reminderEntries.length > 0 && (
-        <div className="border-b border-slate-200 dark:border-slate-800">
-          <div className="px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 bg-slate-50/30 dark:bg-slate-900">
+        <div className="border-b border-slate-200/80 dark:border-white/10">
+          <div className="px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 bg-slate-50/40 dark:bg-[#081020]/40">
             <div className="flex items-center gap-2 min-w-0">
               <BellRing className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <div className="min-w-0">
@@ -1114,13 +1114,13 @@ export function VehicleMedicalRecordPanel({
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
+              <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-[#081020] border border-slate-200/80 dark:border-white/10 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setReminderFilter('urgent')}
-                  className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors whitespace-nowrap ${
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors whitespace-nowrap ${
                     reminderFilter === 'urgent'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                      ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                   }`}
                 >
@@ -1129,9 +1129,9 @@ export function VehicleMedicalRecordPanel({
                 <button
                   type="button"
                   onClick={() => setReminderFilter('all')}
-                  className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors whitespace-nowrap ${
+                  className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors whitespace-nowrap ${
                     reminderFilter === 'all'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                      ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                   }`}
                 >
@@ -1142,7 +1142,7 @@ export function VehicleMedicalRecordPanel({
               <button
                 type="button"
                 onClick={() => setRemindersCollapsed((prev) => !prev)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap"
               >
                 <span>{remindersCollapsed ? 'Expandir' : 'Recolher'}</span>
                 {remindersCollapsed ? (
@@ -1155,7 +1155,7 @@ export function VehicleMedicalRecordPanel({
           </div>
 
           {!remindersCollapsed && (
-            <div className="divide-y divide-slate-200 dark:divide-slate-800">
+            <div className="divide-y divide-slate-200/80 dark:divide-white/10">
               {displayedReminders.map((rem) => {
                 const statusTextClass =
                   rem.status === MaintenanceStatus.OVERDUE
@@ -1189,7 +1189,7 @@ export function VehicleMedicalRecordPanel({
                 return (
                   <div
                     key={rem.id}
-                    className="px-5 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors"
+                    className="px-5 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-white/[0.03] transition-colors"
                   >
                     <div className="min-w-0 flex-1 space-y-1.5">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
@@ -1211,7 +1211,7 @@ export function VehicleMedicalRecordPanel({
                         </span>
                       </div>
 
-                      <div className="w-full max-w-md h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div className="w-full max-w-md h-1.5 rounded-full bg-slate-100 dark:bg-slate-800/90 overflow-hidden">
                         <div
                           className={`h-full rounded-full ${barColorClass}`}
                           style={{ width: `${Math.max(4, rem.progressPercent)}%` }}
@@ -1235,7 +1235,7 @@ export function VehicleMedicalRecordPanel({
                                 : 'receipt',
                           })
                         }
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium rounded-md bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white transition-colors whitespace-nowrap shrink-0"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium rounded-lg bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white transition-colors whitespace-nowrap shrink-0"
                       >
                         <Check className="w-3 h-3" />
                         <span>Registrar agora</span>
@@ -1252,7 +1252,7 @@ export function VehicleMedicalRecordPanel({
                               filename: `lembrete-${vehicle.plate}-${rem.id}.ics`,
                             })
                           }
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0"
                           title="Salvar alerta no Google Agenda / Apple Calendar (.ics)"
                         >
                           <CalendarPlus className="w-3 h-3" />
@@ -1279,7 +1279,7 @@ export function VehicleMedicalRecordPanel({
       )}
 
       {/* Zone 4: Direct Dispatch Strip (Linked WhatsApp + Email — Flat hairline bar) */}
-      <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 space-y-2.5">
+      <div className="px-5 py-3.5 border-b border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/50 space-y-2.5">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 flex-1 min-w-0">
             {/* Linked WhatsApp */}
@@ -1300,7 +1300,7 @@ export function VehicleMedicalRecordPanel({
                       setWhatsappFeedback(null);
                       setEditingWhatsapp(true);
                     }}
-                    className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap"
+                    className="text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline whitespace-nowrap"
                   >
                     Alterar
                   </button>
@@ -1312,11 +1312,11 @@ export function VehicleMedicalRecordPanel({
                     placeholder="WhatsApp (+55 11 99999-8888)"
                     value={whatsappInput}
                     onChange={(e) => setWhatsappInput(e.target.value)}
-                    className="w-48 px-2.5 py-1 text-xs font-mono rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                    className="w-48 px-2.5 py-1 text-xs font-mono rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   />
                   <button
                     type="submit"
-                    className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-emerald-600 hover:bg-emerald-700 text-white whitespace-nowrap shrink-0"
+                    className="px-2.5 py-1 text-[11px] font-medium rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white whitespace-nowrap shrink-0"
                   >
                     Salvar
                   </button>
@@ -1339,14 +1339,14 @@ export function VehicleMedicalRecordPanel({
 
             {/* Linked Email */}
             <div className="flex items-center gap-2 min-w-0 flex-1 max-w-sm">
-              <Mail className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+              <Mail className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
               <input
                 type="email"
                 aria-label="E-mail para envio da ficha"
                 placeholder="email@exemplo.com"
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
-                className="w-full min-w-0 px-2.5 py-1 text-xs font-mono rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                className="w-full min-w-0 px-2.5 py-1 text-xs font-mono rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>
@@ -1364,7 +1364,7 @@ export function VehicleMedicalRecordPanel({
                     setEditingWhatsapp(false);
                   }
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-emerald-300 dark:border-emerald-700/60 bg-emerald-50 dark:bg-emerald-950/35 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 transition-colors whitespace-nowrap shrink-0"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
                 <span>Enviar para meu WhatsApp</span>
@@ -1376,9 +1376,9 @@ export function VehicleMedicalRecordPanel({
                   setEditingWhatsapp(true);
                   setWhatsappFeedback('Salve seu WhatsApp ao lado para envio direto em 1 clique.');
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200 whitespace-nowrap shrink-0"
               >
-                <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>Configurar WhatsApp</span>
               </button>
             )}
@@ -1394,7 +1394,7 @@ export function VehicleMedicalRecordPanel({
                     `Abrindo seu e-mail para ${cleanEmailTarget} (texto completo também copiado).`
                   );
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white transition-colors whitespace-nowrap shrink-0"
               >
                 <Mail className="w-3.5 h-3.5" />
                 <span>Enviar Ficha por E-mail</span>
@@ -1405,7 +1405,7 @@ export function VehicleMedicalRecordPanel({
                 onClick={() =>
                   setDossierFeedback('Informe um e-mail acima para enviar a ficha técnica completa.')
                 }
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200 whitespace-nowrap shrink-0"
               >
                 <Mail className="w-3.5 h-3.5" />
                 <span>Enviar Ficha por E-mail</span>
@@ -1415,10 +1415,10 @@ export function VehicleMedicalRecordPanel({
             <button
               type="button"
               onClick={() => void handleCopyFullDossier()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0"
             >
               {dossierCopied ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               ) : (
                 <Copy className="w-3.5 h-3.5" />
               )}
@@ -1429,7 +1429,7 @@ export function VehicleMedicalRecordPanel({
               type="button"
               disabled={generatingPdf}
               onClick={() => void handleDownloadMedicalPdf()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/60 whitespace-nowrap shrink-0 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-sky-200 dark:border-sky-500/40 bg-sky-50/70 dark:bg-sky-950/35 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-950/60 whitespace-nowrap shrink-0 disabled:opacity-60"
             >
               {generatingPdf ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1449,7 +1449,7 @@ export function VehicleMedicalRecordPanel({
       </div>
 
       {/* Zone 5: Timeline Toolbar (Search + Category Filter) */}
-      <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <div className="px-5 py-3.5 border-b border-slate-200/80 dark:border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
@@ -1457,11 +1457,11 @@ export function VehicleMedicalRecordPanel({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar serviço, oficina, nota ou data..."
-            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-[#081020] border border-slate-200/80 dark:border-white/10 rounded-xl w-fit">
           {(
             [
               { id: 'all', label: `Todos (${timelineEntries.length})` },
@@ -1475,9 +1475,9 @@ export function VehicleMedicalRecordPanel({
               key={tab.id}
               type="button"
               onClick={() => setFilter(tab.id)}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 filter === tab.id
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                  ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
@@ -1514,7 +1514,7 @@ export function VehicleMedicalRecordPanel({
             <button
               type="button"
               onClick={() => openModal('maintenance')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Adicionar Primeiro Registro</span>
@@ -1531,7 +1531,7 @@ export function VehicleMedicalRecordPanel({
                 setFilter('all');
                 setSearchQuery('');
               }}
-              className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-xs font-medium text-sky-600 dark:text-sky-400 hover:underline"
             >
               Limpar filtros
             </button>
@@ -1541,7 +1541,7 @@ export function VehicleMedicalRecordPanel({
             {groupedEntries.map((group) => (
               <div key={group.monthKey} className="space-y-3">
                 {/* Month Divider Header */}
-                <div className="flex items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-white/10">
                   <h3 className="text-xs font-semibold text-slate-900 dark:text-slate-100">
                     {group.label}
                   </h3>
@@ -1557,14 +1557,14 @@ export function VehicleMedicalRecordPanel({
                 </div>
 
                 {/* Hairline-separated Timeline Entries (No nested cards inside cards) */}
-                <div className="relative pl-6 divide-y divide-slate-200 dark:divide-slate-800 before:content-[''] before:absolute before:left-[9px] before:top-3 before:bottom-3 before:w-px before:bg-slate-200 dark:before:bg-slate-800">
+                <div className="relative pl-6 divide-y divide-slate-200/80 dark:divide-white/10 before:content-[''] before:absolute before:left-[9px] before:top-3 before:bottom-3 before:w-px before:bg-slate-200 dark:before:bg-white/15">
                   {group.entries.map((entry) => (
                     <div key={entry.id} className="relative py-3.5 first:pt-1 last:pb-1 space-y-2.5">
                       <span
                         aria-hidden="true"
-                        className="absolute -left-6 top-4 first:top-1.5 w-[19px] h-[19px] rounded-full bg-white dark:bg-slate-900 border-2 border-blue-600 dark:border-blue-500 flex items-center justify-center"
+                        className="absolute -left-6 top-4 first:top-1.5 w-[19px] h-[19px] rounded-full bg-white dark:bg-[#0c1629] border-2 border-sky-600 dark:border-sky-400 flex items-center justify-center"
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-sky-600 dark:bg-sky-400" />
                       </span>
 
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
@@ -1620,82 +1620,82 @@ export function VehicleMedicalRecordPanel({
                           <div className="flex flex-wrap items-center gap-1.5">
                             {entry.kind === 'log' && entry.serviceLogId && (
                               <>
-                                <button
-                                  type="button"
-                                  disabled={uploadingLogId === entry.serviceLogId}
-                                  onClick={() => triggerInlineUpload(entry.serviceLogId!, 'camera')}
-                                  className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap"
-                                  title="Tirar foto da nota"
-                                >
-                                  {uploadingLogId === entry.serviceLogId ? (
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <Camera className="w-3 h-3" />
-                                  )}
-                                  <span>Foto da Nota</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={uploadingLogId === entry.serviceLogId}
-                                  onClick={() => triggerInlineUpload(entry.serviceLogId!, 'gallery')}
-                                  className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                  title="Escolher nota da galeria"
-                                >
-                                  <ImagePlus className="w-3 h-3" />
-                                </button>
-                              </>
-                            )}
-                            <WhatsAppConnectButton
-                              whatsappNumber={prefs.whatsappNumber}
-                              language={prefs.language}
-                              compact
-                              label="WhatsApp"
-                              message={
-                                entry.sourceLog
-                                  ? buildServiceLogWhatsAppText({
-                                      vehicle,
-                                      log: entry.sourceLog,
-                                      currency: prefs.currency,
-                                      units: prefs.units,
-                                      badgeLabel: entry.badgeLabel,
-                                      attachmentUrl: entry.attachments[0]?.signedUrl,
-                                    })
-                                  : entry.sourceCharge
-                                  ? buildChargingSessionWhatsAppText({
-                                      vehicle,
-                                      session: entry.sourceCharge,
-                                      currency: prefs.currency,
-                                    })
-                                  : entry.attachments[0]
-                                  ? buildAttachmentWhatsAppText({
-                                      vehicle,
-                                      attachment: entry.attachments[0],
-                                      categoryLabel: entry.badgeLabel,
-                                    })
-                                  : `${vehicle.make} ${vehicle.model}: ${entry.title}`
-                              }
-                              onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
-                            />
+                                  <button
+                                    type="button"
+                                    disabled={uploadingLogId === entry.serviceLogId}
+                                    onClick={() => triggerInlineUpload(entry.serviceLogId!, 'camera')}
+                                    className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap"
+                                    title="Tirar foto da nota"
+                                  >
+                                    {uploadingLogId === entry.serviceLogId ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <Camera className="w-3 h-3" />
+                                    )}
+                                    <span>Foto da Nota</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={uploadingLogId === entry.serviceLogId}
+                                    onClick={() => triggerInlineUpload(entry.serviceLogId!, 'gallery')}
+                                    className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5"
+                                    title="Escolher nota da galeria"
+                                  >
+                                    <ImagePlus className="w-3 h-3" />
+                                  </button>
+                                </>
+                              )}
+                              <WhatsAppConnectButton
+                                whatsappNumber={prefs.whatsappNumber}
+                                language={prefs.language}
+                                compact
+                                label="WhatsApp"
+                                message={
+                                  entry.sourceLog
+                                    ? buildServiceLogWhatsAppText({
+                                        vehicle,
+                                        log: entry.sourceLog,
+                                        currency: prefs.currency,
+                                        units: prefs.units,
+                                        badgeLabel: entry.badgeLabel,
+                                        attachmentUrl: entry.attachments[0]?.signedUrl,
+                                      })
+                                    : entry.sourceCharge
+                                    ? buildChargingSessionWhatsAppText({
+                                        vehicle,
+                                        session: entry.sourceCharge,
+                                        currency: prefs.currency,
+                                      })
+                                    : entry.attachments[0]
+                                    ? buildAttachmentWhatsAppText({
+                                        vehicle,
+                                        attachment: entry.attachments[0],
+                                        categoryLabel: entry.badgeLabel,
+                                      })
+                                    : `${vehicle.make} ${vehicle.model}: ${entry.title}`
+                                }
+                                onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {entry.notes && (
-                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-800/40 rounded-lg px-3 py-2">
-                          {entry.notes}
-                        </p>
-                      )}
+                        {entry.notes && (
+                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-[#081020]/60 border border-slate-200/70 dark:border-white/10 rounded-xl px-3 py-2">
+                            {entry.notes}
+                          </p>
+                        )}
 
-                      {entry.attachments.length > 0 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
-                          {entry.attachments.map((att) => {
-                            const isImage = att.mimeType.startsWith('image/');
-                            const safeHref = isSafeHttpsUrl(att.signedUrl) ? att.signedUrl : undefined;
-                            return (
-                              <div
-                                key={att.id}
-                                className="flex items-center gap-3 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900"
-                              >
+                        {entry.attachments.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                            {entry.attachments.map((att) => {
+                              const isImage = att.mimeType.startsWith('image/');
+                              const safeHref = isSafeHttpsUrl(att.signedUrl) ? att.signedUrl : undefined;
+                              return (
+                                <div
+                                  key={att.id}
+                                  className="flex items-center gap-3 p-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/70"
+                                >
                                 {isImage && safeHref ? (
                                   <a
                                     href={safeHref}
@@ -1770,11 +1770,11 @@ export function VehicleMedicalRecordPanel({
       {/* Add Medical Record Modal */}
       {showAddModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/80 backdrop-blur-xs overflow-y-auto"
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-lg w-full p-6 space-y-4 my-8">
+          <div className="autolife-glass rounded-2xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h3 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -1799,7 +1799,7 @@ export function VehicleMedicalRecordPanel({
 
             <form onSubmit={handleCreateRecord} className="space-y-4">
               {/* Record Kind */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 p-1 rounded-lg bg-slate-100 dark:bg-slate-800">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-[#081020] border border-slate-200/80 dark:border-white/10">
                 {(
                   [
                     { id: 'maintenance', label: 'Manutenção' },
@@ -1813,9 +1813,9 @@ export function VehicleMedicalRecordPanel({
                     key={k.id}
                     type="button"
                     onClick={() => setRecordKind(k.id)}
-                    className={`py-1.5 px-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                    className={`py-1.5 px-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
                       recordKind === k.id
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                        ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                         : 'text-slate-600 dark:text-slate-400'
                     }`}
                   >
@@ -1832,7 +1832,7 @@ export function VehicleMedicalRecordPanel({
                   <select
                     value={maintenanceCategory}
                     onChange={(e) => setMaintenanceCategory(e.target.value as MaintenanceCategory)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   >
                     <option value={MaintenanceCategory.OIL}>Óleo &amp; Filtros</option>
                     <option value={MaintenanceCategory.BRAKES}>Freios</option>
@@ -1857,7 +1857,7 @@ export function VehicleMedicalRecordPanel({
                     required
                     value={recordDate}
                     onChange={(e) => setRecordDate(e.target.value)}
-                    className="w-full px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 text-sm font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   />
                 </div>
 
@@ -1872,7 +1872,7 @@ export function VehicleMedicalRecordPanel({
                       required
                       value={odometerKm}
                       onChange={(e) => setOdometerKm(e.target.value)}
-                      className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                      className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                     />
                   </div>
                 ) : (
@@ -1887,7 +1887,7 @@ export function VehicleMedicalRecordPanel({
                       required
                       value={energyKwh}
                       onChange={(e) => setEnergyKwh(e.target.value)}
-                      className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                      className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                     />
                   </div>
                 )}
@@ -1902,7 +1902,7 @@ export function VehicleMedicalRecordPanel({
                     <select
                       value={powerType}
                       onChange={(e) => setPowerType(e.target.value as 'AC' | 'DC')}
-                      className="w-full px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                      className="w-full px-3 py-2 text-sm font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                     >
                       <option value="DC">DC</option>
                       <option value="AC">AC</option>
@@ -1918,7 +1918,7 @@ export function VehicleMedicalRecordPanel({
                       max={100}
                       value={socStart}
                       onChange={(e) => setSocStart(e.target.value)}
-                      className="w-full px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                      className="w-full px-3 py-2 text-sm font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                     />
                   </div>
                   <div>
@@ -1931,7 +1931,7 @@ export function VehicleMedicalRecordPanel({
                       max={100}
                       value={socEnd}
                       onChange={(e) => setSocEnd(e.target.value)}
-                      className="w-full px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                      className="w-full px-3 py-2 text-sm font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                     />
                   </div>
                 </div>
@@ -1954,7 +1954,7 @@ export function VehicleMedicalRecordPanel({
                     }
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   />
                 </div>
               )}
@@ -1979,7 +1979,7 @@ export function VehicleMedicalRecordPanel({
                     }
                     value={workshopName}
                     onChange={(e) => setWorkshopName(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   />
                 </div>
                 <div>
@@ -1993,7 +1993,7 @@ export function VehicleMedicalRecordPanel({
                     placeholder="0.00"
                     value={cost}
                     onChange={(e) => setCost(e.target.value)}
-                    className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   />
                 </div>
               </div>
@@ -2008,13 +2008,13 @@ export function VehicleMedicalRecordPanel({
                     placeholder="Peças trocadas, garantia, detalhes..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   />
                 </div>
               )}
 
               {/* Photo of Invoice / Receipt / Insurance / ITV */}
-              <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-2.5">
+              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#081020]/60 space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-medium text-slate-700 dark:text-slate-200">
                     Foto da nota, recibo, seguro ou ITV (JPG ≤ 2 MB, privado)
@@ -2022,7 +2022,7 @@ export function VehicleMedicalRecordPanel({
                   <select
                     value={pendingAttCategory}
                     onChange={(e) => setPendingAttCategory(e.target.value as AttachmentCategory)}
-                    className="px-2 py-1 text-[11px] rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200"
+                    className="px-2 py-1 text-[11px] rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200"
                   >
                     <option value="receipt">Nota da Oficina / Recibo</option>
                     <option value="insurance">Seguro</option>
@@ -2059,7 +2059,7 @@ export function VehicleMedicalRecordPanel({
                   <button
                     type="button"
                     onClick={() => modalCameraRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 text-white"
                   >
                     <Camera className="w-3.5 h-3.5" />
                     <span>Tirar Foto</span>
@@ -2067,7 +2067,7 @@ export function VehicleMedicalRecordPanel({
                   <button
                     type="button"
                     onClick={() => modalGalleryRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200"
                   >
                     <ImagePlus className="w-3.5 h-3.5" />
                     <span>Galeria</span>
@@ -2088,14 +2088,14 @@ export function VehicleMedicalRecordPanel({
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                  className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-60"
                 >
                   {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>Salvar Registro</span>

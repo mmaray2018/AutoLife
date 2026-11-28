@@ -299,14 +299,14 @@ export function VehiclePassportModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/80 backdrop-blur-xs overflow-y-auto"
       role="dialog"
       aria-modal="true"
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-3xl w-full p-6 sm:p-8 space-y-6 my-8">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+      <div className="autolife-glass rounded-2xl max-w-3xl w-full p-6 sm:p-8 space-y-6 my-8 shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200/80 dark:border-white/10 pb-4">
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
               <Award className="w-3.5 h-3.5" />
               <span>AutoLife World · Passaporte Digital do Veículo</span>
             </div>
@@ -332,19 +332,19 @@ export function VehiclePassportModal({
 
         {/* Summary KPIs */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 tabular-nums">
-          <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
             <div className="text-xs text-slate-500 dark:text-slate-400">Itens em dia</div>
             <div className="mt-1 font-mono text-lg font-bold text-emerald-600 dark:text-emerald-400">
               {compliance.onTrack} / {compliance.total}
             </div>
           </div>
-          <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
             <div className="text-xs text-slate-500 dark:text-slate-400">Registros verificados</div>
             <div className="mt-1 font-mono text-lg font-bold text-slate-900 dark:text-slate-100">
               {vehicleLogs.length}
             </div>
           </div>
-          <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
             <div className="text-xs text-slate-500 dark:text-slate-400">
               Investimento ({prefs.currency})
             </div>
@@ -352,7 +352,7 @@ export function VehiclePassportModal({
               {formatCurrency(totalInvestment, prefs.currency)}
             </div>
           </div>
-          <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
             <div className="text-xs text-slate-500 dark:text-slate-400">Emissão</div>
             <div className="mt-1 font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
               {todayIso()}
@@ -361,8 +361,8 @@ export function VehiclePassportModal({
         </div>
 
         {/* QR Code + Authorized Sharing Controls */}
-        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 grid grid-cols-1 sm:grid-cols-[152px_1fr] gap-5 items-center">
-          <div className="flex flex-col items-center justify-center bg-white p-2.5 rounded-lg border border-slate-200 mx-auto sm:mx-0">
+        <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#081020]/60 grid grid-cols-1 sm:grid-cols-[152px_1fr] gap-5 items-center">
+          <div className="flex flex-col items-center justify-center bg-white p-2.5 rounded-xl border border-slate-200 mx-auto sm:mx-0">
             {qrDataUrl ? (
               <img src={qrDataUrl} alt="QR Code Passaporte do Veículo" className="w-32 h-32" />
             ) : (
@@ -377,7 +377,7 @@ export function VehiclePassportModal({
                 {share?.isActive === false ? (
                   <ShieldOff className="w-4 h-4 text-amber-600 shrink-0" />
                 ) : (
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 )}
                 <span>Compartilhamento Autorizado por QR Code</span>
               </div>
@@ -386,10 +386,10 @@ export function VehiclePassportModal({
                   type="button"
                   disabled={shareBusy}
                   onClick={() => void handleSyncShareOptions({ isActive: !share.isActive })}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap shrink-0 ${
                     share.isActive
-                      ? 'border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30'
-                      : 'border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30'
+                      ? 'border-emerald-200 dark:border-emerald-700/60 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/35'
+                      : 'border-amber-200 dark:border-amber-700/60 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/35'
                   }`}
                 >
                   {share.isActive ? 'Link Ativo (Revogar)' : 'Link Revogado (Reativar)'}
@@ -408,7 +408,7 @@ export function VehiclePassportModal({
                       onChange={(e) =>
                         void handleSyncShareOptions({ includeExpenses: e.target.checked })
                       }
-                      className="rounded border-slate-300 text-blue-600"
+                      className="rounded border-slate-300 text-sky-600"
                     />
                     <span>Exibir valores de despesas</span>
                   </label>
@@ -420,7 +420,7 @@ export function VehiclePassportModal({
                       onChange={(e) =>
                         void handleSyncShareOptions({ includeDocuments: e.target.checked })
                       }
-                      className="rounded border-slate-300 text-blue-600"
+                      className="rounded border-slate-300 text-sky-600"
                     />
                     <span>Exibir lista de documentos</span>
                   </label>
@@ -431,12 +431,12 @@ export function VehiclePassportModal({
                     type="text"
                     readOnly
                     value={shareUrl}
-                    className="flex-1 min-w-0 px-2.5 py-1.5 text-[11px] font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200"
+                    className="flex-1 min-w-0 px-2.5 py-1.5 text-[11px] font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200"
                   />
                   <button
                     type="button"
                     onClick={() => void handleCopyLink()}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white whitespace-nowrap shrink-0"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 text-white whitespace-nowrap shrink-0"
                   >
                     {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedLink ? 'Copiado' : 'Copiar'}</span>
@@ -450,7 +450,7 @@ export function VehiclePassportModal({
             )}
 
             {shareBusy && (
-              <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400">
+              <div className="flex items-center gap-1.5 text-xs text-sky-600 dark:text-sky-400">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 <span>Atualizando Passaporte verificável...</span>
               </div>
@@ -469,7 +469,7 @@ export function VehiclePassportModal({
             {combinedOdometerTimeline.map((pt, idx) => (
               <div
                 key={`${pt.recordedAt}-${pt.odometerKm}-${idx}`}
-                className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 text-xs"
+                className="p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/55 text-xs"
               >
                 <div className="font-mono font-bold text-slate-900 dark:text-slate-100">
                   {formatDistance(pt.odometerKm, prefs.units)}
@@ -487,7 +487,7 @@ export function VehiclePassportModal({
           <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
             Histórico Cronológico de Manutenção
           </h3>
-          <div className="divide-y divide-slate-200 dark:divide-slate-800 max-h-52 overflow-y-auto tabular-nums">
+          <div className="divide-y divide-slate-200/80 dark:divide-white/10 max-h-52 overflow-y-auto tabular-nums">
             {vehicleLogs.length === 0 ? (
               <p className="py-4 text-xs text-slate-500">Nenhum registro histórico lançado ainda.</p>
             ) : (
@@ -530,14 +530,14 @@ export function VehiclePassportModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+              className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"
             >
               {t.actions.close}
             </button>
             <button
               type="button"
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white whitespace-nowrap shrink-0"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Imprimir / Salvar PDF</span>
@@ -565,29 +565,29 @@ export function PublicPassportView({
   const snap = share?.passportSnapshot;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 sm:p-8">
+    <div className="min-h-screen autolife-shell-bg text-slate-900 dark:text-slate-100 p-4 sm:p-8">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400">
+          <div className="flex items-center gap-2 text-sm font-semibold text-sky-600 dark:text-sky-400">
             <Award className="w-5 h-5" />
             <span>AutoLife World · Consulta Verificada</span>
           </div>
           <button
             type="button"
             onClick={onExitPublicView}
-            className="px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
+            className="px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0"
           >
             Abrir Aplicativo
           </button>
         </div>
 
         {loading ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center space-y-2">
-            <Loader2 className="w-7 h-7 animate-spin text-blue-600 mx-auto" />
-            <p className="text-sm text-slate-500">Verificando Passaporte Digital do Veículo...</p>
+          <div className="autolife-glass rounded-2xl p-10 text-center space-y-2">
+            <Loader2 className="w-7 h-7 animate-spin text-sky-500 mx-auto" />
+            <p className="text-sm text-slate-500 dark:text-slate-400">Verificando Passaporte Digital do Veículo...</p>
           </div>
         ) : error || !snap ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 text-center space-y-3">
+          <div className="autolife-glass rounded-2xl p-8 text-center space-y-3">
             <ShieldOff className="w-9 h-9 text-amber-500 mx-auto" />
             <h1 className="font-display text-lg font-bold">Passaporte Indisponível</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
@@ -595,8 +595,8 @@ export function PublicPassportView({
             </p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 sm:p-8 space-y-6">
-            <div className="border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div className="autolife-glass rounded-2xl p-6 sm:p-8 space-y-6">
+            <div className="border-b border-slate-200/80 dark:border-white/10 pb-4">
               <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4" />
                 <span>Passaporte Digital Autenticado</span>
@@ -614,20 +614,20 @@ export function PublicPassportView({
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 tabular-nums">
-              <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800">
-                <div className="text-xs text-slate-500">Saúde Preventiva</div>
+              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
+                <div className="text-xs text-slate-500 dark:text-slate-400">Saúde Preventiva</div>
                 <div className="mt-1 font-mono text-base font-bold text-emerald-600 dark:text-emerald-400">
                   {snap.compliance.onTrack} / {snap.compliance.total} em dia
                 </div>
               </div>
-              <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800">
-                <div className="text-xs text-slate-500">Registros de Odômetro</div>
+              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
+                <div className="text-xs text-slate-500 dark:text-slate-400">Registros de Odômetro</div>
                 <div className="mt-1 font-mono text-base font-bold">
                   {snap.odometerHistory.length} marcos
                 </div>
               </div>
-              <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800">
-                <div className="text-xs text-slate-500">Atualizado em</div>
+              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
+                <div className="text-xs text-slate-500 dark:text-slate-400">Atualizado em</div>
                 <div className="mt-1 font-mono text-sm font-semibold">
                   {snap.generatedAt.slice(0, 10)}
                 </div>
@@ -636,7 +636,7 @@ export function PublicPassportView({
 
             {snap.odometerHistory.length > 0 && (
               <div className="space-y-2">
-                <h2 className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+                <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                   <Gauge className="w-3.5 h-3.5" />
                   <span>Linha Imutável de Quilometragem</span>
                 </h2>
@@ -644,7 +644,7 @@ export function PublicPassportView({
                   {snap.odometerHistory.map((pt, idx) => (
                     <div
                       key={`${pt.recordedAt}-${pt.odometerKm}-${idx}`}
-                      className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs"
+                      className="p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/55 text-xs"
                     >
                       <div className="font-mono font-bold">
                         {pt.odometerKm.toLocaleString('pt-BR')} km
@@ -657,11 +657,11 @@ export function PublicPassportView({
             )}
 
             <div className="space-y-2">
-              <h2 className="text-xs font-semibold text-slate-500">Histórico de Manutenções</h2>
+              <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400">Histórico de Manutenções</h2>
               {snap.serviceHistory.length === 0 ? (
                 <p className="text-xs text-slate-500">Nenhum serviço público registrado.</p>
               ) : (
-                <div className="divide-y divide-slate-200 dark:divide-slate-800 tabular-nums">
+                <div className="divide-y divide-slate-200/80 dark:divide-white/10 tabular-nums">
                   {snap.serviceHistory.map((item, idx) => (
                     <div
                       key={`${item.date}-${idx}`}
@@ -688,7 +688,7 @@ export function PublicPassportView({
 
             {snap.documentsSummary && snap.documentsSummary.length > 0 && (
               <div className="space-y-2">
-                <h2 className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+                <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5" />
                   <span>Documentos Comprovados ({snap.documentsSummary.length})</span>
                 </h2>
@@ -696,7 +696,7 @@ export function PublicPassportView({
                   {snap.documentsSummary.map((doc, idx) => (
                     <div
                       key={`${doc.fileName}-${idx}`}
-                      className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2"
+                      className="p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/55 flex items-center justify-between gap-2"
                     >
                       <span className="truncate font-medium">{doc.fileName}</span>
                       <span className="font-mono text-[11px] text-slate-500 shrink-0">

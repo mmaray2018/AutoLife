@@ -178,11 +178,11 @@ export function VehicleVaultSection({
   };
 
   return (
-    <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-5">
+    <section className="autolife-glass rounded-2xl p-6 space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <FolderLock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <FolderLock className="w-4 h-4 text-sky-600 dark:text-sky-400" />
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
               Fotos da Nota, Recibos &amp; Documentos (Privado)
             </h2>
@@ -200,7 +200,7 @@ export function VehicleVaultSection({
           <button
             type="button"
             onClick={onOpenCloudSettings}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white whitespace-nowrap shrink-0"
           >
             <span>Conectar Conta</span>
           </button>
@@ -212,12 +212,12 @@ export function VehicleVaultSection({
           Cofre privado indisponível no momento.
         </p>
       ) : !cloudUserId ? (
-        <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+        <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#081020]/70 border border-slate-200 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
           Entre com sua conta (Google, Apple, Facebook ou e-mail) em{' '}
           <button
             type="button"
             onClick={onOpenCloudSettings}
-            className="font-semibold text-blue-600 dark:text-blue-400 underline"
+            className="font-semibold text-sky-600 dark:text-sky-400 underline"
           >
             Configurações → Conta &amp; Nuvem
           </button>{' '}
@@ -233,7 +233,7 @@ export function VehicleVaultSection({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as AttachmentCategory)}
-                className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               >
                 {(Object.keys(CATEGORY_LABELS) as AttachmentCategory[]).map((cat) => (
                   <option key={cat} value={cat}>
@@ -251,7 +251,7 @@ export function VehicleVaultSection({
                 type="date"
                 value={attachmentDate}
                 onChange={(e) => setAttachmentDate(e.target.value)}
-                className="w-full px-2.5 py-2 text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-2.5 py-2 text-xs font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
 
@@ -265,7 +265,7 @@ export function VehicleVaultSection({
                 placeholder="Detalhes da nota ou documento"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
 
@@ -289,7 +289,7 @@ export function VehicleVaultSection({
                 type="button"
                 disabled={uploading}
                 onClick={() => cameraInputRef.current?.click()}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white whitespace-nowrap disabled:opacity-60"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white whitespace-nowrap disabled:opacity-60"
               >
                 {uploading ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -302,7 +302,7 @@ export function VehicleVaultSection({
                 type="button"
                 disabled={uploading}
                 onClick={() => galleryInputRef.current?.click()}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap disabled:opacity-60"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 whitespace-nowrap disabled:opacity-60"
               >
                 <ImagePlus className="w-3.5 h-3.5" />
                 <span>Galeria</span>
@@ -334,10 +334,10 @@ export function VehicleVaultSection({
                 return (
                   <div
                     key={att.id}
-                    className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-slate-50/70 dark:bg-slate-800/40 flex flex-col justify-between"
+                    className="border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden bg-slate-50/70 dark:bg-[#081020]/60 flex flex-col justify-between"
                   >
                     {isImage && safeHref ? (
-                      <div className="h-32 bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                      <div className="h-32 bg-slate-200 dark:bg-[#081020] overflow-hidden">
                         <img
                           src={safeHref}
                           alt={att.fileName}
@@ -345,14 +345,14 @@ export function VehicleVaultSection({
                         />
                       </div>
                     ) : (
-                      <div className="h-20 bg-slate-100 dark:bg-slate-800/70 flex items-center justify-center">
+                      <div className="h-20 bg-slate-100 dark:bg-[#081020] flex items-center justify-center">
                         <FileText className="w-7 h-7 text-slate-400" />
                       </div>
                     )}
 
                     <div className="p-3 space-y-2">
                       <div>
-                        <div className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                        <div className="text-[11px] font-medium text-sky-600 dark:text-sky-400">
                           {CATEGORY_LABELS[att.fileCategory] ?? att.fileCategory}
                         </div>
                         <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
@@ -368,14 +368,14 @@ export function VehicleVaultSection({
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-700/60">
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-white/10">
                         {safeHref ? (
                           <div className="flex items-center gap-2.5">
                             <a
                               href={safeHref}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                              className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 dark:text-sky-400 hover:underline"
                             >
                               <span>Ver</span>
                               <ExternalLink className="w-3 h-3" />

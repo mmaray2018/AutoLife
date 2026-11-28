@@ -1393,13 +1393,14 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen flex autolife-shell-bg text-slate-900 dark:text-slate-100">
       <div className="print:hidden">
         <SidebarNav
           activeModule={activeModule}
           onSelectModule={handleSelectModule}
           vehicles={state.vehicles}
           activeVehicleId={activeVehicle?.id ?? ''}
+          attachments={attachments}
           onSelectVehicle={handleSelectVehicle}
           onAddVehicle={() => setShowAddVehicleModal(true)}
           onRequestDeleteVehicle={requestDeleteVehicle}
@@ -1602,6 +1603,7 @@ export default function App() {
           {activeModule === 'ev' && (
             <EvWorldView
               vehicle={activeVehicle}
+              attachments={attachments}
               sessions={state.chargingSessions}
               onAddSession={handleAddChargingSession}
               prefs={state.prefs}
@@ -1660,7 +1662,7 @@ export default function App() {
           )}
         </main>
 
-        <footer className="print:hidden px-4 sm:px-6 lg:px-8 py-4 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 max-w-7xl w-full mx-auto">
+        <footer className="print:hidden px-4 sm:px-6 lg:px-8 py-4 border-t border-slate-200 dark:border-white/10 text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 max-w-7xl w-full mx-auto">
           <span>
             {t.brand} · {t.tagline}
           </span>

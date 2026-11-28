@@ -43,6 +43,7 @@ import {
   formatWhatsAppDisplay,
   sanitizeWhatsAppNumber,
 } from '../utils/whatsapp';
+import { VehicleVisual } from './VehicleVisual';
 
 interface InternationalSettingsViewProps {
   prefs: UserPreferences;
@@ -258,7 +259,7 @@ export function InternationalSettingsView({
       </div>
 
       {/* Cloud Account & Sync */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
+      <section className="autolife-glass rounded-2xl p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -423,7 +424,7 @@ export function InternationalSettingsView({
       </section>
 
       {/* Client Vehicles Management (Add / Remove Vehicle + History Cascade) */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+      <section className="autolife-glass rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -491,15 +492,20 @@ export function InternationalSettingsView({
                     onClick={() => onSelectVehicle(v.id)}
                     className="flex items-center gap-3 text-left min-w-0 flex-1"
                   >
-                    {isMoto ? (
-                      <Bike className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                    ) : (
-                      <Car className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
-                    )}
+                    <div className="w-14 h-10 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-900 shrink-0">
+                      <VehicleVisual vehicle={v} className="w-full h-full object-cover" />
+                    </div>
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-                        {v.make} {v.model} ({v.year})
-                        {isSelected ? ' · Ativo' : ''}
+                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
+                        {isMoto ? (
+                          <Bike className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                        ) : (
+                          <Car className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        )}
+                        <span className="truncate">
+                          {v.make} {v.model} ({v.year})
+                          {isSelected ? ' · Ativo' : ''}
+                        </span>
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2">
                         <span className="font-mono">{v.plate}</span>
@@ -533,7 +539,7 @@ export function InternationalSettingsView({
       </section>
 
       {/* Registered WhatsApp Integration (saved once permanently) */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
+      <section className="autolife-glass rounded-2xl p-6 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -652,7 +658,7 @@ export function InternationalSettingsView({
 
       {/* Country, Units & Theme */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3">
+        <section className="autolife-glass rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
@@ -706,7 +712,7 @@ export function InternationalSettingsView({
           </p>
         </section>
 
-        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3">
+        <section className="autolife-glass rounded-2xl p-5 space-y-3">
           <h2 className="font-display text-sm font-semibold text-slate-900 dark:text-slate-100">
             {t.settings.unitsLabel}
           </h2>
@@ -738,7 +744,7 @@ export function InternationalSettingsView({
           </div>
         </section>
 
-        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3">
+        <section className="autolife-glass rounded-2xl p-5 space-y-3">
           <h2 className="font-display text-sm font-semibold text-slate-900 dark:text-slate-100">
             {t.settings.themeLabel}
           </h2>
@@ -767,7 +773,7 @@ export function InternationalSettingsView({
       </div>
 
       {/* Configurable Smart Reminders + Service Worker Background Web Push */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
+      <section className="autolife-glass rounded-2xl p-6 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">

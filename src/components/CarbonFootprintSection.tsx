@@ -381,13 +381,13 @@ export function CarbonFootprintSection({
   }, [monthlyData, vehicleCarbonData, scopedVehicles, gridMix]);
 
   const axisTickColor = prefs.theme === 'dark' ? '#94a3b8' : '#64748b';
-  const gridColor = prefs.theme === 'dark' ? '#1e293b' : '#e2e8f0';
+  const gridColor = prefs.theme === 'dark' ? 'rgba(148,163,184,0.14)' : '#e2e8f0';
 
   const carCount = vehicles.filter((v) => (v.vehicleType ?? 'car') === 'car').length;
   const motoCount = vehicles.filter((v) => v.vehicleType === 'motorcycle').length;
 
   return (
-    <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-6">
+    <section className="autolife-glass rounded-2xl p-6 space-y-6">
       {/* Header & Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
@@ -407,19 +407,19 @@ export function CarbonFootprintSection({
             aria-label="Matriz elétrica de cálculo de CO2"
             value={gridMix}
             onChange={(e) => setGridMix(e.target.value as GridMix)}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            className="px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
           >
             <option value="brazil">Matriz Brasil (95 gCO₂/kWh)</option>
             <option value="global">Média Global (280 gCO₂/kWh)</option>
           </select>
 
-          <div className="inline-flex flex-wrap rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-1 w-fit shrink-0">
+          <div className="inline-flex flex-wrap rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] p-1 w-fit shrink-0">
             <button
               type="button"
               onClick={() => setScope('all')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 scope === 'all'
-                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm'
+                  ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -428,9 +428,9 @@ export function CarbonFootprintSection({
             <button
               type="button"
               onClick={() => setScope('car')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 scope === 'car'
-                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm'
+                  ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -439,9 +439,9 @@ export function CarbonFootprintSection({
             <button
               type="button"
               onClick={() => setScope('motorcycle')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 scope === 'motorcycle'
-                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm'
+                  ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -450,9 +450,9 @@ export function CarbonFootprintSection({
             <button
               type="button"
               onClick={() => setScope('active')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 scope === 'active'
-                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm'
+                  ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -464,7 +464,7 @@ export function CarbonFootprintSection({
 
       {/* Carbon KPI Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 tabular-nums">
-        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40">
+        <div className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
           <div className="text-xs text-slate-500 dark:text-slate-400">
             Pegada Mensal Atual
           </div>
@@ -476,7 +476,7 @@ export function CarbonFootprintSection({
           </div>
         </div>
 
-        <div className="p-4 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20">
+        <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-700/50 bg-emerald-50/50 dark:bg-emerald-950/25">
           <div className="text-xs text-emerald-700 dark:text-emerald-300">
             CO₂ Evitado (Elétricos / Híbridos)
           </div>
@@ -488,11 +488,11 @@ export function CarbonFootprintSection({
           </div>
         </div>
 
-        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40">
+        <div className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
           <div className="text-xs text-slate-500 dark:text-slate-400">
             Redução de Impacto vs Combustão
           </div>
-          <div className="mt-1 font-mono text-lg font-bold text-blue-600 dark:text-blue-400">
+          <div className="mt-1 font-mono text-lg font-bold text-sky-600 dark:text-sky-400">
             -{kpis.reductionPct}%
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -500,7 +500,7 @@ export function CarbonFootprintSection({
           </div>
         </div>
 
-        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40">
+        <div className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
           <div className="text-xs text-slate-500 dark:text-slate-400">
             Intensidade Média da Frota
           </div>
@@ -544,20 +544,20 @@ export function CarbonFootprintSection({
                   cursor={{
                     fill:
                       prefs.theme === 'dark'
-                        ? 'rgba(30,41,59,0.5)'
+                        ? 'rgba(56,189,248,0.08)'
                         : 'rgba(241,245,249,0.8)',
                   }}
                   content={({ active, payload }) => {
                     if (!active || !payload || payload.length === 0) return null;
                     const row = payload[0].payload as MonthlyCarbonDatum;
                     return (
-                      <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 shadow-sm text-xs space-y-1 tabular-nums">
+                      <div className="autolife-glass rounded-xl px-3 py-2 shadow-lg text-xs space-y-1 tabular-nums">
                         <div className="font-semibold text-slate-900 dark:text-slate-100">
                           {row.label} · {formatDistance(row.distanceKm, prefs.units)}
                         </div>
                         <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-300">
                           <span>Emissão Real:</span>
-                          <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">
+                          <span className="font-mono font-semibold text-sky-600 dark:text-sky-400">
                             {row.actualCo2Kg.toFixed(1)} kg CO₂
                           </span>
                         </div>
@@ -567,7 +567,7 @@ export function CarbonFootprintSection({
                             -{row.avoidedCo2Kg.toFixed(1)} kg CO₂
                           </span>
                         </div>
-                        <div className="flex items-center justify-between gap-4 text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-1">
+                        <div className="flex items-center justify-between gap-4 text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-white/10 pt-1">
                           <span>Cenário 100% Combustão:</span>
                           <span className="font-mono font-semibold">
                             {row.combustionBaselineKg.toFixed(1)} kg CO₂
@@ -635,14 +635,14 @@ export function CarbonFootprintSection({
                   cursor={{
                     fill:
                       prefs.theme === 'dark'
-                        ? 'rgba(30,41,59,0.5)'
+                        ? 'rgba(56,189,248,0.08)'
                         : 'rgba(241,245,249,0.8)',
                   }}
                   content={({ active, payload }) => {
                     if (!active || !payload || payload.length === 0) return null;
                     const row = payload[0].payload as VehicleCarbonDatum;
                     return (
-                      <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 shadow-sm text-xs space-y-1 tabular-nums">
+                      <div className="autolife-glass rounded-xl px-3 py-2 shadow-lg text-xs space-y-1 tabular-nums">
                         <div className="font-semibold text-slate-900 dark:text-slate-100">
                           {row.name} ({row.powertrainLabel})
                         </div>
@@ -651,7 +651,7 @@ export function CarbonFootprintSection({
                         </div>
                         <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-300">
                           <span>Emissão Atual:</span>
-                          <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">
+                          <span className="font-mono font-semibold text-sky-600 dark:text-sky-400">
                             {row.actualCo2Kg.toFixed(1)} kg/mês
                           </span>
                         </div>
@@ -669,7 +669,7 @@ export function CarbonFootprintSection({
                 <Bar
                   dataKey="actualCo2Kg"
                   name="Emissão Atual (kg)"
-                  fill="#2563eb"
+                  fill="#0284c7"
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar
@@ -685,7 +685,7 @@ export function CarbonFootprintSection({
       </div>
 
       {/* Electrification Impact Simulator Callout */}
-      <div className="p-4 rounded-lg border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+      <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-700/50 bg-emerald-50/40 dark:bg-emerald-950/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-start gap-2.5">
           <Zap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
           <div className="text-slate-700 dark:text-slate-200 leading-relaxed">

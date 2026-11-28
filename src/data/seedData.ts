@@ -14,7 +14,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   language: 'pt',
   units: 'metric',
   currency: 'BRL',
-  theme: 'light',
+  theme: 'dark',
   oilReminderDays: 15,
   tireReminderDays: 15,
   coolantReminderDays: 30,

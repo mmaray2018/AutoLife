@@ -60,11 +60,11 @@ export function LogCheckModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/80 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4">
+      <div className="autolife-glass rounded-2xl max-w-md w-full p-6 space-y-4">
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
             {t.health.modalTitle}
@@ -72,7 +72,7 @@ export function LogCheckModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
             aria-label={t.actions.close}
           >
             <X className="w-5 h-5" />
@@ -87,7 +87,7 @@ export function LogCheckModal({
             <select
               value={selectedItemId}
               onChange={(e) => setSelectedItemId(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             >
               {vehicleItems.map((it) => (
                 <option key={it.id} value={it.id}>
@@ -107,7 +107,7 @@ export function LogCheckModal({
                 min={0}
                 value={odometerKm}
                 onChange={(e) => setOdometerKm(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
 
@@ -121,7 +121,7 @@ export function LogCheckModal({
                 step="0.01"
                 value={cost}
                 onChange={(e) => setCost(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>
@@ -134,7 +134,7 @@ export function LogCheckModal({
               type="text"
               value={workshopName}
               onChange={(e) => setWorkshopName(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
           </div>
 
@@ -146,7 +146,7 @@ export function LogCheckModal({
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
           </div>
 
@@ -154,13 +154,13 @@ export function LogCheckModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+              className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
             >
               {t.actions.cancel}
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+              className="px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white"
             >
               {t.actions.save}
             </button>
@@ -265,11 +265,11 @@ export function AddVehicleModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/80 backdrop-blur-xs overflow-y-auto"
       role="dialog"
       aria-modal="true"
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-lg w-full p-6 space-y-5 my-8">
+      <div className="autolife-glass rounded-2xl max-w-lg w-full p-6 space-y-5 my-8">
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
             {t.actions.addVehicle}
@@ -277,7 +277,7 @@ export function AddVehicleModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
             aria-label={t.actions.close}
           >
             <X className="w-5 h-5" />
@@ -307,7 +307,7 @@ export function AddVehicleModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"
               >
                 {t.actions.close}
               </button>
@@ -318,7 +318,7 @@ export function AddVehicleModal({
                     onClose();
                     onOpenPlans();
                   }}
-                  className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                  className="px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white"
                 >
                   {hasBusinessAccess ? 'Expandir Frota' : 'Ver Planos de Frota'}
                 </button>
@@ -329,13 +329,13 @@ export function AddVehicleModal({
           <>
 
         {/* Vehicle Type Selector (Car vs Motorcycle) */}
-        <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-slate-100 dark:bg-slate-800">
+        <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-[#081020] border border-slate-200/60 dark:border-white/10">
           <button
             type="button"
             onClick={() => handleSwitchVehicleType('car')}
-            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-semibold transition-colors ${
+            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-colors ${
               vehicleType === 'car'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
@@ -345,9 +345,9 @@ export function AddVehicleModal({
           <button
             type="button"
             onClick={() => handleSwitchVehicleType('motorcycle')}
-            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-semibold transition-colors ${
+            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-colors ${
               vehicleType === 'motorcycle'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                 : 'text-slate-600 dark:text-slate-400'
             }`}
           >
@@ -368,7 +368,7 @@ export function AddVehicleModal({
                 placeholder="Marca do fabricante"
                 value={make}
                 onChange={(e) => setMake(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
             <div>
@@ -381,7 +381,7 @@ export function AddVehicleModal({
                 placeholder="Modelo e versão"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>
@@ -397,7 +397,7 @@ export function AddVehicleModal({
                 max={2027}
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
             <div>
@@ -409,7 +409,7 @@ export function AddVehicleModal({
                 placeholder="Placa do veículo"
                 value={plate}
                 onChange={(e) => setPlate(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono uppercase rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm font-mono uppercase rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
             <div>
@@ -424,7 +424,7 @@ export function AddVehicleModal({
                 placeholder={vehicleType === 'motorcycle' ? '160 / 500' : '1000 / 2000'}
                 value={powertrain === PowertrainType.ELECTRIC ? '' : cc}
                 onChange={(e) => setCc(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 disabled:opacity-50"
+                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100 disabled:opacity-50"
               />
             </div>
           </div>
@@ -437,7 +437,7 @@ export function AddVehicleModal({
               <select
                 value={powertrain}
                 onChange={(e) => setPowertrain(e.target.value as PowertrainType)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               >
                 <option value={PowertrainType.GASOLINE}>
                   {t.powertrain[PowertrainType.GASOLINE]}
@@ -466,7 +466,7 @@ export function AddVehicleModal({
                 min={0}
                 value={odometerKm}
                 onChange={(e) => setOdometerKm(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>
@@ -482,7 +482,7 @@ export function AddVehicleModal({
                 max={65}
                 value={frontPsi}
                 onChange={(e) => setFrontPsi(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
             <div>
@@ -495,7 +495,7 @@ export function AddVehicleModal({
                 max={65}
                 value={rearPsi}
                 onChange={(e) => setRearPsi(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
             <div>
@@ -508,7 +508,7 @@ export function AddVehicleModal({
                 max={3000}
                 value={weeklyKm}
                 onChange={(e) => setWeeklyKm(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>
@@ -522,7 +522,7 @@ export function AddVehicleModal({
                 type="date"
                 value={documentExpiryDate}
                 onChange={(e) => setDocumentExpiryDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
             <div>
@@ -533,7 +533,7 @@ export function AddVehicleModal({
                 type="date"
                 value={insuranceExpiryDate}
                 onChange={(e) => setInsuranceExpiryDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>
@@ -546,7 +546,7 @@ export function AddVehicleModal({
               <select
                 value={fleetGroup}
                 onChange={(e) => setFleetGroup(e.target.value as 'personal' | 'fleet')}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               >
                 <option value="fleet">{t.garage.modeFleet}</option>
                 <option value="personal">{t.garage.modePersonal}</option>
@@ -558,13 +558,13 @@ export function AddVehicleModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+              className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
             >
               {t.actions.cancel}
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+              className="px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white"
             >
               {t.actions.save}
             </button>
@@ -600,11 +600,11 @@ export function DeleteVehicleConfirmModal({
 }: DeleteVehicleConfirmModalProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/80 backdrop-blur-xs"
       role="dialog"
       aria-modal="true"
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4">
+      <div className="autolife-glass rounded-2xl max-w-md w-full p-6 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
@@ -615,7 +615,7 @@ export function DeleteVehicleConfirmModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
             aria-label={t.actions.close}
           >
             <X className="w-5 h-5" />
@@ -630,7 +630,7 @@ export function DeleteVehicleConfirmModal({
             </strong>{' '}
             · Placa <span className="font-mono font-semibold">{vehicle.plate}</span>.
           </p>
-          <p className="text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 rounded-lg p-3 leading-relaxed tabular-nums">
+          <p className="text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 rounded-xl p-3 leading-relaxed tabular-nums">
             Ao apagar o veículo, <strong>todo o histórico vinculado também será excluído permanentemente</strong>:
             <br />
             {logsCount} registro(s) de manutenção/gastos · {chargesCount} recarga(s) EV ·{' '}
@@ -643,14 +643,14 @@ export function DeleteVehicleConfirmModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
           >
             {t.actions.cancel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-red-600 hover:bg-red-700 text-white whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-red-600 hover:bg-red-500 text-white whitespace-nowrap shrink-0"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Apagar Veículo e Histórico</span>

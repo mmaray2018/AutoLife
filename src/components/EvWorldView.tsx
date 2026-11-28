@@ -7,23 +7,24 @@ import {
   Zap,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
-import { EV_HERO_IMAGE } from '../data/seedData';
 import {
   ChargingSession,
   LanguageCode,
   PowertrainType,
   UserPreferences,
   Vehicle,
+  VehicleAttachment,
 } from '../types/autolife';
 import { formatCurrency, formatDistance, todayIso } from '../utils/autolife';
 import { convertCurrency } from '../utils/billing';
 import { buildChargingSessionWhatsAppText } from '../utils/whatsapp';
 import { EvChargerLocatorSection } from './EvChargerLocatorSection';
-import { ResilientImage } from './ResilientImage';
+import { VehicleVisual } from './VehicleVisual';
 import { WhatsAppConnectButton } from './WhatsAppConnectButton';
 
 interface EvWorldViewProps {
   vehicle: Vehicle | null;
+  attachments?: VehicleAttachment[];
   sessions: ChargingSession[];
   onAddSession: (session: ChargingSession) => void;
   prefs: UserPreferences;
@@ -74,6 +75,7 @@ const EV_COPY: Record<LanguageCode, EvCopy> = {
 
 export function EvWorldView({
   vehicle,
+  attachments = [],
   sessions,
   onAddSession,
   prefs,
@@ -159,8 +161,8 @@ export function EvWorldView({
             {t.ev.subtitle}
           </p>
         </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center space-y-4">
-          <Zap className="w-10 h-10 text-slate-400 mx-auto" />
+        <div className="autolife-glass rounded-2xl p-10 text-center space-y-4">
+          <Zap className="w-10 h-10 text-sky-500 dark:text-sky-400 mx-auto" />
           <div className="space-y-1">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-slate-100">
               Nenhum veículo cadastrado
@@ -216,8 +218,8 @@ export function EvWorldView({
       </div>
 
       {/* Technical Transparency Note */}
-      <div className="flex items-start gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-        <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+      <div className="autolife-glass flex items-start gap-3 p-4 rounded-2xl text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+        <Info className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p>{t.ev.technicalNote}</p>
           {!isEvOrHybrid && (
@@ -230,15 +232,15 @@ export function EvWorldView({
 
       {/* Hero EV Card + 3 Metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        <div className="lg:col-span-7 relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 min-h-[240px]">
-          <ResilientImage
-            src={EV_HERO_IMAGE}
+        <div className="lg:col-span-7 relative rounded-2xl overflow-hidden border border-sky-400/50 dark:border-sky-400/40 min-h-[240px] bg-slate-900">
+          <VehicleVisual
+            vehicle={vehicle}
+            attachments={attachments}
             alt={t.ev.title}
-            fallbackTitle={t.ev.title}
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent flex flex-col justify-end p-6">
-            <div className="text-xs font-medium text-slate-200">
+          <div className="absolute inset-0 bg-gradient-to-t from-[#060b16]/90 via-[#060b16]/35 to-transparent flex flex-col justify-end p-6">
+            <div className="text-xs font-medium text-sky-300">
               {t.vehicleTypes[vehicle.vehicleType ?? 'car']} · {vehicle.make} {vehicle.model} ·{' '}
               {t.powertrain[vehicle.powertrain]}
             </div>
@@ -249,7 +251,7 @@ export function EvWorldView({
         </div>
 
         <div className="lg:col-span-5 grid grid-cols-1 gap-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex items-center justify-between">
+          <div className="autolife-glass rounded-2xl p-5 flex items-center justify-between">
             <div>
               <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 {t.ev.batterySoh}
@@ -261,7 +263,7 @@ export function EvWorldView({
             <BatteryCharging className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex items-center justify-between">
+          <div className="autolife-glass rounded-2xl p-5 flex items-center justify-between">
             <div>
               <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 {t.ev.estimatedRange}
@@ -270,10 +272,10 @@ export function EvWorldView({
                 {formatDistance(vehicle.estimatedRangeKm ?? maxRangeKm, prefs.units)}
               </div>
             </div>
-            <Route className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            <Route className="w-6 h-6 text-sky-600 dark:text-sky-400" />
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex items-center justify-between">
+          <div className="autolife-glass rounded-2xl p-5 flex items-center justify-between">
             <div>
               <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 {t.ev.efficiency}
@@ -289,7 +291,7 @@ export function EvWorldView({
 
       {/* Interactive Trip Planner + Charging Logger */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <section className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-5">
+        <section className="lg:col-span-6 autolife-glass rounded-2xl p-6 space-y-5">
           <div>
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-slate-100">
               {t.ev.plannerTitle}
@@ -384,7 +386,7 @@ export function EvWorldView({
         </section>
 
         {/* Charging Sessions Log */}
-        <section className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-5">
+        <section className="lg:col-span-6 autolife-glass rounded-2xl p-6 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-slate-100">

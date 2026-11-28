@@ -458,8 +458,8 @@ export function VehicleFinalReportTab({
   return (
     <div className="space-y-6">
       {/* Export & Dispatch Action Panel */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden print:hidden">
-        <div className="p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800">
+      <section className="autolife-glass rounded-2xl overflow-hidden print:hidden">
+        <div className="p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-200/80 dark:border-white/10">
           <div className="min-w-0">
             <h2 className="font-display text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100">
               Relatório Final — {vehicle.make} {vehicle.model} ({vehicle.year})
@@ -474,7 +474,7 @@ export function VehicleFinalReportTab({
               type="button"
               disabled={isGeneratingPdf}
               onClick={() => void handleDownloadPdf()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white transition-colors whitespace-nowrap shrink-0 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white transition-colors whitespace-nowrap shrink-0 disabled:opacity-60"
             >
               {pdfActionState === 'download' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -488,7 +488,7 @@ export function VehicleFinalReportTab({
               type="button"
               disabled={isGeneratingPdf}
               onClick={() => void handleSendPdfWhatsApp()}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors whitespace-nowrap shrink-0 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors whitespace-nowrap shrink-0 disabled:opacity-60"
             >
               {pdfActionState === 'whatsapp' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -502,12 +502,12 @@ export function VehicleFinalReportTab({
               type="button"
               disabled={isGeneratingPdf}
               onClick={() => void handleSendPdfEmail()}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors whitespace-nowrap shrink-0 disabled:opacity-60"
             >
               {pdfActionState === 'email' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <Mail className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <Mail className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
               )}
               <span>Enviar PDF por E-mail</span>
             </button>
@@ -515,7 +515,7 @@ export function VehicleFinalReportTab({
             <button
               type="button"
               onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors whitespace-nowrap shrink-0"
               title="Imprimir página do relatório"
             >
               <Printer className="w-3.5 h-3.5" />
@@ -525,7 +525,7 @@ export function VehicleFinalReportTab({
         </div>
 
         {/* Recipient Config Strip */}
-        <div className="px-5 py-3 bg-slate-50/70 dark:bg-slate-950/40 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="px-5 py-3 bg-slate-50/70 dark:bg-[#081020]/50 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <input
@@ -534,26 +534,26 @@ export function VehicleFinalReportTab({
               placeholder="WhatsApp de destino (+55 11 99999-8888)"
               value={whatsappInput}
               onChange={(e) => setWhatsappInput(e.target.value)}
-              className="w-full max-w-xs px-2.5 py-1.5 text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+              className="w-full max-w-xs px-2.5 py-1.5 text-xs font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
           </div>
 
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <Mail className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+            <Mail className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
             <input
               type="email"
               aria-label="E-mail de destino para o relatório em PDF"
               placeholder="E-mail de destino (comprador, oficina ou seu)"
               value={recipientEmail}
               onChange={(e) => setRecipientEmail(e.target.value)}
-              className="w-full max-w-sm px-2.5 py-1.5 text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+              className="w-full max-w-sm px-2.5 py-1.5 text-xs font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
 
         {feedback && (
           <div
-            className={`px-5 py-2.5 border-t border-slate-200 dark:border-slate-800 text-xs ${
+            className={`px-5 py-2.5 border-t border-slate-200/80 dark:border-white/10 text-xs ${
               feedback.type === 'success'
                 ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/20'
                 : 'text-red-700 dark:text-red-400 bg-red-50/60 dark:bg-red-950/20'
@@ -567,10 +567,10 @@ export function VehicleFinalReportTab({
       {/* Printable / Inspectable Complete Dossier Body */}
       <div className="space-y-6">
         {/* Identification & 4-Metric Summary Strip */}
-        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <section className="autolife-glass rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-200/80 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+              <div className="text-xs font-semibold text-sky-600 dark:text-sky-400">
                 Dossiê Técnico Completo · Emissão {todayIso()}
               </div>
               <h3 className="font-display text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -586,7 +586,7 @@ export function VehicleFinalReportTab({
           </div>
 
           {/* 4-Metric Lifetime Strip */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800 border-b border-slate-200 dark:border-slate-800 tabular-nums">
+          <div className="grid grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200/80 dark:divide-white/10 border-b border-slate-200/80 dark:border-white/10 tabular-nums">
             <div className="px-5 py-3.5 flex items-baseline justify-between gap-2">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 Eventos totais
@@ -675,8 +675,8 @@ export function VehicleFinalReportTab({
         </section>
 
         {/* Chronological Complete History Section */}
-        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <section className="autolife-glass rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-200/80 dark:border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
               <h3 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
                 Registro Cronológico Completo ({filteredEntries.length})
@@ -687,13 +687,13 @@ export function VehicleFinalReportTab({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 print:hidden">
-              <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+              <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-[#081020] border border-slate-200/80 dark:border-white/10 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setSortOrder('asc')}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                     sortOrder === 'asc'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                      ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                       : 'text-slate-600 dark:text-slate-400'
                   }`}
                 >
@@ -702,9 +702,9 @@ export function VehicleFinalReportTab({
                 <button
                   type="button"
                   onClick={() => setSortOrder('desc')}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                     sortOrder === 'desc'
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                      ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                       : 'text-slate-600 dark:text-slate-400'
                   }`}
                 >
@@ -715,8 +715,8 @@ export function VehicleFinalReportTab({
           </div>
 
           {/* Search & Category Filters */}
-          <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-950/30 print:hidden">
-            <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
+          <div className="px-5 py-3 border-b border-slate-200/80 dark:border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-slate-50/50 dark:bg-[#081020]/50 print:hidden">
+            <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-[#081020] border border-slate-200/80 dark:border-white/10 rounded-xl w-fit">
               {(
                 [
                   { id: 'all', label: 'Tudo' },
@@ -730,9 +730,9 @@ export function VehicleFinalReportTab({
                   key={tab.id}
                   type="button"
                   onClick={() => setCategoryFilter(tab.id)}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                     categoryFilter === tab.id
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                      ? 'bg-white dark:bg-[#101d36] text-slate-900 dark:text-sky-100 shadow-sm'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                   }`}
                 >
@@ -748,7 +748,7 @@ export function VehicleFinalReportTab({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Filtrar serviço, oficina, peça ou data..."
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
           </div>
@@ -760,7 +760,7 @@ export function VehicleFinalReportTab({
                 : 'Nenhum registro encontrado para este filtro ou busca.'}
             </div>
           ) : (
-            <div className="divide-y divide-slate-200 dark:divide-slate-800">
+            <div className="divide-y divide-slate-200/80 dark:divide-white/10">
               {filteredEntries.map((entry, idx) => {
                 const convertedCost =
                   entry.cost !== null
@@ -864,8 +864,8 @@ export function VehicleFinalReportTab({
         </section>
 
         {/* Complete Photo & Document Gallery */}
-        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <section className="autolife-glass rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-200/80 dark:border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
               <h3 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
                 Galeria Completa de Fotos, Notas e Comprovantes ({vehicleAttachments.length})
@@ -898,7 +898,7 @@ export function VehicleFinalReportTab({
                     value={uploadCategory}
                     onChange={(e) => setUploadCategory(e.target.value as AttachmentCategory)}
                     aria-label="Categoria da foto"
-                    className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                    className="px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-800 dark:text-slate-200"
                   >
                     <option value="vehicle_photo">Foto do Veículo</option>
                     <option value="receipt">Nota / Recibo</option>
@@ -912,13 +912,13 @@ export function VehicleFinalReportTab({
                     value={uploadNotes}
                     onChange={(e) => setUploadNotes(e.target.value)}
                     placeholder="Legenda opcional..."
-                    className="w-36 px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                    className="w-36 px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   />
                   <button
                     type="button"
                     disabled={uploadingPhoto}
                     onClick={() => cameraInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
                   >
                     {uploadingPhoto ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -931,7 +931,7 @@ export function VehicleFinalReportTab({
                     type="button"
                     disabled={uploadingPhoto}
                     onClick={() => galleryInputRef.current?.click()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0 disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0 disabled:opacity-60"
                   >
                     <ImagePlus className="w-3.5 h-3.5" />
                     <span>Galeria</span>
@@ -941,7 +941,7 @@ export function VehicleFinalReportTab({
                 <button
                   type="button"
                   onClick={onOpenCloudSettings}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0"
                 >
                   <ImagePlus className="w-3.5 h-3.5" />
                   <span>Entrar na conta para anexar fotos</span>
@@ -968,7 +968,7 @@ export function VehicleFinalReportTab({
                   return (
                     <article
                       key={att.id}
-                      className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/60 dark:bg-slate-950/30 flex flex-col"
+                      className="border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden bg-slate-50/60 dark:bg-[#081020]/60 flex flex-col"
                     >
                       {isImage && safeHref ? (
                         <button
@@ -1050,8 +1050,8 @@ export function VehicleFinalReportTab({
 
         {/* Preventive Maintenance Snapshot */}
         {maintenanceStatusList.length > 0 && (
-          <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+          <section className="autolife-glass rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-200/80 dark:border-white/10">
               <h3 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
                 Quadro Preventivo no Momento da Emissão
               </h3>
@@ -1059,14 +1059,14 @@ export function VehicleFinalReportTab({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs tabular-nums">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+                  <tr className="border-b border-slate-200/80 dark:border-white/10 text-slate-500 dark:text-slate-400">
                     <th className="py-2.5 px-5 font-medium">Item</th>
                     <th className="py-2.5 px-4 font-medium">Status</th>
                     <th className="py-2.5 px-4 font-medium">Último registro</th>
                     <th className="py-2.5 px-5 font-medium text-right">Próxima previsão</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <tbody className="divide-y divide-slate-200/80 dark:divide-white/10">
                   {maintenanceStatusList.map(({ item, localized, calc }) => (
                     <tr key={item.id}>
                       <td className="py-2.5 px-5 font-medium text-slate-900 dark:text-slate-100">
@@ -1115,16 +1115,16 @@ export function VehicleFinalReportTab({
       {/* Lightbox Modal for Photos */}
       {previewAttachment && isSafeHttpsUrl(previewAttachment.signedUrl) && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 print:hidden"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/85 backdrop-blur-xs print:hidden"
           role="dialog"
           aria-modal="true"
           onClick={() => setPreviewAttachment(null)}
         >
           <div
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-3xl w-full overflow-hidden"
+            className="autolife-glass rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
+            <div className="px-4 py-3 border-b border-slate-200/80 dark:border-white/10 flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                   {previewAttachment.fileName}
@@ -1139,7 +1139,7 @@ export function VehicleFinalReportTab({
                 <a
                   href={previewAttachment.signedUrl}
                   download={previewAttachment.fileName}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Baixar</span>
@@ -1154,15 +1154,15 @@ export function VehicleFinalReportTab({
                 </button>
               </div>
             </div>
-            <div className="bg-slate-100 dark:bg-slate-950 max-h-[75vh] flex items-center justify-center p-4">
+            <div className="bg-slate-100 dark:bg-[#040812] max-h-[75vh] flex items-center justify-center p-4">
               <img
                 src={previewAttachment.signedUrl}
                 alt={previewAttachment.fileName}
-                className="max-h-[68vh] w-auto object-contain rounded-lg"
+                className="max-h-[68vh] w-auto object-contain rounded-xl"
               />
             </div>
             {previewAttachment.notes && (
-              <div className="px-4 py-2.5 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
+              <div className="px-4 py-2.5 border-t border-slate-200/80 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300">
                 {previewAttachment.notes}
               </div>
             )}

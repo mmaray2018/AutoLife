@@ -19,8 +19,8 @@ export default defineConfig(() => {
           short_name: 'AutoLife',
           description:
             'Plataforma automotiva global para ficha médica veicular, manutenção preventiva, mobilidade elétrica e rede global.',
-          theme_color: '#0f172a',
-          background_color: '#f8fafc',
+          theme_color: '#060b16',
+          background_color: '#060b16',
           display: 'standalone',
           start_url: '/',
           scope: '/',

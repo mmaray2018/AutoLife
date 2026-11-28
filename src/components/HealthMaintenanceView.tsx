@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Activity,
   AlertTriangle,
+  Bike,
   BookOpen,
   Calendar,
   CalendarPlus,
@@ -47,6 +49,7 @@ import {
 } from '../utils/whatsapp';
 import { ResilientImage } from './ResilientImage';
 import { VehicleFinalReportTab } from './VehicleFinalReportTab';
+import { VehicleVisual } from './VehicleVisual';
 import { WhatsAppConnectButton } from './WhatsAppConnectButton';
 
 interface HealthMaintenanceViewProps {
@@ -234,6 +237,81 @@ export function HealthMaintenanceView({
       (entry) => entry.status !== MaintenanceStatus.PENDING && Boolean(entry.projectedDueDate)
     );
     return scheduled ?? null;
+  }, [enrichedItems]);
+
+  const healthSummary = useMemo(() => {
+    const checkedCount = counts.onTrack + counts.attention + counts.overdue;
+    const totalCount = enrichedItems.length;
+    if (totalCount === 0 || checkedCount === 0) {
+      return {
+        percent: 0,
+        checkedCount,
+        totalCount,
+        statusLabel: 'Aguardando registros',
+        tone: 'neutral' as const,
+      };
+    }
+
+    const rawScore =
+      (counts.onTrack * 100 + counts.attention * 60 + counts.overdue * 15) / checkedCount;
+    const percent = Math.max(0, Math.min(100, Math.round(rawScore)));
+
+    if (percent >= 85 && counts.overdue === 0) {
+      return {
+        percent,
+        checkedCount,
+        totalCount,
+        statusLabel: 'Excelente',
+        tone: 'good' as const,
+      };
+    }
+    if (percent >= 70) {
+      return {
+        percent,
+        checkedCount,
+        totalCount,
+        statusLabel: 'Bom',
+        tone: 'good' as const,
+      };
+    }
+    if (percent >= 45) {
+      return {
+        percent,
+        checkedCount,
+        totalCount,
+        statusLabel: 'Atenção',
+        tone: 'warn' as const,
+      };
+    }
+    return {
+      percent,
+      checkedCount,
+      totalCount,
+      statusLabel: 'Crítico',
+      tone: 'critical' as const,
+    };
+  }, [counts, enrichedItems.length]);
+
+  const quickShortcuts = useMemo(() => {
+    const oilItem = enrichedItems.find((e) => e.item.category === MaintenanceCategory.OIL);
+    const revisionOrChainItem =
+      enrichedItems.find(
+        (e) =>
+          e.item.id !== oilItem?.item.id &&
+          (e.item.category === MaintenanceCategory.REVISION ||
+            e.item.category === MaintenanceCategory.CHAIN_DRIVE ||
+            e.item.category === MaintenanceCategory.BRAKES)
+      ) ?? enrichedItems.find((e) => e.item.id !== oilItem?.item.id);
+    const docItem = enrichedItems.find(
+      (e) =>
+        e.item.category === MaintenanceCategory.DOCUMENTATION &&
+        e.item.id !== oilItem?.item.id &&
+        e.item.id !== revisionOrChainItem?.item.id
+    );
+
+    return [oilItem, revisionOrChainItem, docItem].filter(
+      (entry): entry is NonNullable<typeof entry> => Boolean(entry)
+    );
   }, [enrichedItems]);
 
   const priorityDashboard = useMemo(() => {
@@ -479,8 +557,8 @@ export function HealthMaintenanceView({
             {t.health.subtitle}
           </p>
         </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center space-y-4">
-          <Car className="w-10 h-10 text-slate-400 mx-auto" />
+        <div className="autolife-health-hero rounded-2xl p-10 text-center space-y-4">
+          <Car className="w-10 h-10 text-sky-500 dark:text-sky-400 mx-auto" />
           <div className="space-y-1">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-slate-100">
               Nenhum veículo cadastrado
@@ -492,7 +570,7 @@ export function HealthMaintenanceView({
           <button
             type="button"
             onClick={onOpenAddVehicle}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-sky-500 dark:hover:bg-sky-400 text-white dark:text-slate-950 text-sm font-semibold transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>{t.actions.addVehicle}</span>
@@ -542,6 +620,24 @@ export function HealthMaintenanceView({
     );
   };
 
+  const heroBarClass =
+    healthSummary.tone === 'critical'
+      ? 'bg-gradient-to-r from-red-500 to-rose-400'
+      : healthSummary.tone === 'warn'
+      ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
+      : healthSummary.tone === 'good'
+      ? 'bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400'
+      : 'bg-slate-300 dark:bg-slate-700';
+
+  const heroScoreTextClass =
+    healthSummary.tone === 'critical'
+      ? 'text-red-600 dark:text-red-400'
+      : healthSummary.tone === 'warn'
+      ? 'text-amber-600 dark:text-amber-400'
+      : healthSummary.tone === 'good'
+      ? 'text-sky-600 dark:text-sky-300'
+      : 'text-slate-500 dark:text-slate-400';
+
   return (
     <div className="space-y-6">
       {/* Page Title, Section Switcher & Pre-Trip Action */}
@@ -550,32 +646,19 @@ export function HealthMaintenanceView({
           <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 text-balance">
             {t.health.title}
           </h1>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400 tabular-nums">
-            <span className="font-medium text-slate-700 dark:text-slate-200">
-              {t.vehicleTypes[vehicle.vehicleType ?? 'car']}
-              {isMoto && vehicle.engineDisplacementCc ? ` ${vehicle.engineDisplacementCc}cc` : ''}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span>{profileLabel}</span>
-            <span aria-hidden="true">·</span>
-            <span className="font-mono">{vehicle.weeklyKm ?? 250} km/sem</span>
-            <span aria-hidden="true">·</span>
-            <span className="font-mono">
-              {isMoto
-                ? `${vehicle.tirePressurePsi}/${vehicle.rearTirePressurePsi ?? vehicle.tirePressurePsi + 4} PSI`
-                : `${vehicle.tirePressurePsi} PSI`}
-            </span>
-          </div>
+          <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+            {t.health.subtitle}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 shrink-0 print:hidden">
-          <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-[#0c1629] border border-slate-200 dark:border-white/10 rounded-xl overflow-x-auto max-w-full">
             <button
               type="button"
               onClick={() => setActiveSection('checklist')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 activeSection === 'checklist'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                  ? 'bg-white dark:bg-sky-500/20 text-slate-900 dark:text-sky-300 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
@@ -584,9 +667,9 @@ export function HealthMaintenanceView({
             <button
               type="button"
               onClick={() => setActiveSection('guides')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 activeSection === 'guides'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                  ? 'bg-white dark:bg-sky-500/20 text-slate-900 dark:text-sky-300 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
@@ -596,9 +679,9 @@ export function HealthMaintenanceView({
             <button
               type="button"
               onClick={() => setActiveSection('report')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                 activeSection === 'report'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                  ? 'bg-white dark:bg-sky-500/20 text-slate-900 dark:text-sky-300 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
@@ -613,9 +696,9 @@ export function HealthMaintenanceView({
               setCheckedPreTrip({});
               setShowPreTripModal(true);
             }}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-sky-400/30 bg-white dark:bg-[#0c1629] text-slate-800 dark:text-sky-200 hover:bg-slate-100 dark:hover:bg-[#101d36] text-xs font-medium transition-colors whitespace-nowrap shrink-0"
           >
-            <Compass className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <Compass className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
             <span>Pré-Viagem 60s</span>
           </button>
         </div>
@@ -623,50 +706,193 @@ export function HealthMaintenanceView({
 
       {activeSection === 'checklist' && (
         <>
-          {/* Compact 4-Metric Hairline Summary Strip */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl grid grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800 tabular-nums">
-            <div className="px-5 py-3.5 flex items-baseline justify-between gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                {t.health.onTrackCount}
-              </span>
-              <span className="font-mono text-xl font-semibold text-emerald-600 dark:text-emerald-400">
-                {counts.onTrack}
-              </span>
-            </div>
-
-            <div className="px-5 py-3.5 flex items-baseline justify-between gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                {t.health.attentionCount}
-              </span>
-              <span className="font-mono text-xl font-semibold text-amber-600 dark:text-amber-400">
-                {counts.attention}
-              </span>
-            </div>
-
-            <div className="px-5 py-3.5 flex items-baseline justify-between gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                {t.health.overdueCount}
-              </span>
-              <span className="font-mono text-xl font-semibold text-red-600 dark:text-red-400">
-                {counts.overdue}
-              </span>
-            </div>
-
-            <div className="px-5 py-3.5 flex items-center justify-between gap-2 min-w-0">
-              <div className="min-w-0">
-                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  {t.health.nextDue}
-                </div>
-                <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                  {nextReminderItem ? nextReminderItem.localized.title : 'Sem pendências'}
+          {/* Active Vehicle Showcase + Glowing Cyan-Blue Hero Card "Saúde & Manutenção" */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+            {/* Active Vehicle Visual Card (Car or Motorcycle) */}
+            <section className="lg:col-span-5 autolife-glass rounded-2xl overflow-hidden flex flex-col justify-between">
+              <div className="relative h-44 sm:h-48 w-full overflow-hidden bg-slate-900">
+                <VehicleVisual
+                  vehicle={vehicle}
+                  attachments={attachments}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#060b16] via-[#060b16]/35 to-transparent" />
+                <div className="absolute bottom-3.5 left-4 right-4 flex items-end justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-sky-300">
+                      {isMoto ? (
+                        <Bike className="w-3.5 h-3.5 shrink-0" />
+                      ) : (
+                        <Car className="w-3.5 h-3.5 shrink-0" />
+                      )}
+                      <span>
+                        {t.vehicleTypes[vehicle.vehicleType ?? 'car']}
+                        {isMoto && vehicle.engineDisplacementCc
+                          ? ` ${vehicle.engineDisplacementCc}cc`
+                          : ''}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span className="truncate">{t.powertrain[vehicle.powertrain]}</span>
+                    </div>
+                    <h2 className="mt-0.5 font-display text-lg sm:text-xl font-bold text-white truncate">
+                      {vehicle.make} {vehicle.model}
+                    </h2>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-mono text-xs font-semibold text-white">{vehicle.year}</div>
+                    <div className="font-mono text-[11px] text-slate-300">{vehicle.plate}</div>
+                  </div>
                 </div>
               </div>
-              {nextReminderItem && (
-                <span className="font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
-                  {nextReminderItem.projectedDueDate}
-                </span>
+
+              <div className="p-4 grid grid-cols-3 divide-x divide-slate-200 dark:divide-white/10 text-xs tabular-nums">
+                <div className="pr-3">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">Odômetro</div>
+                  <div className="mt-0.5 font-mono font-semibold text-slate-900 dark:text-slate-100 truncate">
+                    {formatDistance(vehicle.odometerKm, prefs.units)}
+                  </div>
+                </div>
+                <div className="px-3">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">Calibragem</div>
+                  <div className="mt-0.5 font-mono font-semibold text-slate-900 dark:text-slate-100 truncate">
+                    {isMoto
+                      ? `${vehicle.tirePressurePsi}/${vehicle.rearTirePressurePsi ?? vehicle.tirePressurePsi + 4} PSI`
+                      : `${vehicle.tirePressurePsi} PSI`}
+                  </div>
+                </div>
+                <div className="pl-3 min-w-0">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">Perfil</div>
+                  <div className="mt-0.5 font-medium text-slate-800 dark:text-sky-200 truncate" title={profileLabel}>
+                    {vehicle.drivingProfile === 'urban_severe'
+                      ? 'Urbano'
+                      : vehicle.drivingProfile === 'highway'
+                      ? 'Rodoviário'
+                      : 'Misto'}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Hero Card: Saúde & Manutenção (Glowing Neon Cyan-Blue Border) */}
+            <section
+              className="lg:col-span-7 autolife-health-hero rounded-2xl p-5 sm:p-6 flex flex-col justify-between gap-5"
+              aria-label={t.nav.health}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                    <Activity className="w-4 h-4 shrink-0" />
+                    <span>{t.nav.health}</span>
+                  </div>
+                  <h2 className="font-display text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+                    {healthSummary.checkedCount > 0
+                      ? `${healthSummary.checkedCount} de ${healthSummary.totalCount} itens monitorados`
+                      : 'Comece o acompanhamento preventivo'}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-300/80">
+                    {nextReminderItem
+                      ? `${t.health.nextDue}: ${nextReminderItem.localized.title} (${nextReminderItem.projectedDueDate})`
+                      : 'Registre a primeira checagem para calcular os próximos prazos reais.'}
+                  </p>
+                </div>
+
+                <div className="sm:text-right shrink-0 tabular-nums">
+                  <div className={`font-display text-2xl sm:text-3xl font-bold ${heroScoreTextClass}`}>
+                    {healthSummary.checkedCount > 0 ? `${healthSummary.percent}%` : '—'}
+                    <span className="text-sm sm:text-base font-semibold ml-1.5">
+                      · {healthSummary.statusLabel}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                    {logs.filter((l) => l.vehicleId === vehicle.id).length} registro(s) salvos
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Health Bar */}
+              <div className="space-y-2">
+                <div
+                  className="h-3 w-full rounded-full bg-slate-200/80 dark:bg-[#060b16] border border-slate-300/50 dark:border-white/10 overflow-hidden"
+                  role="progressbar"
+                  aria-valuenow={healthSummary.percent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`Saúde do veículo: ${healthSummary.percent}%`}
+                >
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${heroBarClass}`}
+                    style={{
+                      width: `${
+                        healthSummary.checkedCount > 0 ? Math.max(6, healthSummary.percent) : 0
+                      }%`,
+                    }}
+                  />
+                </div>
+
+                {/* Compact 4-Metric Status Strip */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 tabular-nums">
+                  <div className="px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-[#060b16]/70 border border-slate-200/80 dark:border-white/10 flex items-baseline justify-between gap-2">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {t.health.onTrackCount}
+                    </span>
+                    <span className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                      {counts.onTrack}
+                    </span>
+                  </div>
+                  <div className="px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-[#060b16]/70 border border-slate-200/80 dark:border-white/10 flex items-baseline justify-between gap-2">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {t.health.attentionCount}
+                    </span>
+                    <span className="font-mono text-sm font-bold text-amber-600 dark:text-amber-400">
+                      {counts.attention}
+                    </span>
+                  </div>
+                  <div className="px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-[#060b16]/70 border border-slate-200/80 dark:border-white/10 flex items-baseline justify-between gap-2">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {t.health.overdueCount}
+                    </span>
+                    <span className="font-mono text-sm font-bold text-red-600 dark:text-red-400">
+                      {counts.overdue}
+                    </span>
+                  </div>
+                  <div className="px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-[#060b16]/70 border border-slate-200/80 dark:border-white/10 flex items-baseline justify-between gap-2">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {t.status[MaintenanceStatus.PENDING]}
+                    </span>
+                    <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">
+                      {counts.pending}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Maintenance Indicators / 1-Tap Log Shortcuts */}
+              {quickShortcuts.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {quickShortcuts.map((entry) => (
+                    <button
+                      key={`hero-quick-${entry.item.id}`}
+                      type="button"
+                      onClick={() => onOpenLogModal(entry.item)}
+                      className="text-left p-3 rounded-xl border border-slate-200/90 dark:border-white/10 bg-slate-50/80 dark:bg-[#081020]/80 hover:border-sky-400/60 dark:hover:border-sky-400/50 hover:bg-white dark:hover:bg-[#101d36] transition-colors flex flex-col justify-between gap-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                          {entry.localized.title}
+                        </span>
+                        <Wrench className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                      </div>
+                      <div className="flex items-center justify-between gap-2 text-[11px] tabular-nums">
+                        {renderStatusIndicator(entry.status)}
+                        <span className="font-mono text-slate-500 dark:text-slate-400 truncate">
+                          {entry.projectedDueDate || 'Registrar'}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               )}
-            </div>
+            </section>
           </div>
 
           {/* Próximos Passos: High-Priority Maintenance Dashboard */}
@@ -774,7 +1000,7 @@ export function HealthMaintenanceView({
                   return (
                     <article
                       key={`priority-${item.id}`}
-                      className={`bg-white dark:bg-slate-900 border ${borderTone} rounded-xl p-4 sm:p-5 flex flex-col justify-between gap-4`}
+                      className={`autolife-glass ${borderTone} rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-4`}
                     >
                       <div className="space-y-3">
                         <div className="flex items-start justify-between gap-3">
@@ -920,8 +1146,8 @@ export function HealthMaintenanceView({
 
           {/* Checklist Filter Bar + Expandable Category Cards */}
           <div className="space-y-3">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:px-5 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
+            <div className="autolife-glass rounded-2xl p-3.5 sm:px-5 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+              <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-[#081020] border border-slate-200/80 dark:border-white/10 rounded-xl overflow-x-auto max-w-full">
                 {(
                   [
                     { id: 'all', label: t.health.allFilter },
@@ -935,9 +1161,9 @@ export function HealthMaintenanceView({
                     key={tab.id}
                     type="button"
                     onClick={() => setStatusFilter(tab.id)}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-blue-600 ${
+                    className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-sky-500 ${
                       statusFilter === tab.id
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                        ? 'bg-white dark:bg-sky-500/20 text-slate-900 dark:text-sky-300 shadow-sm'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                     }`}
                   >
@@ -954,7 +1180,7 @@ export function HealthMaintenanceView({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={t.health.searchPlaceholder}
-                    className="w-full pl-8 pr-3 py-1.5 text-xs sm:text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-blue-600"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-sky-500"
                   />
                 </div>
 
@@ -962,7 +1188,7 @@ export function HealthMaintenanceView({
                   <button
                     type="button"
                     onClick={toggleAllCategories}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#101d36] transition-colors whitespace-nowrap shrink-0"
                   >
                     {allExpanded ? (
                       <>
@@ -981,7 +1207,7 @@ export function HealthMaintenanceView({
             </div>
 
             {categoryGroups.length === 0 ? (
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center space-y-2">
+              <div className="autolife-glass rounded-2xl p-10 text-center space-y-2">
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Nenhum item encontrado para este filtro ou busca.
                 </p>
@@ -1019,7 +1245,7 @@ export function HealthMaintenanceView({
                   return (
                     <section
                       key={group.id}
-                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden"
+                      className="autolife-glass rounded-2xl overflow-hidden"
                     >
                       <button
                         type="button"
@@ -1412,7 +1638,7 @@ export function HealthMaintenanceView({
               </p>
             </div>
 
-            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit shrink-0">
+            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-[#0c1629] border border-slate-200 dark:border-white/10 rounded-xl overflow-x-auto max-w-full shrink-0">
               {(
                 [
                   {
@@ -1428,9 +1654,9 @@ export function HealthMaintenanceView({
                   key={tab.id}
                   type="button"
                   onClick={() => setGuideScope(tab.id)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 ${
                     guideScope === tab.id
-                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                      ? 'bg-white dark:bg-sky-500/20 text-slate-900 dark:text-sky-300 shadow-sm'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                   }`}
                 >
@@ -1447,7 +1673,7 @@ export function HealthMaintenanceView({
               return (
                 <article
                   key={guide.id}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col"
+                  className="autolife-glass rounded-2xl overflow-hidden flex flex-col"
                 >
                   <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
                     <ResilientImage
@@ -1511,11 +1737,11 @@ export function HealthMaintenanceView({
       {/* Pre-Trip 60-Second Inspection Modal */}
       {showPreTripModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/80 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-lg w-full p-6 space-y-5">
+          <div className="autolife-glass rounded-2xl max-w-lg w-full p-6 space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
