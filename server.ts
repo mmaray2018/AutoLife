@@ -412,6 +412,207 @@ Core safety & engineering principles you MUST always obey:
     }
   });
 
+  // Worldwide Vehicle Registration Document OCR Parser (CRLV, Title, DUA, Permiso, V5C, etc.)
+  app.post('/api/vehicles/parse-document', async (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as {
+      fileData?: string;
+      mimeType?: string;
+      language?: string;
+      document?: MediaPayload;
+    };
+
+    const rawMime = String(body.document?.mimeType || body.mimeType || '')
+      .trim()
+      .toLowerCase();
+    const rawData = String(body.document?.data || body.fileData || '').trim();
+    const normalizedMime = rawMime === 'image/jpg' ? 'image/jpeg' : rawMime;
+
+    const ALLOWED_DOC_MIMES = new Set([
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/heic',
+      'image/heif',
+      'application/pdf',
+    ]);
+
+    if (!ALLOWED_DOC_MIMES.has(normalizedMime)) {
+      res.status(400).json({
+        error: 'Formato inválido. Envie imagem JPG, PNG, WEBP, HEIC ou documento PDF.',
+      });
+      return;
+    }
+
+    const cleanBase64 = rawData.replace(/^data:[^;]+;base64,/, '').replace(/\s+/g, '');
+    if (!cleanBase64 || !/^[A-Za-z0-9+/=]+$/.test(cleanBase64)) {
+      res.status(400).json({ error: 'Conteúdo base64 do documento inválido ou vazio.' });
+      return;
+    }
+
+    const estimatedBytes = Math.floor((cleanBase64.length * 3) / 4);
+    if (estimatedBytes <= 0 || estimatedBytes > 10 * 1024 * 1024) {
+      res.status(400).json({ error: 'Documento excede o limite de 10 MB.' });
+      return;
+    }
+
+    const ai = getGeminiClient();
+    if (!ai) {
+      res.status(503).json({
+        error:
+          'GEMINI_API_KEY is not configured. Please add your Gemini API key in Settings > Secrets.',
+      });
+      return;
+    }
+
+    const langCode = body.language && LANGUAGE_NAMES[body.language] ? body.language : 'pt';
+    const targetLanguage = LANGUAGE_NAMES[langCode];
+
+    const promptText = `You are a global automotive vehicle registration document OCR parser.
+Analyze this vehicle document image or PDF from ANY country in the world (e.g., Brazil CRLV/CRLV-e, Portugal DUA/Livrete, Spain Permiso de Circulación, US/Canada/Australia Vehicle Title or Registration, UK V5C, Germany Zulassungsbescheinigung, France Carte Grise, Mexico Tarjeta de Circulación, Japan Shaken, etc.).
+
+Rules:
+- Extract ONLY information visibly printed on the document. NEVER invent, guess, or fabricate unreadable fields. If a field is missing or illegible, return "" (or 0 for year).
+- vehicleCategory: return "motorcycle" for motorcycles, motorbikes, scooters, mopeds, motonetas, ciclomotores; return "car" for automobiles, sedans, hatchbacks, SUVs, crossovers, pickups, vans, or light trucks.
+- brand: manufacturer name cleanly capitalized (e.g., "Toyota", "Honda", "Volkswagen", "BMW", "Yamaha", "BYD").
+- model: model and trim/version printed on the document without repeating the brand if obvious, concise and clean.
+- year: integer model/manufacture year (e.g., 2023), or 0 if not visible.
+- color: predominant exterior color translated naturally into ${targetLanguage} (e.g., "Branco", "Preto", "Prata", "Cinza", "Vermelho", "Azul", "Verde", "Amarelo", "Marrom", "Laranja", or exact printed shade).
+- licensePlate: license plate / registration number cleanly uppercased without extra spaces.
+- fuelType: fuel or powertrain type normalized concisely in ${targetLanguage} (e.g., "Flex", "Gasolina", "Diesel", "Elétrico/EV", "Híbrido", or English equivalent if ${targetLanguage} is English).
+- engineDisplacement: displacement or EV indicator (e.g., "160cc", "1000cc", "2000cc", "EV"), or "" if absent.
+- licensingDueDate: inspection, tax/licensing, or registration validity expiration date strictly in YYYY-MM-DD format if clearly printed, otherwise "".
+- vinOrRenavam: VIN / Chassis / RENAVAM / Registration serial identifier if clearly visible, otherwise "".`;
+
+    const callParse = () =>
+      ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: normalizedMime,
+                data: cleanBase64,
+              },
+            },
+            { text: promptText },
+          ],
+        },
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              vehicleCategory: {
+                type: Type.STRING,
+                description: "'car' or 'motorcycle'",
+              },
+              brand: {
+                type: Type.STRING,
+                description: 'Vehicle manufacturer brand printed on document.',
+              },
+              model: {
+                type: Type.STRING,
+                description: 'Vehicle model and version printed on document.',
+              },
+              year: {
+                type: Type.INTEGER,
+                description: 'Manufacture or model year as integer, or 0 if unavailable.',
+              },
+              color: {
+                type: Type.STRING,
+                description: `Vehicle color in ${targetLanguage}, or empty string if unavailable.`,
+              },
+              licensePlate: {
+                type: Type.STRING,
+                description: 'License plate or registration plate number.',
+              },
+              fuelType: {
+                type: Type.STRING,
+                description: 'Fuel or powertrain type (e.g. Flex, Gasolina, Diesel, Elétrico/EV, Híbrido).',
+              },
+              engineDisplacement: {
+                type: Type.STRING,
+                description: 'Engine displacement (e.g. 160cc, 1000cc) or EV.',
+              },
+              licensingDueDate: {
+                type: Type.STRING,
+                description: 'Registration/inspection expiration date in YYYY-MM-DD format, or empty string.',
+              },
+              vinOrRenavam: {
+                type: Type.STRING,
+                description: 'Optional VIN, Chassis, or RENAVAM if visible.',
+              },
+            },
+            required: [
+              'vehicleCategory',
+              'brand',
+              'model',
+              'year',
+              'color',
+              'licensePlate',
+              'fuelType',
+              'engineDisplacement',
+              'licensingDueDate',
+              'vinOrRenavam',
+            ],
+          },
+        },
+      });
+
+    try {
+      let response;
+      try {
+        response = await callParse();
+      } catch (firstErr) {
+        if (!isTransientUnavailableError(firstErr)) throw firstErr;
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        response = await callParse();
+      }
+
+      const rawText = (response.text ?? '').trim();
+      if (!rawText) {
+        res.status(502).json({ error: 'Empty response from Gemini Document Parser.' });
+        return;
+      }
+
+      const parsed = JSON.parse(rawText) as Record<string, unknown>;
+      const rawCategory = String(parsed.vehicleCategory ?? '').toLowerCase();
+      const vehicleCategory: 'car' | 'motorcycle' =
+        rawCategory === 'motorcycle' || rawCategory.includes('moto') ? 'motorcycle' : 'car';
+
+      const parsedYear = Number(parsed.year);
+      const year =
+        Number.isInteger(parsedYear) && parsedYear >= 1900 && parsedYear <= 2030
+          ? parsedYear
+          : null;
+
+      const rawDue = String(parsed.licensingDueDate ?? '').trim();
+      const licensingDueDate = /^\d{4}-\d{2}-\d{2}$/.test(rawDue) ? rawDue : '';
+
+      res.json({
+        vehicleCategory,
+        brand: String(parsed.brand ?? '').trim().slice(0, 80),
+        model: String(parsed.model ?? '').trim().slice(0, 100),
+        year,
+        color: String(parsed.color ?? '').trim().slice(0, 48),
+        licensePlate: String(parsed.licensePlate ?? '')
+          .trim()
+          .toUpperCase()
+          .slice(0, 24),
+        fuelType: String(parsed.fuelType ?? '').trim().slice(0, 48),
+        engineDisplacement: String(parsed.engineDisplacement ?? '').trim().slice(0, 32),
+        licensingDueDate,
+        vinOrRenavam: String(parsed.vinOrRenavam ?? '')
+          .trim()
+          .toUpperCase()
+          .slice(0, 40),
+      });
+    } catch (error) {
+      console.error('Gemini vehicle document parse error:', error);
+      sendGeminiError(res, error, langCode, 'Falha ao ler documento veicular com a API Gemini.');
+    }
+  });
+
   // Workshop Quote Auditor (compares quote against vehicle mileage & service history)
   app.post('/api/mechanic/audit-quote', async (req: Request, res: Response) => {
     const { quoteText, image, vehicle, recentLogs, language } = req.body as {

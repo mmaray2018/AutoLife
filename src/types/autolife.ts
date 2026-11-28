@@ -73,6 +73,8 @@ export interface Vehicle {
   model: string;
   year: number;
   plate: string;
+  color?: string;
+  vinOrRenavam?: string;
   powertrain: PowertrainType;
   engineDisplacementCc?: number;
   odometerKm: number;
@@ -91,6 +93,19 @@ export interface Vehicle {
   organizationId?: string;
   assignedMemberName?: string;
   assignedMemberEmail?: string;
+}
+
+export interface ParsedVehicleDocument {
+  vehicleCategory: VehicleType;
+  brand: string;
+  model: string;
+  year: number | null;
+  color: string;
+  licensePlate: string;
+  fuelType: string;
+  engineDisplacement: string;
+  licensingDueDate: string;
+  vinOrRenavam: string;
 }
 
 export interface ManualSourceLink {
@@ -350,6 +365,7 @@ export interface PassportSnapshotPayload {
     model: string;
     year: number;
     plate: string;
+    color?: string;
     vehicleType: VehicleType;
     engineDisplacementCc?: number;
     powertrain: PowertrainType;

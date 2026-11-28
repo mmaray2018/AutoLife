@@ -34,6 +34,8 @@ create table if not exists public.vehicles (
   model text not null,
   year integer not null check (year between 1900 and 2100),
   plate text not null,
+  color text,
+  vin_or_renavam text,
   powertrain text not null check (powertrain in ('gasoline', 'diesel', 'hybrid', 'electric')),
   engine_displacement_cc integer check (engine_displacement_cc is null or engine_displacement_cc > 0),
   odometer_km integer not null default 0 check (odometer_km >= 0),
@@ -55,6 +57,8 @@ create table if not exists public.vehicles (
 
 alter table public.vehicles
   add column if not exists vehicle_type text not null default 'car',
+  add column if not exists color text,
+  add column if not exists vin_or_renavam text,
   add column if not exists engine_displacement_cc integer,
   add column if not exists driving_profile text not null default 'mixed',
   add column if not exists weekly_km integer not null default 250,

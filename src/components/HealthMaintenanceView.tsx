@@ -47,6 +47,7 @@ import {
   buildMaintenanceWhatsAppText,
   buildPreTripWhatsAppText,
 } from '../utils/whatsapp';
+import { resolveVehicleColorStyle } from '../utils/vehicleVisualResolver';
 import { ResilientImage } from './ResilientImage';
 import { VehicleFinalReportTab } from './VehicleFinalReportTab';
 import { VehicleVisual } from './VehicleVisual';
@@ -741,6 +742,17 @@ export function HealthMaintenanceView({
                   <div className="text-right shrink-0">
                     <div className="font-mono text-xs font-semibold text-white">{vehicle.year}</div>
                     <div className="font-mono text-[11px] text-slate-300">{vehicle.plate}</div>
+                    {vehicle.color && (
+                      <div className="mt-0.5 inline-flex items-center justify-end gap-1 text-[10px] text-slate-200">
+                        <span
+                          className="w-2 h-2 rounded-full border border-white/50 shrink-0"
+                          style={{
+                            backgroundColor: resolveVehicleColorStyle(vehicle.color).primaryHex,
+                          }}
+                        />
+                        <span>{vehicle.color}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

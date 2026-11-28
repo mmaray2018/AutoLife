@@ -24,7 +24,7 @@ import {
   INITIAL_VEHICLES,
 } from './data/seedData';
 import { isSupabaseConfigured, supabase } from './lib/supabaseClient';
-import { listVehicleAttachments } from './services/storageRepository';
+import { listVehicleAttachments, uploadVehicleAttachment } from './services/storageRepository';
 import {
   deleteVehicleFromCloud,
   fetchCloudSnapshot,
@@ -470,6 +470,7 @@ export default function App() {
   const [logModalItem, setLogModalItem] = useState<MaintenanceItem | null>(null);
   const [showLogModal, setShowLogModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [vehicleToDeleteId, setVehicleToDeleteId] = useState<string | null>(null);
 
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
@@ -1186,7 +1187,7 @@ export default function App() {
     setPlansFocusTick((tick) => tick + 1);
   };
 
-  const handleAddVehicle = (newVehicle: Vehicle) => {
+  const handleAddVehicle = (newVehicle: Vehicle, documentFile?: File) => {
     const isExpiredLocked =
       subscription?.status === 'expired' && state.vehicles.length >= 1;
     const isOverLimit =
@@ -1205,9 +1206,23 @@ export default function App() {
     };
     const newChecklist = buildDefaultChecklistForVehicle(enrichedVehicle);
     if (cloudUserId) {
-      void syncVehicleToCloud(cloudUserId, enrichedVehicle).then(() =>
-        Promise.all(newChecklist.map((it) => syncMaintenanceItemToCloud(cloudUserId, it)))
-      );
+      void syncVehicleToCloud(cloudUserId, enrichedVehicle)
+        .then(() =>
+          Promise.all(newChecklist.map((it) => syncMaintenanceItemToCloud(cloudUserId, it)))
+        )
+        .then(async () => {
+          if (documentFile) {
+            const uploaded = await uploadVehicleAttachment({
+              userId: cloudUserId,
+              vehicleId: enrichedVehicle.id,
+              file: documentFile,
+              category: 'document',
+              notes: 'Documento veicular capturado no cadastro',
+            });
+            setAttachments((prev) => [uploaded, ...prev]);
+          }
+        })
+        .catch(() => {});
     }
     recordImmutableOdometer(enrichedVehicle.id, enrichedVehicle.odometerKm, 'initial');
     setState((prev) => ({
@@ -1217,6 +1232,30 @@ export default function App() {
       items: [...prev.items, ...newChecklist],
     }));
     setShowAddVehicleModal(false);
+  };
+
+  const handleUpdateVehicle = (updatedVehicle: Vehicle, documentFile?: File) => {
+    if (cloudUserId) {
+      void syncVehicleToCloud(cloudUserId, updatedVehicle)
+        .then(async () => {
+          if (documentFile) {
+            const uploaded = await uploadVehicleAttachment({
+              userId: cloudUserId,
+              vehicleId: updatedVehicle.id,
+              file: documentFile,
+              category: 'document',
+              notes: 'Documento veicular atualizado',
+            });
+            setAttachments((prev) => [uploaded, ...prev]);
+          }
+        })
+        .catch(() => {});
+    }
+    setState((prev) => ({
+      ...prev,
+      vehicles: prev.vehicles.map((v) => (v.id === updatedVehicle.id ? updatedVehicle : v)),
+    }));
+    setEditingVehicle(null);
   };
 
   const handleDeleteVehicle = (vehicleId: string) => {
@@ -1579,6 +1618,8 @@ export default function App() {
               onAssignVehicleMember={handleAssignVehicleMember}
               onDeleteVehicle={requestDeleteVehicle}
               onOpenAddVehicle={() => setShowAddVehicleModal(true)}
+              onEditVehicle={(v) => setEditingVehicle(v)}
+              onUpdateVehicle={(v) => handleUpdateVehicle(v)}
               onUpdatePrefs={updatePrefs}
               onAddServiceLog={handleAddServiceLog}
               onAddChargingSession={handleAddChargingSession}
@@ -1687,19 +1728,31 @@ export default function App() {
         />
       )}
 
-      {showAddVehicleModal && (
+      {(showAddVehicleModal || editingVehicle) && (
         <AddVehicleModal
           t={t}
           prefs={state.prefs}
           vehiclesCount={state.vehicles.length}
           vehicleLimit={vehicleLimit}
           subscriptionStatus={subscription?.status}
+          initialVehicle={editingVehicle}
+          cloudUserId={cloudUserId}
           onOpenPlans={() => {
             setShowAddVehicleModal(false);
+            setEditingVehicle(null);
             handleOpenPlans();
           }}
-          onClose={() => setShowAddVehicleModal(false)}
-          onAdd={handleAddVehicle}
+          onClose={() => {
+            setShowAddVehicleModal(false);
+            setEditingVehicle(null);
+          }}
+          onAdd={(vehiclePayload, docFile) => {
+            if (editingVehicle) {
+              handleUpdateVehicle(vehiclePayload, docFile);
+            } else {
+              handleAddVehicle(vehiclePayload, docFile);
+            }
+          }}
         />
       )}
 

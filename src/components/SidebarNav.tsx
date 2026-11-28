@@ -20,6 +20,7 @@ import {
   VehicleAttachment,
 } from '../types/autolife';
 import { formatDistance } from '../utils/autolife';
+import { resolveVehicleColorStyle } from '../utils/vehicleVisualResolver';
 import { PWAInstallButton } from './PWAInstallButton';
 import { VehicleVisual } from './VehicleVisual';
 
@@ -132,8 +133,22 @@ export function SidebarNav({
                   <div className="text-xs font-semibold text-white truncate">
                     {activeVehicle.make} {activeVehicle.model}
                   </div>
-                  <div className="text-[10px] font-mono text-sky-300 truncate">
-                    {activeVehicle.year} · {activeVehicle.plate}
+                  <div className="text-[10px] font-mono text-sky-300 truncate flex items-center gap-1.5">
+                    <span>
+                      {activeVehicle.year} · {activeVehicle.plate}
+                    </span>
+                    {activeVehicle.color && (
+                      <span className="inline-flex items-center gap-1 text-slate-200">
+                        <span
+                          className="w-2 h-2 rounded-full border border-white/50 shrink-0"
+                          style={{
+                            backgroundColor: resolveVehicleColorStyle(activeVehicle.color)
+                              .primaryHex,
+                          }}
+                        />
+                        <span>{activeVehicle.color}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
                 {activeVehicle.vehicleType === 'motorcycle' ? (

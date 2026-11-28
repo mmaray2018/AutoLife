@@ -23,7 +23,7 @@ export function VehicleVisual({
 }: VehicleVisualProps) {
   const userPhoto = getUserVehiclePhotoUrl(vehicle, attachments);
   const studioFallback = resolveVehicleFallbackVisual(vehicle);
-  const vehicleKey = `${vehicle.id}:${vehicle.vehicleType ?? 'car'}:${vehicle.make}:${vehicle.model}`;
+  const vehicleKey = `${vehicle.id}:${vehicle.vehicleType ?? 'car'}:${vehicle.make}:${vehicle.model}:${vehicle.color ?? ''}`;
   const cachedDynamic = !userPhoto ? getCachedDynamicVehicleImage(vehicle) : undefined;
   const [fetchedDynamic, setFetchedDynamic] = useState<{
     key: string;
@@ -55,15 +55,20 @@ export function VehicleVisual({
       : null
     : null;
 
-  const resolvedSrc = userPhoto || dynamicUrl || studioFallback.src;
+  const hasExplicitColor = Boolean(vehicle.color?.trim());
+  const resolvedSrc =
+    userPhoto || dynamicUrl || (hasExplicitColor ? null : studioFallback.src);
 
   return (
     <ResilientImage
       src={resolvedSrc}
-      fallbackSrc={studioFallback.src}
+      fallbackSrc={hasExplicitColor ? undefined : studioFallback.src}
       vehicleType={vehicle.vehicleType ?? 'car'}
+      bodyStyle={studioFallback.bodyStyle}
+      vehicleColor={vehicle.color}
+      isEv={studioFallback.isEv}
       alt={alt || `${vehicle.make} ${vehicle.model} (${vehicle.year})`}
-      fallbackTitle={`${vehicle.make} ${vehicle.model}`}
+      fallbackTitle={`${vehicle.make} ${vehicle.model}${vehicle.color ? ` · ${vehicle.color}` : ''}`}
       className={className}
     />
   );

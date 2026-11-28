@@ -6,12 +6,14 @@ import {
   Building2,
   CalendarPlus,
   Car,
+  Check,
   CheckCircle2,
   Clock,
   Download,
   FileText,
   Gauge,
   Lock,
+  Pencil,
   Plus,
   QrCode,
   ShieldCheck,
@@ -56,6 +58,10 @@ import {
   buildServiceLogWhatsAppText,
   buildVehicleWhatsAppText,
 } from '../utils/whatsapp';
+import {
+  VEHICLE_COLOR_SWATCHES,
+  resolveVehicleColorStyle,
+} from '../utils/vehicleVisualResolver';
 import { CarbonFootprintSection } from './CarbonFootprintSection';
 import { FleetAnalyticsSection } from './FleetAnalyticsSection';
 import { FleetTeamSection } from './FleetTeamSection';
@@ -94,6 +100,8 @@ interface GarageFleetViewProps {
   onAssignVehicleMember: (vehicleId: string, memberName: string, memberEmail: string) => void;
   onDeleteVehicle: (vehicleId: string) => void;
   onOpenAddVehicle: () => void;
+  onEditVehicle?: (vehicle: Vehicle) => void;
+  onUpdateVehicle?: (vehicle: Vehicle) => void;
   onUpdatePrefs: (partial: Partial<UserPreferences>) => void;
   onAddServiceLog: (log: ServiceLog) => Promise<void> | void;
   onAddChargingSession: (session: ChargingSession) => void;
@@ -139,6 +147,8 @@ export function GarageFleetView({
   onAssignVehicleMember,
   onDeleteVehicle,
   onOpenAddVehicle,
+  onEditVehicle,
+  onUpdateVehicle,
   onUpdatePrefs,
   onAddServiceLog,
   onAddChargingSession,
@@ -542,6 +552,20 @@ export function GarageFleetView({
               <span className="text-slate-800 dark:text-sky-300 font-semibold">
                 {formatDistance(activeVehicle.odometerKm, prefs.units)}
               </span>
+              {activeVehicle.color && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex items-center gap-1.5 font-sans text-slate-700 dark:text-slate-200">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full border border-white/40 shrink-0"
+                      style={{
+                        backgroundColor: resolveVehicleColorStyle(activeVehicle.color).primaryHex,
+                      }}
+                    />
+                    <span>{activeVehicle.color}</span>
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -561,6 +585,16 @@ export function GarageFleetView({
                 </option>
               ))}
             </select>
+          )}
+          {onEditVehicle && (
+            <button
+              type="button"
+              onClick={() => onEditVehicle(activeVehicle)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#101d36] transition-colors whitespace-nowrap shrink-0"
+            >
+              <Pencil className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+              <span>Editar</span>
+            </button>
           )}
           <button
             type="button"
@@ -1007,6 +1041,61 @@ export function GarageFleetView({
                 </button>
               </div>
             </form>
+
+            {/* Quick Color Editor */}
+            {onUpdateVehicle && (
+              <div className="pt-3 border-t border-slate-200 dark:border-white/10 space-y-2">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-medium text-slate-500 dark:text-slate-400">
+                    Cor do veículo
+                  </span>
+                  <span className="font-medium text-slate-800 dark:text-sky-200">
+                    {activeVehicle.color || 'Não informada'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {VEHICLE_COLOR_SWATCHES.map((swatch) => {
+                    const isSelected =
+                      (activeVehicle.color ?? '').trim().toLowerCase() ===
+                      swatch.label.toLowerCase();
+                    const isLightSwatch =
+                      swatch.id === 'white' || swatch.id === 'silver' || swatch.id === 'yellow';
+                    return (
+                      <button
+                        key={swatch.id}
+                        type="button"
+                        onClick={() =>
+                          onUpdateVehicle({
+                            ...activeVehicle,
+                            color: swatch.label,
+                          })
+                        }
+                        title={swatch.label}
+                        aria-label={`Definir cor ${swatch.label}`}
+                        className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform border ${
+                          isSelected
+                            ? 'ring-2 ring-sky-400 ring-offset-2 ring-offset-white dark:ring-offset-[#0c1629] scale-110'
+                            : 'hover:scale-105 opacity-85 hover:opacity-100'
+                        }`}
+                        style={{
+                          backgroundColor: swatch.primaryHex,
+                          borderColor: swatch.borderHex,
+                        }}
+                      >
+                        {isSelected && (
+                          <Check
+                            className={`w-3 h-3 ${
+                              isLightSwatch ? 'text-slate-900' : 'text-white'
+                            }`}
+                            strokeWidth={2.5}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Predictive Severity & Weekly Mileage */}
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-3">

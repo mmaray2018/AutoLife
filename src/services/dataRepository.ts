@@ -40,32 +40,52 @@ export async function fetchCloudSnapshot(userId: string): Promise<CloudSnapshot 
   if (logRes.error) throw logRes.error;
   if (chgRes.error) throw chgRes.error;
 
-  const vehicles: Vehicle[] = (vehRes.data ?? []).map((row) => ({
-    id: row.id,
-    vehicleType: (row.vehicle_type as VehicleType) || 'car',
-    make: row.make,
-    model: row.model,
-    year: row.year,
-    plate: row.plate,
-    powertrain: row.powertrain as PowertrainType,
-    engineDisplacementCc: row.engine_displacement_cc ?? undefined,
-    odometerKm: row.odometer_km,
-    fleetGroup: row.fleet_group,
-    drivingProfile: (row.driving_profile as DrivingProfile) ?? 'mixed',
-    weeklyKm: row.weekly_km ?? 250,
-    batteryCapacityKwh: row.battery_capacity_kwh ?? undefined,
-    consumptionKwhPer100Km: row.consumption_kwh_per_100km ?? undefined,
-    estimatedRangeKm: row.estimated_range_km ?? undefined,
-    batterySohPercent: row.battery_soh_percent ?? undefined,
-    tirePressurePsi: row.tire_pressure_psi,
-    rearTirePressurePsi: row.rear_tire_pressure_psi ?? undefined,
-    documentExpiryDate: isDateRecorded(row.document_expiry_date) ? row.document_expiry_date : '',
-    insuranceExpiryDate: isDateRecorded(row.insurance_expiry_date) ? row.insurance_expiry_date : '',
-    manualSpec: (row.manual_spec as VehicleManualSpec | null) ?? undefined,
-    organizationId: row.organization_id ?? undefined,
-    assignedMemberName: row.assigned_member_name ?? '',
-    assignedMemberEmail: row.assigned_member_email ?? '',
-  }));
+  const vehicles: Vehicle[] = (vehRes.data ?? []).map((row) => {
+    const rawManual =
+      row.manual_spec && typeof row.manual_spec === 'object'
+        ? (row.manual_spec as Record<string, unknown>)
+        : null;
+    const metaColor =
+      typeof rawManual?.vehicleColor === 'string' ? rawManual.vehicleColor : undefined;
+    const metaVin =
+      typeof rawManual?.vinOrRenavam === 'string' ? rawManual.vinOrRenavam : undefined;
+    const hydratedManualSpec =
+      rawManual && typeof rawManual.vehicleSummary === 'string'
+        ? (rawManual as unknown as VehicleManualSpec)
+        : undefined;
+
+    return {
+      id: row.id,
+      vehicleType: (row.vehicle_type as VehicleType) || 'car',
+      make: row.make,
+      model: row.model,
+      year: row.year,
+      plate: row.plate,
+      color: (typeof row.color === 'string' && row.color.trim()) || metaColor || undefined,
+      vinOrRenavam:
+        (typeof row.vin_or_renavam === 'string' && row.vin_or_renavam.trim()) ||
+        metaVin ||
+        undefined,
+      powertrain: row.powertrain as PowertrainType,
+      engineDisplacementCc: row.engine_displacement_cc ?? undefined,
+      odometerKm: row.odometer_km,
+      fleetGroup: row.fleet_group,
+      drivingProfile: (row.driving_profile as DrivingProfile) ?? 'mixed',
+      weeklyKm: row.weekly_km ?? 250,
+      batteryCapacityKwh: row.battery_capacity_kwh ?? undefined,
+      consumptionKwhPer100Km: row.consumption_kwh_per_100km ?? undefined,
+      estimatedRangeKm: row.estimated_range_km ?? undefined,
+      batterySohPercent: row.battery_soh_percent ?? undefined,
+      tirePressurePsi: row.tire_pressure_psi,
+      rearTirePressurePsi: row.rear_tire_pressure_psi ?? undefined,
+      documentExpiryDate: isDateRecorded(row.document_expiry_date) ? row.document_expiry_date : '',
+      insuranceExpiryDate: isDateRecorded(row.insurance_expiry_date) ? row.insurance_expiry_date : '',
+      manualSpec: hydratedManualSpec,
+      organizationId: row.organization_id ?? undefined,
+      assignedMemberName: row.assigned_member_name ?? '',
+      assignedMemberEmail: row.assigned_member_email ?? '',
+    };
+  });
 
   const items: MaintenanceItem[] = (itemRes.data ?? []).map((row) => ({
     id: row.id,
@@ -130,6 +150,17 @@ export async function fetchCloudSnapshot(userId: string): Promise<CloudSnapshot 
 
 export async function syncVehicleToCloud(userId: string, v: Vehicle): Promise<void> {
   if (!supabase) return;
+  const cleanColor = v.color?.trim() || '';
+  const cleanVin = v.vinOrRenavam?.trim() || '';
+  const manualMeta =
+    v.manualSpec || cleanColor || cleanVin
+      ? {
+          ...(v.manualSpec ?? {}),
+          ...(cleanColor ? { vehicleColor: cleanColor } : {}),
+          ...(cleanVin ? { vinOrRenavam: cleanVin } : {}),
+        }
+      : null;
+
   const basePayload = {
     id: v.id,
     user_id: userId,
@@ -156,11 +187,13 @@ export async function syncVehicleToCloud(userId: string, v: Vehicle): Promise<vo
     insurance_expiry_date: isDateRecorded(v.insuranceExpiryDate)
       ? v.insuranceExpiryDate
       : UNSET_DATE_SENTINEL,
-    manual_spec: v.manualSpec ?? null,
+    manual_spec: manualMeta,
   };
 
   const { error } = await supabase.from('vehicles').upsert({
     ...basePayload,
+    color: cleanColor || null,
+    vin_or_renavam: cleanVin || null,
     organization_id: v.organizationId ?? null,
     assigned_member_name: v.assignedMemberName ?? '',
     assigned_member_email: v.assignedMemberEmail ?? '',
@@ -169,6 +202,8 @@ export async function syncVehicleToCloud(userId: string, v: Vehicle): Promise<vo
   if (error) {
     const msg = error.message?.toLowerCase() || '';
     if (
+      msg.includes('color') ||
+      msg.includes('vin_or_renavam') ||
       msg.includes('organization_id') ||
       msg.includes('assigned_member_name') ||
       msg.includes('assigned_member_email')
