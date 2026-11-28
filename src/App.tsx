@@ -5,6 +5,7 @@ import {
   DeleteVehicleConfirmModal,
   LogCheckModal,
 } from './components/ActionModals';
+import { AdminPanelView } from './components/AdminPanelView';
 import { EvWorldView } from './components/EvWorldView';
 import { GarageFleetView } from './components/GarageFleetView';
 import { GlobalNetworkView } from './components/GlobalNetworkView';
@@ -49,6 +50,7 @@ import {
   syncPushScheduleIfActive,
 } from './services/pushClient';
 import {
+  CanonicalPlanId,
   ChargingSession,
   CountryCode,
   CurrencyCode,
@@ -473,6 +475,7 @@ export default function App() {
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
   const [cloudUserEmail, setCloudUserEmail] = useState<string | null>(null);
   const [cloudUserName, setCloudUserName] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [attachments, setAttachments] = useState<VehicleAttachment[]>([]);
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [attachmentsError, setAttachmentsError] = useState<string | null>(null);
@@ -635,9 +638,36 @@ export default function App() {
       setOrganization(null);
       setOrgMembers([]);
       setOdometerEvents([]);
+      setIsAdmin(false);
       return;
     }
     void refreshSubscriptionAndEnterpriseData(cloudUserId, effectiveCountry).catch(() => {});
+
+    let mounted = true;
+    getAccessToken()
+      .then((token) =>
+        token
+          ? fetch('/api/admin/status', {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+          : null
+      )
+      .then((res) => (res && res.ok ? res.json() : null))
+      .then((data: { isAdmin?: boolean } | null) => {
+        if (!mounted) return;
+        const allowed = Boolean(data?.isAdmin);
+        setIsAdmin(allowed);
+        if (!allowed) {
+          setActiveModule((prev) => (prev === 'admin' ? 'settings' : prev));
+        }
+      })
+      .catch(() => {
+        if (mounted) setIsAdmin(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, [cloudUserId]);
 
   useEffect(() => {
@@ -1381,6 +1411,7 @@ export default function App() {
           }
           mobileOpen={mobileNavOpen}
           onCloseMobile={() => setMobileNavOpen(false)}
+          isAdmin={isAdmin}
         />
       </div>
 
@@ -1611,6 +1642,20 @@ export default function App() {
               onSelectVehicle={handleSelectVehicle}
               onOpenAddVehicle={() => setShowAddVehicleModal(true)}
               onRequestDeleteVehicle={requestDeleteVehicle}
+            />
+          )}
+
+          {activeModule === 'admin' && isAdmin && (
+            <AdminPanelView
+              adminEmail={cloudUserEmail}
+              onOwnPlanGranted={async (planId: CanonicalPlanId) => {
+                updatePrefs({ activePlan: planId });
+                if (cloudUserId) {
+                  await refreshSubscriptionAndEnterpriseData(cloudUserId, effectiveCountry).catch(
+                    () => {}
+                  );
+                }
+              }}
             />
           )}
         </main>

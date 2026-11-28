@@ -752,6 +752,136 @@ create policy "Public reads active shared passport snapshot"
   using (is_active = true and (expires_at is null or expires_at > now()));
 
 -- ============================================================================
+-- ABA 7 — FUNCOES RPC DO PAINEL ADMIN (Exclusivo picelador@gmail.com)
+-- ============================================================================
+create or replace function public.admin_list_users()
+returns table (
+  user_id uuid,
+  email text,
+  full_name text,
+  created_at timestamptz,
+  active_plan text,
+  subscription_status text,
+  billing_cycle text,
+  provider text,
+  current_period_end timestamptz,
+  vehicles_count bigint
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_caller_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
+begin
+  if v_caller_email <> 'picelador@gmail.com' then
+    raise exception 'Acesso restrito ao administrador.';
+  end if;
+
+  return query
+  select
+    u.id as user_id,
+    u.email::text as email,
+    coalesce(
+      nullif(trim(u.raw_user_meta_data ->> 'full_name'), ''),
+      nullif(trim(u.raw_user_meta_data ->> 'name'), ''),
+      ''
+    )::text as full_name,
+    u.created_at,
+    coalesce(s.plan_id, p.active_plan, 'personal')::text as active_plan,
+    coalesce(s.status, 'active')::text as subscription_status,
+    coalesce(s.billing_cycle, 'monthly')::text as billing_cycle,
+    coalesce(s.provider, 'manual')::text as provider,
+    s.current_period_end,
+    (select count(*) from public.vehicles v where v.user_id = u.id) as vehicles_count
+  from auth.users u
+  left join public.user_subscriptions s on s.user_id = u.id
+  left join public.user_preferences p on p.user_id = u.id
+  order by u.created_at desc
+  limit 200;
+end;
+$$;
+
+create or replace function public.admin_grant_plan(
+  target_email text,
+  target_plan_id text,
+  duration_days integer default 365
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_caller_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
+  v_user_id uuid;
+  v_user_email text;
+  v_days integer := greatest(1, least(coalesce(duration_days, 365), 3650));
+  v_period_end timestamptz := now() + make_interval(days => greatest(1, least(coalesce(duration_days, 365), 3650)));
+  v_cycle text := case when v_days >= 300 then 'annual' else 'monthly' end;
+begin
+  if v_caller_email <> 'picelador@gmail.com' then
+    raise exception 'Acesso restrito ao administrador.';
+  end if;
+
+  if target_plan_id not in ('personal', 'fleet_10', 'fleet_25', 'fleet_50', 'fleet_100', 'enterprise') then
+    raise exception 'Plano invalido: %', target_plan_id;
+  end if;
+
+  select id, email::text
+  into v_user_id, v_user_email
+  from auth.users
+  where lower(email) = lower(trim(coalesce(target_email, '')))
+  limit 1;
+
+  if v_user_id is null then
+    raise exception 'Conta nao encontrada para o e-mail informado. O usuario precisa ter entrado no app ao menos uma vez.';
+  end if;
+
+  insert into public.user_subscriptions (
+    user_id, plan_id, country_code, currency_code, billing_cycle,
+    status, auto_renew, current_period_start, current_period_end,
+    grace_period_end, canceled_at, provider, updated_at
+  ) values (
+    v_user_id, target_plan_id, 'BR', 'BRL', v_cycle,
+    'active', false, now(), v_period_end,
+    null, null, 'manual', now()
+  )
+  on conflict (user_id) do update set
+    plan_id = excluded.plan_id,
+    billing_cycle = excluded.billing_cycle,
+    status = 'active',
+    auto_renew = false,
+    current_period_start = now(),
+    current_period_end = excluded.current_period_end,
+    grace_period_end = null,
+    canceled_at = null,
+    provider = 'manual',
+    updated_at = now();
+
+  insert into public.user_preferences (user_id, active_plan, updated_at)
+  values (v_user_id, target_plan_id, now())
+  on conflict (user_id) do update set
+    active_plan = excluded.active_plan,
+    updated_at = now();
+
+  return jsonb_build_object(
+    'userId', v_user_id,
+    'email', v_user_email,
+    'planId', target_plan_id,
+    'status', 'active',
+    'currentPeriodEnd', v_period_end
+  );
+end;
+$$;
+
+revoke all on function public.admin_list_users() from public;
+grant execute on function public.admin_list_users() to authenticated;
+
+revoke all on function public.admin_grant_plan(text, text, integer) from public;
+grant execute on function public.admin_grant_plan(text, text, integer) to authenticated;
+
+-- ============================================================================
 -- VERIFICACAO FINAL (Tabelas, RLS ativo e Bucket privado vehicle-attachments)
 -- ============================================================================
 select

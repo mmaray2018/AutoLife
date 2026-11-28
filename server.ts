@@ -2081,8 +2081,8 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
       return;
     }
 
-    const curr = typeof currency === 'string' ? currency.toUpperCase() : 'BRL';
-    const currMeta = CURRENCY_META_SERVER[curr];
+    const requestedCurr = typeof currency === 'string' ? currency.toUpperCase() : 'BRL';
+    const currMeta = CURRENCY_META_SERVER[requestedCurr];
     if (!currMeta) {
       res.status(400).json({ error: 'Unsupported currency code.' });
       return;
@@ -2100,16 +2100,17 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
         ? paymentMethod
         : 'card';
 
-    if (method === 'pix' && curr !== 'BRL') {
-      res.status(400).json({ error: 'O pagamento via Pix está disponível apenas em Real (BRL).' });
-      return;
-    }
-    if (method === 'sepa_debit' && curr !== 'EUR') {
+    if (method === 'sepa_debit' && requestedCurr !== 'EUR') {
       res.status(400).json({ error: 'SEPA Direct Debit is only supported for EUR transactions.' });
       return;
     }
 
-    const catalog = await loadServerPlanCatalog(safeCountry, curr);
+    // Stripe requires BRL currency for Pix transactions
+    const curr = method === 'pix' ? 'BRL' : requestedCurr;
+    const effectiveCountry = method === 'pix' ? 'BR' : safeCountry;
+    const effectiveCurrMeta = CURRENCY_META_SERVER[curr];
+
+    const catalog = await loadServerPlanCatalog(effectiveCountry, curr);
     const planItem = catalog.plans.find((p) => p.id === canonicalPlanId);
     if (!planItem) {
       res.status(404).json({ error: 'Plano não encontrado no catálogo.' });
@@ -2118,9 +2119,9 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
 
     const breakdown = computeServerBreakdown(planItem.price, cycle);
     const unitAmount = breakdown.totalMinor;
-    const isZeroDec = currMeta.decimals === 0;
+    const isZeroDec = effectiveCurrMeta.decimals === 0;
     const displayAmount = isZeroDec ? unitAmount : unitAmount / 100;
-    const formattedAmount = `${currMeta.symbol} ${displayAmount.toFixed(isZeroDec ? 0 : 2)}`;
+    const formattedAmount = `${effectiveCurrMeta.symbol} ${displayAmount.toFixed(isZeroDec ? 0 : 2)}`;
     const cleanEmail =
       typeof payerEmail === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail.trim())
         ? payerEmail.trim()
@@ -2159,7 +2160,7 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
             payer: { email: cleanEmail },
             external_reference: JSON.stringify({
               planId: canonicalPlanId,
-              countryCode: safeCountry,
+              countryCode: effectiveCountry,
               cycle,
               curr: 'BRL',
               totalMinor: unitAmount,
@@ -2202,7 +2203,7 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
         return;
       }
 
-      // 2. Stripe Checkout (Card, Apple/Google Pay, SEPA, or Stripe Pix)
+      // 2. Stripe Checkout (Card, Apple/Google Pay, SEPA, or Stripe Pix in BRL)
       if (stripeConfigured) {
         const params = new URLSearchParams();
         const isOneTimePix = method === 'pix';
@@ -2219,7 +2220,10 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
         }
 
         if (method === 'pix') {
+          // Stripe requires BRL currency and payment mode for Pix; include card alongside pix
           params.append('payment_method_types[]', 'pix');
+          params.append('payment_method_types[]', 'card');
+          params.set('payment_method_options[pix][expires_after_seconds]', '3600');
         } else if (method === 'sepa_debit') {
           params.append('payment_method_types[]', 'sepa_debit');
         } else {
@@ -2240,7 +2244,7 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
           );
         }
         params.set('metadata[planId]', canonicalPlanId);
-        params.set('metadata[countryCode]', safeCountry);
+        params.set('metadata[countryCode]', effectiveCountry);
         params.set('metadata[currency]', curr);
         params.set('metadata[billingCycle]', cycle);
         params.set('metadata[taxMinor]', String(breakdown.taxMinor));
@@ -2264,9 +2268,12 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
         };
 
         if (!stripeResp.ok || !stripeJson.url) {
-          res.status(502).json({
-            error: stripeJson.error?.message || 'Falha ao criar sessão de pagamento no Stripe.',
-          });
+          const rawErr = stripeJson.error?.message || '';
+          const friendlyError =
+            method === 'pix' && rawErr.toLowerCase().includes('pix is invalid')
+              ? 'O Pix ainda não está ativado na sua conta Stripe. Ative o Pix em dashboard.stripe.com/account/payments/settings ou selecione Cartão de Crédito/Débito.'
+              : rawErr || 'Falha ao criar sessão de pagamento no Stripe.';
+          res.status(502).json({ error: friendlyError });
           return;
         }
 
@@ -2510,6 +2517,351 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
       });
     } catch {
       res.status(500).json({ error: 'Erro ao verificar pagamento Mercado Pago.' });
+    }
+  });
+
+  // ============================================================================
+  // ADMIN PANEL API (Restricted to verified ADMIN_EMAIL / picelador@gmail.com)
+  // ============================================================================
+  function getAllowedAdminEmails(): Set<string> {
+    const allowed = new Set<string>(['picelador@gmail.com']);
+    const raw = process.env.ADMIN_EMAIL || '';
+    for (const part of raw.split(',')) {
+      const cleaned = part.trim().toLowerCase();
+      if (cleaned) allowed.add(cleaned);
+    }
+    return allowed;
+  }
+
+  async function verifyAdminUser(
+    req: Request
+  ): Promise<{ id: string; email: string; token: string } | null> {
+    const user = await verifySupabaseUser(req);
+    if (!user || !user.email) return null;
+    const emailLower = user.email.trim().toLowerCase();
+    if (!getAllowedAdminEmails().has(emailLower)) return null;
+    return { id: user.id, email: emailLower, token: user.token };
+  }
+
+  app.get('/api/admin/status', async (req: Request, res: Response) => {
+    const admin = await verifyAdminUser(req);
+    res.json({
+      isAdmin: Boolean(admin),
+      email: admin?.email ?? null,
+    });
+  });
+
+  app.get('/api/admin/users', async (req: Request, res: Response) => {
+    const admin = await verifyAdminUser(req);
+    if (!admin) {
+      res.status(403).json({ error: 'Acesso restrito ao administrador.' });
+      return;
+    }
+
+    const cfg = getSupabaseServerConfig();
+    if (!cfg.configured) {
+      res.status(503).json({ error: 'Supabase não configurado no servidor.' });
+      return;
+    }
+
+    // 1. If SUPABASE_SERVICE_ROLE_KEY is configured, query Auth Admin API + tables directly
+    if (cfg.serviceRoleKey) {
+      try {
+        const authHeaders: Record<string, string> = {
+          apikey: cfg.serviceRoleKey,
+          Authorization: `Bearer ${cfg.serviceRoleKey}`,
+        };
+        const [authRes, subsRes, prefsRes, vehiclesRes] = await Promise.all([
+          fetch(`${cfg.url}/auth/v1/admin/users?page=1&per_page=200`, {
+            headers: authHeaders,
+          }),
+          supabaseRestFetch<Array<Record<string, unknown>>>(
+            'user_subscriptions?select=user_id,plan_id,status,billing_cycle,provider,current_period_end'
+          ),
+          supabaseRestFetch<Array<Record<string, unknown>>>(
+            'user_preferences?select=user_id,active_plan'
+          ),
+          supabaseRestFetch<Array<{ user_id: string }>>('vehicles?select=user_id'),
+        ]);
+
+        if (authRes.ok) {
+          const authJson = (await authRes.json()) as {
+            users?: Array<{
+              id: string;
+              email?: string;
+              created_at?: string;
+              user_metadata?: Record<string, unknown>;
+            }>;
+          };
+          const subsMap = new Map<string, Record<string, unknown>>();
+          for (const row of Array.isArray(subsRes.data) ? subsRes.data : []) {
+            subsMap.set(String(row.user_id), row);
+          }
+          const prefsMap = new Map<string, Record<string, unknown>>();
+          for (const row of Array.isArray(prefsRes.data) ? prefsRes.data : []) {
+            prefsMap.set(String(row.user_id), row);
+          }
+          const vehicleCounts = new Map<string, number>();
+          for (const row of Array.isArray(vehiclesRes.data) ? vehiclesRes.data : []) {
+            const uid = String(row.user_id);
+            vehicleCounts.set(uid, (vehicleCounts.get(uid) ?? 0) + 1);
+          }
+
+          const users = (authJson.users ?? [])
+            .map((u) => {
+              const sub = subsMap.get(u.id);
+              const pref = prefsMap.get(u.id);
+              const meta = u.user_metadata ?? {};
+              const fullName =
+                (typeof meta.full_name === 'string' && meta.full_name.trim()) ||
+                (typeof meta.name === 'string' && meta.name.trim()) ||
+                '';
+              const activePlan =
+                normalizeServerPlanId(
+                  (sub?.plan_id ? String(sub.plan_id) : null) ??
+                    (pref?.active_plan ? String(pref.active_plan) : null)
+                ) || 'personal';
+              return {
+                userId: u.id,
+                email: u.email ?? '',
+                fullName,
+                createdAt: u.created_at ?? '',
+                activePlan,
+                subscriptionStatus: sub?.status ? String(sub.status) : 'active',
+                billingCycle: sub?.billing_cycle === 'annual' ? 'annual' : 'monthly',
+                provider: sub?.provider ? String(sub.provider) : 'manual',
+                currentPeriodEnd: sub?.current_period_end ? String(sub.current_period_end) : null,
+                vehiclesCount: vehicleCounts.get(u.id) ?? 0,
+              };
+            })
+            .sort((a, b) => Date.parse(b.createdAt || '0') - Date.parse(a.createdAt || '0'));
+
+          res.json({ users, needsSqlSetup: false });
+          return;
+        }
+      } catch {
+        // Fall through to RPC path below
+      }
+    }
+
+    // 2. Standard path using SECURITY DEFINER RPC with admin's verified JWT
+    try {
+      const rpcResp = await fetch(`${cfg.url}/rest/v1/rpc/admin_list_users`, {
+        method: 'POST',
+        headers: {
+          apikey: cfg.anonKey || cfg.serviceRoleKey,
+          Authorization: `Bearer ${admin.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      });
+
+      const text = await rpcResp.text();
+      let parsed: unknown = null;
+      if (text) {
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          parsed = null;
+        }
+      }
+
+      if (!rpcResp.ok) {
+        const errObj = parsed as { code?: string; message?: string } | null;
+        const msg = errObj?.message || '';
+        const code = errObj?.code || '';
+        if (rpcResp.status === 404 || code === 'PGRST202' || msg.includes('admin_list_users')) {
+          res.json({ users: [], needsSqlSetup: true });
+          return;
+        }
+        res.status(rpcResp.status).json({ error: msg || 'Não foi possível listar contas.' });
+        return;
+      }
+
+      const rows = Array.isArray(parsed) ? (parsed as Array<Record<string, unknown>>) : [];
+      const users = rows.map((r) => ({
+        userId: String(r.user_id ?? ''),
+        email: String(r.email ?? ''),
+        fullName: String(r.full_name ?? ''),
+        createdAt: String(r.created_at ?? ''),
+        activePlan: normalizeServerPlanId(String(r.active_plan ?? 'personal')) || 'personal',
+        subscriptionStatus: String(r.subscription_status ?? 'active'),
+        billingCycle: r.billing_cycle === 'annual' ? 'annual' : 'monthly',
+        provider: String(r.provider ?? 'manual'),
+        currentPeriodEnd: r.current_period_end ? String(r.current_period_end) : null,
+        vehiclesCount: Number(r.vehicles_count ?? 0),
+      }));
+
+      res.json({ users, needsSqlSetup: false });
+    } catch {
+      res.status(500).json({ error: 'Erro ao consultar usuários no Supabase.' });
+    }
+  });
+
+  app.post('/api/admin/grant-plan', async (req: Request, res: Response) => {
+    const admin = await verifyAdminUser(req);
+    if (!admin) {
+      res.status(403).json({ error: 'Acesso restrito ao administrador.' });
+      return;
+    }
+
+    const { email, planId, durationDays } = req.body as {
+      email?: string;
+      planId?: string;
+      durationDays?: number;
+    };
+
+    const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      res.status(400).json({ error: 'Informe um e-mail válido.' });
+      return;
+    }
+
+    const canonicalPlan = normalizeServerPlanId(planId);
+    if (!canonicalPlan) {
+      res.status(400).json({ error: 'Plano selecionado inválido.' });
+      return;
+    }
+
+    const parsedDays = Number(durationDays);
+    const safeDays = Number.isFinite(parsedDays)
+      ? Math.max(1, Math.min(3650, Math.round(parsedDays)))
+      : 365;
+
+    const cfg = getSupabaseServerConfig();
+    if (!cfg.configured) {
+      res.status(503).json({ error: 'Supabase não configurado no servidor.' });
+      return;
+    }
+
+    // 1. Service role path if configured
+    if (cfg.serviceRoleKey) {
+      try {
+        const authResp = await fetch(
+          `${cfg.url}/auth/v1/admin/users?page=1&per_page=200`,
+          {
+            headers: {
+              apikey: cfg.serviceRoleKey,
+              Authorization: `Bearer ${cfg.serviceRoleKey}`,
+            },
+          }
+        );
+        if (authResp.ok) {
+          const authJson = (await authResp.json()) as {
+            users?: Array<{ id: string; email?: string }>;
+          };
+          const targetUser = (authJson.users ?? []).find(
+            (u) => (u.email ?? '').trim().toLowerCase() === cleanEmail
+          );
+          if (!targetUser) {
+            res.status(404).json({
+              error:
+                'Conta não encontrada. O usuário precisa ter entrado no app pelo menos uma vez.',
+            });
+            return;
+          }
+
+          const nowIso = new Date().toISOString();
+          const periodEndIso = new Date(Date.now() + safeDays * 86_400_000).toISOString();
+          const cycle = safeDays >= 300 ? 'annual' : 'monthly';
+
+          await Promise.all([
+            supabaseRestFetch('user_subscriptions?on_conflict=user_id', {
+              method: 'POST',
+              prefer: 'resolution=merge-duplicates,return=representation',
+              body: {
+                user_id: targetUser.id,
+                plan_id: canonicalPlan,
+                country_code: 'BR',
+                currency_code: 'BRL',
+                billing_cycle: cycle,
+                status: 'active',
+                auto_renew: false,
+                current_period_start: nowIso,
+                current_period_end: periodEndIso,
+                grace_period_end: null,
+                canceled_at: null,
+                provider: 'manual',
+                updated_at: nowIso,
+              },
+            }),
+            supabaseRestFetch('user_preferences?on_conflict=user_id', {
+              method: 'POST',
+              prefer: 'resolution=merge-duplicates',
+              body: {
+                user_id: targetUser.id,
+                active_plan: canonicalPlan,
+                updated_at: nowIso,
+              },
+            }),
+          ]);
+
+          res.json({
+            granted: true,
+            userId: targetUser.id,
+            email: targetUser.email ?? cleanEmail,
+            planId: canonicalPlan,
+            status: 'active',
+            currentPeriodEnd: periodEndIso,
+          });
+          return;
+        }
+      } catch {
+        // Fall through to RPC path below
+      }
+    }
+
+    // 2. Standard path using SECURITY DEFINER RPC with admin's verified JWT
+    try {
+      const rpcResp = await fetch(`${cfg.url}/rest/v1/rpc/admin_grant_plan`, {
+        method: 'POST',
+        headers: {
+          apikey: cfg.anonKey || cfg.serviceRoleKey,
+          Authorization: `Bearer ${admin.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          target_email: cleanEmail,
+          target_plan_id: canonicalPlan,
+          duration_days: safeDays,
+        }),
+      });
+
+      const text = await rpcResp.text();
+      let parsed: Record<string, unknown> | null = null;
+      if (text) {
+        try {
+          parsed = JSON.parse(text) as Record<string, unknown>;
+        } catch {
+          parsed = null;
+        }
+      }
+
+      if (!rpcResp.ok) {
+        const msg = typeof parsed?.message === 'string' ? parsed.message : '';
+        const code = typeof parsed?.code === 'string' ? parsed.code : '';
+        if (rpcResp.status === 404 || code === 'PGRST202' || msg.includes('admin_grant_plan')) {
+          res.status(503).json({
+            needsSqlSetup: true,
+            error:
+              'Função Admin ainda não instalada no Supabase. Copie e execute o SQL único mostrado nesta tela.',
+          });
+          return;
+        }
+        res.status(400).json({ error: msg || 'Não foi possível liberar o plano.' });
+        return;
+      }
+
+      res.json({
+        granted: true,
+        userId: String(parsed?.userId ?? ''),
+        email: String(parsed?.email ?? cleanEmail),
+        planId: canonicalPlan,
+        status: String(parsed?.status ?? 'active'),
+        currentPeriodEnd: parsed?.currentPeriodEnd ? String(parsed.currentPeriodEnd) : null,
+      });
+    } catch {
+      res.status(500).json({ error: 'Erro ao liberar plano no Supabase.' });
     }
   });
 

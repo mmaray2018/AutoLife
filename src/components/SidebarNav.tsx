@@ -6,6 +6,7 @@ import {
   MapPin,
   Moon,
   Plus,
+  ShieldCheck,
   Sun,
   Trash2,
   X,
@@ -34,6 +35,7 @@ interface SidebarNavProps {
   onToggleTheme: () => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  isAdmin?: boolean;
 }
 
 export function SidebarNav({
@@ -50,6 +52,7 @@ export function SidebarNav({
   onToggleTheme,
   mobileOpen,
   onCloseMobile,
+  isAdmin = false,
 }: SidebarNavProps) {
   const navItems: { id: ModuleId; label: string; icon: typeof Activity }[] = [
     { id: 'settings', label: t.nav.settings, icon: Globe },
@@ -57,6 +60,7 @@ export function SidebarNav({
     { id: 'garage', label: t.nav.garage, icon: Car },
     { id: 'ev', label: t.nav.ev, icon: Zap },
     { id: 'network', label: t.nav.network, icon: MapPin },
+    ...(isAdmin ? [{ id: 'admin' as ModuleId, label: t.nav.admin, icon: ShieldCheck }] : []),
   ];
 
   const activeVehicle = vehicles.find((v) => v.id === activeVehicleId) ?? vehicles[0] ?? null;

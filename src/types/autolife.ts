@@ -31,7 +31,7 @@ export type VehicleType = 'car' | 'motorcycle';
 export type LanguageCode = 'pt' | 'en' | 'es' | 'de' | 'fr';
 export type UnitSystem = 'metric' | 'imperial';
 export type CurrencyCode = 'BRL' | 'USD' | 'EUR' | 'GBP' | 'CAD' | 'CHF' | 'MXN' | 'JPY';
-export type ModuleId = 'health' | 'garage' | 'ev' | 'network' | 'settings';
+export type ModuleId = 'health' | 'garage' | 'ev' | 'network' | 'settings' | 'admin';
 export type DrivingProfile = 'urban_severe' | 'mixed' | 'highway';
 export type CanonicalPlanId =
   | 'personal'

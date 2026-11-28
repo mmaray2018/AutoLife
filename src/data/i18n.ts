@@ -16,6 +16,7 @@ export interface Translations {
     mechanic: string;
     network: string;
     settings: string;
+    admin: string;
   };
   actions: {
     logCheck: string;
@@ -149,6 +150,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       mechanic: 'Mecânico IA',
       network: 'Rede Global',
       settings: 'Conta & Preferências',
+      admin: 'Painel Admin',
     },
     actions: {
       logCheck: 'Registrar Verificação',
@@ -420,6 +422,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       mechanic: 'AI Mechanic',
       network: 'Global Network',
       settings: 'Account & Preferences',
+      admin: 'Admin Panel',
     },
     actions: {
       logCheck: 'Log Check',
@@ -691,6 +694,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       mechanic: 'Mecánico IA',
       network: 'Red Global',
       settings: 'Cuenta y Preferencias',
+      admin: 'Panel Admin',
     },
     actions: {
       logCheck: 'Registrar Revisión',
@@ -935,6 +939,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       mechanic: 'KI-Mechaniker',
       network: 'Globales Netzwerk',
       settings: 'Konto & Einstellungen',
+      admin: 'Admin-Bereich',
     },
     actions: {
       logCheck: 'Prüfung erfassen',
@@ -1176,6 +1181,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       mechanic: 'Mécanicien IA',
       network: 'Réseau Mondial',
       settings: 'Compte & Préférences',
+      admin: 'Panneau Admin',
     },
     actions: {
       logCheck: 'Enregistrer Contrôle',

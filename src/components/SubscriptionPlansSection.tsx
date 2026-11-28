@@ -185,6 +185,14 @@ export function SubscriptionPlansSection({
     setCheckoutFeedback(null);
   };
 
+  const handleSelectCheckoutMethod = (method: PaymentMethodType) => {
+    setCheckoutMethod(method);
+    setCheckoutFeedback(null);
+    if (method === 'pix' && prefs.currency !== 'BRL') {
+      onUpdatePrefs({ currency: 'BRL', countryCode: 'BR' });
+    }
+  };
+
   const handleConfirmCheckout = async () => {
     if (!checkoutPlan) return;
     setIsCheckingOut(true);
@@ -813,7 +821,7 @@ export function SubscriptionPlansSection({
                         <button
                           key={method}
                           type="button"
-                          onClick={() => setCheckoutMethod(method)}
+                          onClick={() => handleSelectCheckoutMethod(method)}
                           className={`w-full p-3 rounded-lg border text-left flex items-center justify-between gap-3 transition-colors ${
                             selected
                               ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30'
