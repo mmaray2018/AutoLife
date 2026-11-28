@@ -264,18 +264,76 @@ const LOCATOR_COPY: Record<LanguageCode, LocatorCopy> = {
 
 const DEFAULT_FALLBACK_CENTER: LatLngLiteral = { lat: -23.55052, lng: -46.633308 };
 
-const CONNECTOR_LABELS: Record<string, string> = {
-  CCS_COMBO_2: 'CCS2',
-  CCS_COMBO_1: 'CCS1',
-  TYPE_2: 'Tipo 2',
-  CHADEMO: 'CHAdeMO',
-  J1772: 'J1772 (Tipo 1)',
-  NACS: 'NACS',
-  TESLA: 'Tesla',
-  UNSPECIFIED_GB_T: 'GB/T',
-  UNSPECIFIED_WALL_OUTLET: 'Tomada AC',
-  OTHER: 'Outro',
+const CONNECTOR_I18N: Record<LanguageCode, Record<string, string>> = {
+  pt: {
+    TYPE_2: 'Tipo 2',
+    J1772: 'J1772 (Tipo 1)',
+    UNSPECIFIED_WALL_OUTLET: 'Tomada AC',
+    OTHER: 'Outro',
+    fallbackStation: 'Eletroposto EV',
+    searchErr: 'Erro ao consultar postos de recarga no Google Maps.',
+    routeErr: 'Não foi possível calcular a rota ao vivo.',
+    minPowerAria: 'Potência mínima',
+    connectorAria: 'Tipo de conector',
+  },
+  en: {
+    TYPE_2: 'Type 2',
+    J1772: 'J1772 (Type 1)',
+    UNSPECIFIED_WALL_OUTLET: 'AC Outlet',
+    OTHER: 'Other',
+    fallbackStation: 'EV Charging Station',
+    searchErr: 'Error querying EV charging stations on Google Maps.',
+    routeErr: 'Could not calculate live route.',
+    minPowerAria: 'Minimum power',
+    connectorAria: 'Connector type',
+  },
+  es: {
+    TYPE_2: 'Tipo 2',
+    J1772: 'J1772 (Tipo 1)',
+    UNSPECIFIED_WALL_OUTLET: 'Toma AC',
+    OTHER: 'Otro',
+    fallbackStation: 'Estación de Carga EV',
+    searchErr: 'Error al consultar estaciones de carga en Google Maps.',
+    routeErr: 'No se pudo calcular la ruta en vivo.',
+    minPowerAria: 'Potencia mínima',
+    connectorAria: 'Tipo de conector',
+  },
+  de: {
+    TYPE_2: 'Typ 2',
+    J1772: 'J1772 (Typ 1)',
+    UNSPECIFIED_WALL_OUTLET: 'AC-Steckdose',
+    OTHER: 'Sonstige',
+    fallbackStation: 'EV-Ladestation',
+    searchErr: 'Fehler beim Abrufen der Ladestationen über Google Maps.',
+    routeErr: 'Live-Route konnte nicht berechnet werden.',
+    minPowerAria: 'Mindestleistung',
+    connectorAria: 'Steckertyp',
+  },
+  fr: {
+    TYPE_2: 'Type 2',
+    J1772: 'J1772 (Type 1)',
+    UNSPECIFIED_WALL_OUTLET: 'Prise AC',
+    OTHER: 'Autre',
+    fallbackStation: 'Borne de Recharge EV',
+    searchErr: 'Erreur lors de la recherche de bornes sur Google Maps.',
+    routeErr: 'Impossible de calculer l’itinéraire en direct.',
+    minPowerAria: 'Puissance minimale',
+    connectorAria: 'Type de prise',
+  },
 };
+
+function getConnectorLabel(typeKey: string, language: LanguageCode): string {
+  const localized = CONNECTOR_I18N[language] ?? CONNECTOR_I18N.en;
+  const fixed: Record<string, string> = {
+    CCS_COMBO_2: 'CCS2',
+    CCS_COMBO_1: 'CCS1',
+    CHADEMO: 'CHAdeMO',
+    NACS: 'NACS',
+    TESLA: 'Tesla',
+    UNSPECIFIED_GB_T: 'GB/T',
+  };
+  return fixed[typeKey] ?? localized[typeKey] ?? typeKey;
+}
 
 function isQuotaError(err: unknown): boolean {
   const message =
@@ -469,14 +527,15 @@ function EvLocatorMapWorkspace({
               lat: p.location!.lat(),
               lng: p.location!.lng(),
             };
-            const name = p.displayName?.trim() || 'Eletroposto EV';
+            const langCopy = CONNECTOR_I18N[prefs.language] ?? CONNECTOR_I18N.en;
+            const name = p.displayName?.trim() || langCopy.fallbackStation;
             const address = p.formattedAddress?.trim() || '';
             const aggs = p.evChargeOptions?.connectorAggregations ?? [];
             const connectors: ConnectorSummary[] = aggs.map((agg) => {
               const typeKey = agg.type ?? 'OTHER';
               return {
                 type: typeKey,
-                label: CONNECTOR_LABELS[typeKey] ?? typeKey,
+                label: getConnectorLabel(typeKey, prefs.language),
                 count: agg.count ?? 0,
                 availableCount: agg.availableCount ?? null,
                 maxChargeRateKw: Math.round(agg.maxChargeRateKw ?? 0),
@@ -526,7 +585,7 @@ function EvLocatorMapWorkspace({
         setSearchError(
           err instanceof Error
             ? err.message
-            : 'Erro ao consultar postos de recarga no Google Maps.'
+            : (CONNECTOR_I18N[prefs.language] ?? CONNECTOR_I18N.en).searchErr
         );
       } finally {
         setIsSearching(false);
@@ -802,7 +861,9 @@ function EvLocatorMapWorkspace({
         window.dispatchEvent(new CustomEvent('gmp-quota-exceeded'));
       }
       setSearchError(
-        err instanceof Error ? err.message : 'Não foi possível calcular a rota ao vivo.'
+        err instanceof Error
+          ? err.message
+          : (CONNECTOR_I18N[prefs.language] ?? CONNECTOR_I18N.en).routeErr
       );
     } finally {
       setIsRouting(false);
@@ -918,7 +979,7 @@ function EvLocatorMapWorkspace({
 
         <div className="lg:col-span-2">
           <select
-            aria-label="Potência mínima"
+            aria-label={(CONNECTOR_I18N[prefs.language] ?? CONNECTOR_I18N.en).minPowerAria}
             value={minKwFilter}
             onChange={(e) => setMinKwFilter(Number(e.target.value))}
             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -931,14 +992,14 @@ function EvLocatorMapWorkspace({
 
         <div className="lg:col-span-2">
           <select
-            aria-label="Tipo de conector"
+            aria-label={(CONNECTOR_I18N[prefs.language] ?? CONNECTOR_I18N.en).connectorAria}
             value={connectorFilter}
             onChange={(e) => setConnectorFilter(e.target.value)}
             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
           >
             <option value="ALL">{copy.connectorAll}</option>
             <option value="CCS_COMBO_2">CCS2 (Combo 2)</option>
-            <option value="TYPE_2">Tipo 2 (AC)</option>
+            <option value="TYPE_2">{getConnectorLabel('TYPE_2', prefs.language)} (AC)</option>
             <option value="CHADEMO">CHAdeMO</option>
             <option value="NACS">NACS</option>
             <option value="TESLA">Tesla</option>
@@ -1235,7 +1296,7 @@ export function EvChargerLocatorSection({
   prefs,
   onSelectStationForLog,
 }: EvChargerLocatorSectionProps) {
-  const copy = LOCATOR_COPY[prefs.language] ?? LOCATOR_COPY.pt;
+  const copy = LOCATOR_COPY[prefs.language] ?? LOCATOR_COPY.en;
   const envKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? '').trim();
   const [mapsApiKey, setMapsApiKey] = useState<string>(envKey);
   const [loadingConfig, setLoadingConfig] = useState<boolean>(!envKey);

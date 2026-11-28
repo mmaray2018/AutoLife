@@ -1,4 +1,5 @@
-import { PowertrainType, Vehicle, VehicleAttachment } from '../types/autolife';
+import { getUi } from '../data/uiTranslations';
+import { LanguageCode, PowertrainType, Vehicle, VehicleAttachment } from '../types/autolife';
 
 export const VEHICLE_STUDIO_ASSETS = {
   carSedan: '/src/assets/images/vehicle_car_sedan_1795879054668.jpg',
@@ -120,6 +121,18 @@ export const VEHICLE_COLOR_SWATCHES: VehicleColorSwatch[] = [
     aliases: ['laranja', 'orange', 'naranja', 'copper', 'cobre'],
   },
 ];
+
+export function getLocalizedColorLabel(colorIdOrText: string, language: LanguageCode): string {
+  const ui = getUi(language).vehicleColors.labels;
+  if (ui[colorIdOrText]) return ui[colorIdOrText];
+  const normalized = normalizeColorToken(colorIdOrText);
+  for (const swatch of VEHICLE_COLOR_SWATCHES) {
+    if (swatch.id === normalized || swatch.aliases.some((a) => normalizeColorToken(a) === normalized)) {
+      return ui[swatch.id] ?? swatch.label;
+    }
+  }
+  return colorIdOrText;
+}
 
 export interface ResolvedVehicleColorStyle {
   hasColor: boolean;
@@ -308,7 +321,8 @@ export function getUserVehiclePhotoUrl(
 }
 
 export function resolveVehicleFallbackVisual(
-  vehicle: Pick<Vehicle, 'vehicleType' | 'powertrain' | 'make' | 'model' | 'color'> | null | undefined
+  vehicle: Pick<Vehicle, 'vehicleType' | 'powertrain' | 'make' | 'model' | 'color'> | null | undefined,
+  language: LanguageCode = 'pt'
 ): {
   src: string;
   isMoto: boolean;
@@ -318,13 +332,14 @@ export function resolveVehicleFallbackVisual(
   colorStyle: ResolvedVehicleColorStyle;
 } {
   const colorStyle = resolveVehicleColorStyle(vehicle?.color);
+  const catLabels = getUi(language).vehicleColors.categoryLabels;
   if (!vehicle) {
     return {
       src: VEHICLE_STUDIO_ASSETS.carSedan,
       isMoto: false,
       isEv: false,
       bodyStyle: 'sedan',
-      categoryLabel: 'Automóvel',
+      categoryLabel: catLabels.sedan,
       colorStyle,
     };
   }
@@ -347,7 +362,7 @@ export function resolveVehicleFallbackVisual(
       isMoto: true,
       isEv,
       bodyStyle: isTrailOrTouring ? 'trail' : 'street',
-      categoryLabel: isTrailOrTouring ? 'Moto Trail / Touring' : 'Motocicleta',
+      categoryLabel: isTrailOrTouring ? catLabels.motoTrail : catLabels.moto,
       colorStyle,
     };
   }
@@ -363,7 +378,7 @@ export function resolveVehicleFallbackVisual(
     isMoto: false,
     isEv,
     bodyStyle: isSuvOrEv ? 'suv' : 'sedan',
-    categoryLabel: isEv ? 'Elétrico / Híbrido' : isSuvOrEv ? 'SUV / Utilitário' : 'Automóvel',
+    categoryLabel: isEv ? catLabels.electric : isSuvOrEv ? catLabels.suv : catLabels.sedan,
     colorStyle,
   };
 }

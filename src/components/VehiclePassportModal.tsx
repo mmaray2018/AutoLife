@@ -14,11 +14,13 @@ import {
   X,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
+import { getUi } from '../data/uiTranslations';
 import {
   getOrCreatePassportShare,
   updatePassportShareSettings,
 } from '../services/enterpriseRepository';
 import {
+  LanguageCode,
   MaintenanceItem,
   MaintenanceStatus,
   OdometerEvent,
@@ -36,7 +38,7 @@ import {
   isDateRecorded,
   todayIso,
 } from '../utils/autolife';
-import { convertCurrency } from '../utils/billing';
+import { convertCurrency, detectLocaleRegionDefaults } from '../utils/billing';
 import { buildVehicleWhatsAppText } from '../utils/whatsapp';
 import { WhatsAppConnectButton } from './WhatsAppConnectButton';
 
@@ -65,6 +67,8 @@ export function VehiclePassportModal({
   onUpdatePrefs,
   onClose,
 }: VehiclePassportModalProps) {
+  const ui = getUi(prefs.language).passportUi;
+
   const [share, setShare] = useState<VehiclePassportShare | null>(null);
   const [includeExpenses, setIncludeExpenses] = useState(false);
   const [includeDocuments, setIncludeDocuments] = useState(true);
@@ -177,7 +181,7 @@ export function VehiclePassportModal({
 
   const shareUrl = useMemo(() => {
     const origin =
-      typeof window !== 'undefined' ? window.location.origin : 'https://autolifeworld.duckdns.org';
+      typeof window !== 'undefined' ? window.location.origin : 'https://autolife.world';
     if (share?.shareToken) {
       return `${origin}/?passport=${encodeURIComponent(share.shareToken)}`;
     }
@@ -222,9 +226,7 @@ export function VehiclePassportModal({
       })
       .catch((err) => {
         if (active) {
-          setShareError(
-            err instanceof Error ? err.message : 'Não foi possível gerar link verificável.'
-          );
+          setShareError(err instanceof Error ? err.message : ui.unavailableDesc);
         }
       })
       .finally(() => {
@@ -274,9 +276,7 @@ export function VehiclePassportModal({
       });
       if (updated) setShare(updated);
     } catch (err) {
-      setShareError(
-        err instanceof Error ? err.message : 'Erro ao atualizar configurações de compartilhamento.'
-      );
+      setShareError(err instanceof Error ? err.message : ui.unavailableDesc);
     } finally {
       setShareBusy(false);
     }
@@ -308,15 +308,16 @@ export function VehiclePassportModal({
           <div>
             <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
               <Award className="w-3.5 h-3.5" />
-              <span>AutoLife World · Passaporte Digital do Veículo</span>
+              <span>{ui.badge}</span>
             </div>
             <h2 className="font-display text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
               {vehicle.make} {vehicle.model} ({vehicle.year})
             </h2>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 tabular-nums">
               {t.vehicleTypes[vehicle.vehicleType ?? 'car']}
-              {vehicle.engineDisplacementCc ? ` ${vehicle.engineDisplacementCc}cc` : ''} · Placa:{' '}
-              <span className="font-mono">{vehicle.plate}</span> · {t.powertrain[vehicle.powertrain]} ·{' '}
+              {vehicle.engineDisplacementCc ? ` ${vehicle.engineDisplacementCc}cc` : ''} ·{' '}
+              {ui.plateLabel} <span className="font-mono">{vehicle.plate}</span> ·{' '}
+              {t.powertrain[vehicle.powertrain]} ·{' '}
               <span className="font-mono">{formatDistance(vehicle.odometerKm, prefs.units)}</span>
             </div>
           </div>
@@ -333,27 +334,27 @@ export function VehiclePassportModal({
         {/* Summary KPIs */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 tabular-nums">
           <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
-            <div className="text-xs text-slate-500 dark:text-slate-400">Itens em dia</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">{ui.kpiOnTrack}</div>
             <div className="mt-1 font-mono text-lg font-bold text-emerald-600 dark:text-emerald-400">
               {compliance.onTrack} / {compliance.total}
             </div>
           </div>
           <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
-            <div className="text-xs text-slate-500 dark:text-slate-400">Registros verificados</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">{ui.kpiVerifiedLogs}</div>
             <div className="mt-1 font-mono text-lg font-bold text-slate-900 dark:text-slate-100">
               {vehicleLogs.length}
             </div>
           </div>
           <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Investimento ({prefs.currency})
+              {ui.kpiInvestment} ({prefs.currency})
             </div>
             <div className="mt-1 font-mono text-base font-bold text-slate-900 dark:text-slate-100">
               {formatCurrency(totalInvestment, prefs.currency)}
             </div>
           </div>
           <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
-            <div className="text-xs text-slate-500 dark:text-slate-400">Emissão</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">{ui.kpiIssuedAt}</div>
             <div className="mt-1 font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
               {todayIso()}
             </div>
@@ -364,11 +365,11 @@ export function VehiclePassportModal({
         <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#081020]/60 grid grid-cols-1 sm:grid-cols-[152px_1fr] gap-5 items-center">
           <div className="flex flex-col items-center justify-center bg-white p-2.5 rounded-xl border border-slate-200 mx-auto sm:mx-0">
             {qrDataUrl ? (
-              <img src={qrDataUrl} alt="QR Code Passaporte do Veículo" className="w-32 h-32" />
+              <img src={qrDataUrl} alt={ui.qrPublicLabel} className="w-32 h-32" />
             ) : (
               <QrCode className="w-24 h-24 text-slate-400" />
             )}
-            <span className="mt-1.5 text-[10px] font-mono text-slate-500">QR Consulta Pública</span>
+            <span className="mt-1.5 text-[10px] font-mono text-slate-500">{ui.qrPublicLabel}</span>
           </div>
 
           <div className="space-y-3 min-w-0">
@@ -379,7 +380,7 @@ export function VehiclePassportModal({
                 ) : (
                   <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 )}
-                <span>Compartilhamento Autorizado por QR Code</span>
+                <span>{ui.qrAuthTitle}</span>
               </div>
               {share && (
                 <button
@@ -392,7 +393,7 @@ export function VehiclePassportModal({
                       : 'border-amber-200 dark:border-amber-700/60 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/35'
                   }`}
                 >
-                  {share.isActive ? 'Link Ativo (Revogar)' : 'Link Revogado (Reativar)'}
+                  {share.isActive ? ui.linkActiveRevoke : ui.linkRevokedReactivate}
                 </button>
               )}
             </div>
@@ -410,7 +411,7 @@ export function VehiclePassportModal({
                       }
                       className="rounded border-slate-300 text-sky-600"
                     />
-                    <span>Exibir valores de despesas</span>
+                    <span>{ui.includeExpenses}</span>
                   </label>
                   <label className="inline-flex items-center gap-1.5 cursor-pointer">
                     <input
@@ -422,7 +423,7 @@ export function VehiclePassportModal({
                       }
                       className="rounded border-slate-300 text-sky-600"
                     />
-                    <span>Exibir lista de documentos</span>
+                    <span>{ui.includeDocuments}</span>
                   </label>
                 </div>
 
@@ -439,20 +440,20 @@ export function VehiclePassportModal({
                     className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 text-white whitespace-nowrap shrink-0"
                   >
                     {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedLink ? 'Copiado' : 'Copiar'}</span>
+                    <span>{copiedLink ? ui.copiedBtn : ui.copyBtn}</span>
                   </button>
                 </div>
               </>
             ) : (
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Entre na sua conta em Configurações para ativar o link público verificável com revogação instantânea.
+                {ui.signInHint}
               </p>
             )}
 
             {shareBusy && (
               <div className="flex items-center gap-1.5 text-xs text-sky-600 dark:text-sky-400">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Atualizando Passaporte verificável...</span>
+                <span>{ui.updatingPassport}</span>
               </div>
             )}
             {shareError && <p className="text-xs text-amber-600 dark:text-amber-400">{shareError}</p>}
@@ -463,7 +464,7 @@ export function VehiclePassportModal({
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
             <Gauge className="w-3.5 h-3.5" />
-            <span>Histórico Imutável de Quilometragem</span>
+            <span>{ui.odometerTitle}</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-32 overflow-y-auto tabular-nums">
             {combinedOdometerTimeline.map((pt, idx) => (
@@ -485,11 +486,11 @@ export function VehiclePassportModal({
         {/* Maintenance Timeline */}
         <div className="space-y-2">
           <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            Histórico Cronológico de Manutenção
+            {ui.historyTitle}
           </h3>
           <div className="divide-y divide-slate-200/80 dark:divide-white/10 max-h-52 overflow-y-auto tabular-nums">
             {vehicleLogs.length === 0 ? (
-              <p className="py-4 text-xs text-slate-500">Nenhum registro histórico lançado ainda.</p>
+              <p className="py-4 text-xs text-slate-500">{ui.emptyHistory}</p>
             ) : (
               vehicleLogs.map((log) => (
                 <div key={log.id} className="py-2.5 flex items-center justify-between gap-4 text-xs">
@@ -522,8 +523,8 @@ export function VehiclePassportModal({
           <WhatsAppConnectButton
             whatsappNumber={prefs.whatsappNumber}
             language={prefs.language}
-            label="Enviar Passaporte no WhatsApp"
-            message={`${buildVehicleWhatsAppText({ vehicle, units: prefs.units })}\nPassaporte Digital: ${shareUrl}`}
+            label={ui.sendWaBtn}
+            message={`${buildVehicleWhatsAppText({ vehicle, units: prefs.units, language: prefs.language })}\n${shareUrl}`}
             onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
           />
           <div className="flex items-center gap-2">
@@ -540,7 +541,7 @@ export function VehiclePassportModal({
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white whitespace-nowrap shrink-0"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Imprimir / Salvar PDF</span>
+              <span>{ui.printPdfBtn}</span>
             </button>
           </div>
         </div>
@@ -553,6 +554,7 @@ interface PublicPassportViewProps {
   share: VehiclePassportShare | null;
   loading: boolean;
   error: string | null;
+  language?: LanguageCode;
   onExitPublicView: () => void;
 }
 
@@ -560,8 +562,12 @@ export function PublicPassportView({
   share,
   loading,
   error,
+  language,
   onExitPublicView,
 }: PublicPassportViewProps) {
+  const effectiveLang: LanguageCode = language ?? detectLocaleRegionDefaults().language;
+  const bundle = getUi(effectiveLang);
+  const ui = bundle.passportUi;
   const snap = share?.passportSnapshot;
 
   return (
@@ -570,28 +576,28 @@ export function PublicPassportView({
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-sky-600 dark:text-sky-400">
             <Award className="w-5 h-5" />
-            <span>AutoLife World · Consulta Verificada</span>
+            <span>{ui.publicBadge}</span>
           </div>
           <button
             type="button"
             onClick={onExitPublicView}
             className="px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0"
           >
-            Abrir Aplicativo
+            {ui.openAppBtn}
           </button>
         </div>
 
         {loading ? (
           <div className="autolife-glass rounded-2xl p-10 text-center space-y-2">
             <Loader2 className="w-7 h-7 animate-spin text-sky-500 mx-auto" />
-            <p className="text-sm text-slate-500 dark:text-slate-400">Verificando Passaporte Digital do Veículo...</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{ui.verifying}</p>
           </div>
         ) : error || !snap ? (
           <div className="autolife-glass rounded-2xl p-8 text-center space-y-3">
             <ShieldOff className="w-9 h-9 text-amber-500 mx-auto" />
-            <h1 className="font-display text-lg font-bold">Passaporte Indisponível</h1>
+            <h1 className="font-display text-lg font-bold">{ui.unavailableTitle}</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              {error || 'Este link não existe, expirou ou foi revogado pelo proprietário.'}
+              {error || ui.unavailableDesc}
             </p>
           </div>
         ) : (
@@ -599,35 +605,35 @@ export function PublicPassportView({
             <div className="border-b border-slate-200/80 dark:border-white/10 pb-4">
               <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4" />
-                <span>Passaporte Digital Autenticado</span>
+                <span>{ui.authenticatedBadge}</span>
               </div>
               <h1 className="font-display text-2xl font-bold mt-1">
                 {snap.vehicle.make} {snap.vehicle.model} ({snap.vehicle.year})
               </h1>
               <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 tabular-nums">
-                Placa: <span className="font-mono font-semibold">{snap.vehicle.plate}</span> ·{' '}
-                Odômetro atual:{' '}
+                {ui.plateLabel} <span className="font-mono font-semibold">{snap.vehicle.plate}</span> ·{' '}
+                {ui.currentOdometer}{' '}
                 <span className="font-mono font-semibold">
-                  {snap.vehicle.odometerKm.toLocaleString('pt-BR')} km
+                  {snap.vehicle.odometerKm.toLocaleString(bundle.localeTag)} km
                 </span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 tabular-nums">
               <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
-                <div className="text-xs text-slate-500 dark:text-slate-400">Saúde Preventiva</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{ui.preventiveHealth}</div>
                 <div className="mt-1 font-mono text-base font-bold text-emerald-600 dark:text-emerald-400">
-                  {snap.compliance.onTrack} / {snap.compliance.total} em dia
+                  {snap.compliance.onTrack} / {snap.compliance.total} {ui.onTrackSuffix}
                 </div>
               </div>
               <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
-                <div className="text-xs text-slate-500 dark:text-slate-400">Registros de Odômetro</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{ui.odometerMarksTitle}</div>
                 <div className="mt-1 font-mono text-base font-bold">
-                  {snap.odometerHistory.length} marcos
+                  {snap.odometerHistory.length} {ui.marksSuffix}
                 </div>
               </div>
               <div className="p-3.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
-                <div className="text-xs text-slate-500 dark:text-slate-400">Atualizado em</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{ui.updatedAt}</div>
                 <div className="mt-1 font-mono text-sm font-semibold">
                   {snap.generatedAt.slice(0, 10)}
                 </div>
@@ -638,7 +644,7 @@ export function PublicPassportView({
               <div className="space-y-2">
                 <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                   <Gauge className="w-3.5 h-3.5" />
-                  <span>Linha Imutável de Quilometragem</span>
+                  <span>{ui.odometerTitle}</span>
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 tabular-nums">
                   {snap.odometerHistory.map((pt, idx) => (
@@ -647,7 +653,7 @@ export function PublicPassportView({
                       className="p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/55 text-xs"
                     >
                       <div className="font-mono font-bold">
-                        {pt.odometerKm.toLocaleString('pt-BR')} km
+                        {pt.odometerKm.toLocaleString(bundle.localeTag)} km
                       </div>
                       <div className="text-[11px] font-mono text-slate-500">{pt.recordedAt}</div>
                     </div>
@@ -657,9 +663,9 @@ export function PublicPassportView({
             )}
 
             <div className="space-y-2">
-              <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400">Histórico de Manutenções</h2>
+              <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400">{ui.maintHistoryTitle}</h2>
               {snap.serviceHistory.length === 0 ? (
-                <p className="text-xs text-slate-500">Nenhum serviço público registrado.</p>
+                <p className="text-xs text-slate-500">{ui.noPublicServices}</p>
               ) : (
                 <div className="divide-y divide-slate-200/80 dark:divide-white/10 tabular-nums">
                   {snap.serviceHistory.map((item, idx) => (
@@ -673,10 +679,10 @@ export function PublicPassportView({
                         <span className="text-slate-500 ml-2">({item.workshopName})</span>
                       </div>
                       <div className="font-mono shrink-0 flex items-center gap-3">
-                        <span>{item.odometerKm.toLocaleString('pt-BR')} km</span>
+                        <span>{item.odometerKm.toLocaleString(bundle.localeTag)} km</span>
                         {typeof item.cost === 'number' && (
                           <span className="font-semibold">
-                            {formatCurrency(item.cost, item.currency ?? 'BRL')}
+                            {formatCurrency(item.cost, item.currency ?? 'USD')}
                           </span>
                         )}
                       </div>
@@ -690,7 +696,7 @@ export function PublicPassportView({
               <div className="space-y-2">
                 <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5" />
-                  <span>Documentos Comprovados ({snap.documentsSummary.length})</span>
+                  <span>{ui.verifiedDocsTitle} ({snap.documentsSummary.length})</span>
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   {snap.documentsSummary.map((doc, idx) => (

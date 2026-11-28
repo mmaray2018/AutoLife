@@ -18,7 +18,7 @@ export default defineConfig(() => {
           name: 'AutoLife World',
           short_name: 'AutoLife',
           description:
-            'Plataforma automotiva global para ficha médica veicular, manutenção preventiva, mobilidade elétrica e rede global.',
+            'Global automotive platform for vehicle medical records, preventive maintenance, EV mobility, and fleet management.',
           theme_color: '#060b16',
           background_color: '#060b16',
           display: 'standalone',

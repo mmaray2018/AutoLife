@@ -1,8 +1,10 @@
 import { jsPDF } from 'jspdf';
-import { Translations } from '../data/i18n';
+import { TRANSLATIONS, Translations } from '../data/i18n';
+import { getUi } from '../data/uiTranslations';
 import {
   AttachmentCategory,
   ChargingSession,
+  LanguageCode,
   MaintenanceCategory,
   MaintenanceItem,
   MaintenanceStatus,
@@ -36,14 +38,14 @@ export interface FinalReportTimelineItem {
   attachments: VehicleAttachment[];
 }
 
-export const ATTACHMENT_CATEGORY_LABELS: Record<AttachmentCategory, string> = {
-  receipt: 'Nota da Oficina / Recibo',
-  insurance: 'Apólice de Seguro',
-  document: 'ITV / Licenciamento / CRLV',
-  vehicle_photo: 'Foto do Veículo',
-  inspection: 'Vistoria / Peça',
-  diagnostic: 'Laudo / Scanner',
-};
+export function getLocalizedAttachmentLabels(
+  language: LanguageCode = 'pt'
+): Record<AttachmentCategory, string> {
+  return getUi(language).medicalUi.attachmentCategories;
+}
+
+export const ATTACHMENT_CATEGORY_LABELS: Record<AttachmentCategory, string> =
+  getUi('pt').medicalUi.attachmentCategories;
 
 function pdfSafe(input: string | number | null | undefined): string {
   if (input === null || input === undefined) return '';
@@ -66,6 +68,7 @@ export function buildVehicleTimelineEntries(params: {
   attachments: VehicleAttachment[];
   currency: UserPreferences['currency'];
   order?: 'asc' | 'desc';
+  language?: LanguageCode;
 }): FinalReportTimelineItem[] {
   const {
     vehicle,
@@ -74,26 +77,30 @@ export function buildVehicleTimelineEntries(params: {
     attachments,
     currency,
     order = 'asc',
+    language = 'pt',
   } = params;
 
+  const ui = getUi(language);
+  const tr = TRANSLATIONS[language] ?? TRANSLATIONS.en;
+  const attLabels = ui.medicalUi.attachmentCategories;
   const entries: FinalReportTimelineItem[] = [];
 
   for (const log of logs) {
     if (log.vehicleId !== vehicle.id) continue;
     const logAttachments = attachments.filter((a) => a.serviceLogId === log.id);
-    let categoryLabel = 'Manutenção';
+    let categoryLabel = ui.medicalUi.kindMaintenance;
     let filterGroup: FinalReportTimelineItem['filterGroup'] = 'maintenance';
 
     if (log.category === MaintenanceCategory.REVISION) {
-      categoryLabel = 'Revisão';
+      categoryLabel = tr.categories?.revision ?? ui.medicalUi.kindRevision;
     } else if (log.category === MaintenanceCategory.FUEL) {
-      categoryLabel = 'Abastecimento';
+      categoryLabel = tr.categories?.fuel ?? ui.medicalUi.kindFuel;
       filterGroup = 'fuel';
     } else if (log.category === MaintenanceCategory.EXPENSE) {
-      categoryLabel = 'Gasto / Seguro';
+      categoryLabel = tr.categories?.expense ?? ui.medicalUi.kindExpense;
       filterGroup = 'expense';
     } else if (log.category === MaintenanceCategory.DOCUMENTATION) {
-      categoryLabel = 'Documentação';
+      categoryLabel = tr.categories?.documentation ?? attLabels.document;
       filterGroup = 'expense';
     }
 
@@ -120,8 +127,8 @@ export function buildVehicleTimelineEntries(params: {
       kind: 'charge',
       filterGroup: 'ev',
       date: chg.date,
-      categoryLabel: 'Recarga EV',
-      title: `Recarga ${chg.powerType} · ${chg.energyKwh.toFixed(1)} kWh (${chg.socStart}% -> ${chg.socEnd}%)`,
+      categoryLabel: ui.pdfUi.timelineBadges.evCharge,
+      title: `${ui.pdfUi.timelineBadges.evCharge} ${chg.powerType} · ${chg.energyKwh.toFixed(1)} kWh (${chg.socStart}% -> ${chg.socEnd}%)`,
       odometerKm: null,
       location: chg.stationName,
       cost: chg.cost,
@@ -138,10 +145,10 @@ export function buildVehicleTimelineEntries(params: {
       kind: 'attachment',
       filterGroup: 'expense',
       date: att.attachmentDate,
-      categoryLabel: ATTACHMENT_CATEGORY_LABELS[att.fileCategory] ?? 'Foto / Documento',
+      categoryLabel: attLabels[att.fileCategory] ?? ui.pdfUi.timelineBadges.photoPrefix,
       title: att.fileName,
       odometerKm: null,
-      location: 'Cofre Digital',
+      location: ui.vaultUi.title,
       cost: null,
       currency,
       notes: att.notes || '',
@@ -240,6 +247,11 @@ export async function generateVehicleFinalPdf(params: {
     ownerEmail,
   } = params;
 
+  const ui = getUi(prefs.language);
+  const tr = t ?? TRANSLATIONS[prefs.language] ?? TRANSLATIONS.en;
+  const p = ui.pdfUi;
+  const attLabels = ui.medicalUi.attachmentCategories;
+
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -280,12 +292,12 @@ export async function generateVehicleFinalPdf(params: {
     attachments,
     currency: prefs.currency,
     order: 'asc',
+    language: prefs.language,
   });
 
   const vehicleAttachments = attachments.filter((a) => a.vehicleId === vehicle.id);
   const imageAttachments = vehicleAttachments.filter((a) => a.mimeType.startsWith('image/'));
 
-  // Preload all vehicle photos in parallel so the PDF includes every image cleanly
   const loadedImageMap = new Map<string, LoadedPdfImage | null>();
   let embeddedPhotosCount = 0;
   let failedPhotosCount = 0;
@@ -305,18 +317,14 @@ export async function generateVehicleFinalPdf(params: {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(255, 255, 255);
-  doc.text(
-    pdfSafe(`AutoLife World - Relatório Final do Veículo`),
-    margin,
-    12
-  );
+  doc.text(pdfSafe(`AutoLife World - ${p.headerSubtitle}`), margin, 12);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(203, 213, 225);
   doc.text(
     pdfSafe(
-      `${vehicle.make} ${vehicle.model} (${vehicle.year}) · Placa ${vehicle.plate} · Emissão ${todayIso()}`
+      `${vehicle.make} ${vehicle.model} (${vehicle.year}) · ${p.plateLabel} ${vehicle.plate} · ${p.issuedLabel} ${todayIso()}`
     ),
     margin,
     19.5
@@ -324,66 +332,54 @@ export async function generateVehicleFinalPdf(params: {
 
   doc.setFontSize(8.5);
   doc.setTextColor(148, 163, 184);
-  doc.text(
-    pdfSafe(
-      `Registro cronológico completo do início ao fim, incluindo histórico de serviços, despesas e fotos.`
-    ),
-    margin,
-    26
-  );
+  doc.text(pdfSafe(ui.finalReportUi.headerSubtitle), margin, 26);
 
   y = 40;
 
   // 2. Identification & Specs Grid
-  drawSectionHeading('1. Identificação e Situação Atual do Veículo');
+  drawSectionHeading(`1. ${p.vehicleLabel} · ${p.powertrainLabel}`);
 
   const vehicleTypeText =
     vehicle.vehicleType === 'motorcycle'
-      ? `Motocicleta${vehicle.engineDisplacementCc ? ` (${vehicle.engineDisplacementCc} cc)` : ''}`
-      : 'Automóvel';
-  const profileText =
-    vehicle.drivingProfile === 'urban_severe'
-      ? 'Urbano Severo'
-      : vehicle.drivingProfile === 'highway'
-      ? 'Rodoviário'
-      : 'Misto';
+      ? `${ui.vehicleColors.categoryLabels.moto}${vehicle.engineDisplacementCc ? ` (${vehicle.engineDisplacementCc} cc)` : ''}`
+      : ui.vehicleColors.categoryLabels.sedan;
   const tiresText = vehicle.rearTirePressurePsi
-    ? `${vehicle.tirePressurePsi} PSI (diant.) / ${vehicle.rearTirePressurePsi} PSI (tras.)`
+    ? `${vehicle.tirePressurePsi} PSI / ${vehicle.rearTirePressurePsi} PSI`
     : `${vehicle.tirePressurePsi} PSI`;
 
   const specRows: Array<[string, string, string, string]> = [
     [
-      'Veículo / Ano',
+      `${p.vehicleLabel} / ${p.yearLabel}`,
       `${vehicle.make} ${vehicle.model} (${vehicle.year})`,
-      'Placa / Tipo',
+      p.plateLabel,
       `${vehicle.plate} · ${vehicleTypeText}`,
     ],
     [
-      'Motorização',
+      p.powertrainLabel,
       vehicle.powertrain.toUpperCase(),
-      'Odômetro Atual',
+      p.odometerLabel,
       formatDistance(vehicle.odometerKm, prefs.units),
     ],
     [
-      'Perfil de Uso',
-      `${profileText} (${vehicle.weeklyKm ?? 250} km/sem)`,
-      'Calibragem Pneus',
-      tiresText,
+      p.colorLabel,
+      vehicle.color || p.notInformed,
+      'PSI',
+      `${tiresText} (${vehicle.weeklyKm ?? 250} km/w)`,
     ],
     [
-      'Licenciamento / ITV',
-      isDateRecorded(vehicle.documentExpiryDate) ? vehicle.documentExpiryDate : 'Não informado',
-      'Apólice de Seguro',
-      isDateRecorded(vehicle.insuranceExpiryDate) ? vehicle.insuranceExpiryDate : 'Não informado',
+      p.docExpiryLabel,
+      isDateRecorded(vehicle.documentExpiryDate) ? vehicle.documentExpiryDate : p.notInformed,
+      p.insExpiryLabel,
+      isDateRecorded(vehicle.insuranceExpiryDate) ? vehicle.insuranceExpiryDate : p.notInformed,
     ],
   ];
 
   if (ownerEmail || prefs.whatsappNumber) {
     specRows.push([
-      'Proprietário (E-mail)',
-      ownerEmail || 'Não informado',
-      'WhatsApp Vinculado',
-      formatWhatsAppDisplay(prefs.whatsappNumber, prefs.language) || 'Não informado',
+      p.ownerLabel,
+      ownerEmail || p.notInformed,
+      'WhatsApp',
+      formatWhatsAppDisplay(prefs.whatsappNumber, prefs.language) || p.notInformed,
     ]);
   }
 
@@ -424,11 +420,11 @@ export async function generateVehicleFinalPdf(params: {
   doc.roundedRect(margin, y, contentWidth, 14, 2, 2, 'FD');
 
   const summaryCols = [
-    { label: 'Eventos no Histórico', value: String(timeline.length) },
-    { label: 'Manutenções / Gastos', value: String(serviceCount) },
-    { label: 'Recargas EV', value: String(chargeCount) },
-    { label: 'Fotos / Anexos', value: String(vehicleAttachments.length) },
-    { label: `Investimento (${prefs.currency})`, value: formatCurrency(totalInvested, prefs.currency) },
+    { label: p.summaryEvents, value: String(timeline.length) },
+    { label: p.summaryMaintenances, value: String(serviceCount) },
+    { label: p.timelineBadges.evCharge, value: String(chargeCount) },
+    { label: p.summaryPhotos, value: String(vehicleAttachments.length) },
+    { label: `${p.summaryTotal} (${prefs.currency})`, value: formatCurrency(totalInvested, prefs.currency) },
   ];
   const cellW = contentWidth / summaryCols.length;
   summaryCols.forEach((cell, idx) => {
@@ -445,19 +441,15 @@ export async function generateVehicleFinalPdf(params: {
 
   y += 20;
 
-  // 4. Complete Chronological History (Start to Finish)
-  drawSectionHeading('2. Histórico Cronológico Completo (Do Início ao Fim)');
+  // 4. Complete Chronological History
+  drawSectionHeading(`2. ${p.timelineTitle}`);
 
   if (timeline.length === 0) {
     ensureSpace(10);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text(
-      pdfSafe('Nenhum registro de manutenção, abastecimento, recarga ou gasto lançado até o momento.'),
-      margin,
-      y
-    );
+    doc.text(pdfSafe(p.emptyTimeline), margin, y);
     y += 8;
   } else {
     for (let idx = 0; idx < timeline.length; idx += 1) {
@@ -473,7 +465,7 @@ export async function generateVehicleFinalPdf(params: {
         entry.odometerKm !== null ? formatDistance(entry.odometerKm, prefs.units) : '—';
 
       const noteLines = entry.notes
-        ? (doc.splitTextToSize(pdfSafe(`Detalhes: ${entry.notes}`), contentWidth - 6) as string[])
+        ? (doc.splitTextToSize(pdfSafe(entry.notes), contentWidth - 6) as string[])
         : [];
       const titleLines = doc.splitTextToSize(
         pdfSafe(`${idx + 1}. ${entry.title}`),
@@ -483,7 +475,6 @@ export async function generateVehicleFinalPdf(params: {
       const blockHeight = 12 + titleLines.length * 4.2 + noteLines.length * 3.8;
       ensureSpace(blockHeight + 4);
 
-      // Subtle entry header band
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
       doc.roundedRect(margin, y, contentWidth, blockHeight, 1.5, 1.5, 'FD');
@@ -504,7 +495,7 @@ export async function generateVehicleFinalPdf(params: {
       doc.setTextColor(71, 85, 105);
       doc.text(
         pdfSafe(
-          `Data: ${entry.date}  |  Tipo: ${entry.categoryLabel}  |  Km: ${kmText}  |  Local: ${entry.location || '—'}`
+          `${p.colDate}: ${entry.date}  |  ${p.colCategory}: ${entry.categoryLabel}  |  ${p.colKm}: ${kmText}  |  ${p.colWorkshop}: ${entry.location || '—'}`
         ),
         margin + 3,
         metaY
@@ -519,7 +510,6 @@ export async function generateVehicleFinalPdf(params: {
 
       y += blockHeight + 3;
 
-      // Embed photos directly attached to this service log
       const entryImages = entry.attachments.filter((att) => att.mimeType.startsWith('image/'));
       if (entryImages.length > 0) {
         for (const att of entryImages) {
@@ -541,7 +531,7 @@ export async function generateVehicleFinalPdf(params: {
             doc.setTextColor(100, 116, 139);
             doc.text(
               pdfSafe(
-                `Anexo: ${att.fileName} (${ATTACHMENT_CATEGORY_LABELS[att.fileCategory] ?? att.fileCategory})`
+                `${p.timelineBadges.photoPrefix} ${att.fileName} (${attLabels[att.fileCategory] ?? att.fileCategory})`
               ),
               margin + 3,
               y + drawH + 3.5
@@ -553,7 +543,7 @@ export async function generateVehicleFinalPdf(params: {
             doc.setFontSize(7.5);
             doc.setTextColor(100, 116, 139);
             doc.text(
-              pdfSafe(`Anexo registrado: ${att.fileName} (${att.attachmentDate})`),
+              pdfSafe(`${p.timelineBadges.photoPrefix} ${att.fileName} (${att.attachmentDate})`),
               margin + 3,
               y + 3
             );
@@ -569,19 +559,19 @@ export async function generateVehicleFinalPdf(params: {
   // 5. Preventive Maintenance Checklist Snapshot
   const vehicleChecklist = maintenanceItems.filter((item) => item.vehicleId === vehicle.id);
   if (vehicleChecklist.length > 0) {
-    drawSectionHeading('3. Situação Atual do Plano Preventivo');
+    drawSectionHeading(`3. ${p.preventiveTitle}`);
 
     for (const item of vehicleChecklist) {
       const calc = computeMaintenanceStatus(item, vehicle, prefs);
-      const itemTitle = t?.items?.[item.titleKey]?.title ?? item.titleKey;
+      const itemTitle = tr.items?.[item.titleKey]?.title ?? item.titleKey;
       const statusText =
         calc.status === MaintenanceStatus.OVERDUE
-          ? 'Vencido'
+          ? tr.status.overdue
           : calc.status === MaintenanceStatus.ATTENTION
-          ? 'Atenção'
+          ? tr.status.attention
           : calc.status === MaintenanceStatus.ON_TRACK
-          ? 'Em dia'
-          : 'Pendente';
+          ? tr.status.on_track
+          : tr.status.pending;
 
       ensureSpace(7);
       doc.setFont('helvetica', 'bold');
@@ -600,9 +590,9 @@ export async function generateVehicleFinalPdf(params: {
 
       doc.setTextColor(71, 85, 105);
       const lastStr = isDateRecorded(item.lastCheckedDate)
-        ? `Último: ${item.lastCheckedDate} (${formatDistance(item.lastCheckedKm, prefs.units)})`
-        : 'Último: Não registrado';
-      const nextStr = calc.projectedDueDate ? `Previsto: ${calc.projectedDueDate}` : '';
+        ? `${p.colLastRecord}: ${item.lastCheckedDate} (${formatDistance(item.lastCheckedKm, prefs.units)})`
+        : `${p.colLastRecord}: ${p.notInformed}`;
+      const nextStr = calc.projectedDueDate ? `${p.colNextDue}: ${calc.projectedDueDate}` : '';
       doc.text(pdfSafe([lastStr, nextStr].filter(Boolean).join(' · ')), margin + 102, y, {
         maxWidth: contentWidth - 102,
       });
@@ -613,11 +603,9 @@ export async function generateVehicleFinalPdf(params: {
     y += 3;
   }
 
-  // 6. Complete Photo & Document Gallery (All Vehicle Attachments)
+  // 6. Complete Photo & Document Gallery
   if (vehicleAttachments.length > 0) {
-    drawSectionHeading(
-      `4. Galeria Completa de Fotos, Notas e Comprovantes (${vehicleAttachments.length})`
-    );
+    drawSectionHeading(`4. ${p.photosSectionTitle} (${vehicleAttachments.length})`);
 
     const chronologicalAttachments = [...vehicleAttachments].sort((a, b) =>
       a.attachmentDate.localeCompare(b.attachmentDate)
@@ -640,7 +628,7 @@ export async function generateVehicleFinalPdf(params: {
 
       const captionLines = doc.splitTextToSize(
         pdfSafe(
-          `${att.attachmentDate} · ${ATTACHMENT_CATEGORY_LABELS[att.fileCategory] ?? att.fileCategory}\n${att.fileName}${att.notes ? ` — ${att.notes}` : ''}`
+          `${att.attachmentDate} · ${attLabels[att.fileCategory] ?? att.fileCategory}\n${att.fileName}${att.notes ? ` — ${att.notes}` : ''}`
         ),
         cardW - 6
       ) as string[];
@@ -665,11 +653,7 @@ export async function generateVehicleFinalPdf(params: {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8.5);
         doc.setTextColor(71, 85, 105);
-        doc.text(
-          pdfSafe(isImage ? 'Imagem indisponível offline' : 'Documento PDF anexado'),
-          xPos + 4,
-          y + 11
-        );
+        doc.text(pdfSafe(att.fileName), xPos + 4, y + 11, { maxWidth: cardW - 8 });
       }
 
       doc.setFont('helvetica', 'normal');
@@ -693,18 +677,18 @@ export async function generateVehicleFinalPdf(params: {
 
   // Page Footer across all pages
   const totalPages = doc.getNumberOfPages();
-  for (let p = 1; p <= totalPages; p += 1) {
-    doc.setPage(p);
+  for (let pIdx = 1; pIdx <= totalPages; pIdx += 1) {
+    doc.setPage(pIdx);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
     doc.text(
-      pdfSafe(`AutoLife World · Relatório Final ${vehicle.make} ${vehicle.model} (${vehicle.plate})`),
+      pdfSafe(`AutoLife World · ${vehicle.make} ${vehicle.model} (${vehicle.plate}) · ${p.footerRight}`),
       margin,
       pageHeight - 8
     );
     doc.text(
-      pdfSafe(`Página ${p} de ${totalPages}`),
+      pdfSafe(`${p.pageLabel} ${pIdx} ${p.ofLabel} ${totalPages}`),
       pageWidth - margin,
       pageHeight - 8,
       { align: 'right' }
@@ -714,7 +698,7 @@ export async function generateVehicleFinalPdf(params: {
   const safeModel = `${vehicle.make}-${vehicle.model}-${vehicle.plate}`
     .replace(/[^a-zA-Z0-9_-]/g, '-')
     .replace(/-+/g, '-');
-  const filename = `Relatorio-Final-${safeModel}-${todayIso()}.pdf`;
+  const filename = `${p.filenamePrefix}-${safeModel}-${todayIso()}.pdf`;
 
   const blob = doc.output('blob');
   const file = new File([blob], filename, { type: 'application/pdf' });
@@ -781,6 +765,9 @@ export function generateFleetSummaryPdf(params: {
   prefs: UserPreferences;
 }): { blob: Blob; filename: string } {
   const { organizationName, vehicles, maintenanceItems, logs, chargingSessions, prefs } = params;
+  const ui = getUi(prefs.language);
+  const tr = TRANSLATIONS[prefs.language] ?? TRANSLATIONS.en;
+  const p = ui.pdfUi;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -792,11 +779,11 @@ export function generateFleetSummaryPdf(params: {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text(pdfSafe(`AutoLife World · Relatório Geral da Frota`), margin, 13);
+  doc.text(pdfSafe(`AutoLife World · ${ui.analyticsUi.title}`), margin, 13);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.text(
-    pdfSafe(`${organizationName || 'Frota Empresarial'} · Emitido em ${todayIso()} · ${vehicles.length} veículo(s)`),
+    pdfSafe(`${organizationName || ui.garageUi.fleet.title} · ${p.issuedLabel} ${todayIso()} · ${vehicles.length} ${ui.plansUi.vehicleUnit}(s)`),
     margin,
     21
   );
@@ -816,9 +803,10 @@ export function generateFleetSummaryPdf(params: {
   doc.setFontSize(10);
   doc.text(
     pdfSafe(
-      `Gastos do Mês (${currentMonth}): ${formatCurrency(monthlySpend, prefs.currency)} · Odômetro Total: ${vehicles
-        .reduce((acc, v) => acc + v.odometerKm, 0)
-        .toLocaleString('pt-BR')} km`
+      `${p.summaryTotal} (${currentMonth}): ${formatCurrency(monthlySpend, prefs.currency)} · ${p.odometerLabel}: ${formatDistance(
+        vehicles.reduce((acc, v) => acc + v.odometerKm, 0),
+        prefs.units
+      )}`
     ),
     margin,
     y
@@ -857,10 +845,10 @@ export function generateFleetSummaryPdf(params: {
     doc.setTextColor(71, 85, 105);
     doc.text(
       pdfSafe(
-        `Odômetro: ${formatDistance(v.odometerKm, prefs.units)} · Atrasos: ${overdue} · Atenção: ${attention} · Gasto acumulado: ${formatCurrency(
+        `${p.odometerLabel}: ${formatDistance(v.odometerKm, prefs.units)} · ${tr.status.overdue}: ${overdue} · ${tr.status.attention}: ${attention} · ${p.summaryTotal}: ${formatCurrency(
           vSpend,
           prefs.currency
-        )} · Responsável: ${v.assignedMemberName || 'Não atribuído'}`
+        )} · ${ui.garageUi.fleet.colDriver}: ${v.assignedMemberName || ui.garageUi.fleet.unassigned}`
       ),
       margin,
       y
@@ -868,8 +856,8 @@ export function generateFleetSummaryPdf(params: {
     y += 4.5;
     doc.text(
       pdfSafe(
-        `Doc: ${isDateRecorded(v.documentExpiryDate) ? v.documentExpiryDate : 'Não informado'} · Seguro: ${
-          isDateRecorded(v.insuranceExpiryDate) ? v.insuranceExpiryDate : 'Não informado'
+        `${p.docExpiryLabel}: ${isDateRecorded(v.documentExpiryDate) ? v.documentExpiryDate : p.notInformed} · ${p.insExpiryLabel}: ${
+          isDateRecorded(v.insuranceExpiryDate) ? v.insuranceExpiryDate : p.notInformed
         }`
       ),
       margin,
@@ -879,6 +867,6 @@ export function generateFleetSummaryPdf(params: {
     y += 5;
   }
 
-  const filename = `Relatorio-Geral-Frota-${todayIso()}.pdf`;
+  const filename = `${p.filenamePrefix}-Fleet-${todayIso()}.pdf`;
   return { blob: doc.output('blob'), filename };
 }

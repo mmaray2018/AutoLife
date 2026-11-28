@@ -368,9 +368,9 @@ function mapOrgRow(row: Record<string, unknown>): OrganizationProfile {
   return {
     id: String(row.id),
     ownerUserId: String(row.owner_user_id),
-    name: String(row.name || 'Minha Empresa'),
+    name: String(row.name || 'My Fleet'),
     taxId: String(row.tax_id || ''),
-    countryCode: String(row.country_code || 'BR'),
+    countryCode: String(row.country_code || 'US'),
     createdAt: String(row.created_at || new Date().toISOString()),
   };
 }
@@ -398,7 +398,7 @@ function mapMemberRow(row: Record<string, unknown>): OrganizationMember {
 export async function fetchOrCreateOrganization(
   userId: string,
   countryCode: CountryCode,
-  defaultName = 'Minha Empresa'
+  defaultName = 'My Fleet'
 ): Promise<OrganizationProfile | null> {
   if (!supabase || !userId) return null;
   try {
@@ -439,7 +439,7 @@ export async function updateOrganizationProfile(
   const { data, error } = await supabase
     .from('organizations')
     .update({
-      name: patch.name.trim() || 'Minha Empresa',
+      name: patch.name.trim() || 'My Fleet',
       tax_id: patch.taxId.trim(),
       country_code: patch.countryCode,
       updated_at: new Date().toISOString(),
@@ -475,7 +475,7 @@ export async function inviteOrganizationMember(params: {
   permissions: OrganizationPermissions;
 }): Promise<OrganizationMember> {
   if (!supabase) {
-    throw new Error('Conecte-se ao Supabase para gerenciar convites da empresa.');
+    throw new Error('Connect to Supabase to manage team invites.');
   }
   const { data, error } = await supabase
     .from('organization_members')
@@ -505,7 +505,7 @@ export async function updateOrganizationMember(
     inviteStatus?: OrganizationMember['inviteStatus'];
   }
 ): Promise<OrganizationMember> {
-  if (!supabase) throw new Error('Supabase não configurado.');
+  if (!supabase) throw new Error('Supabase not configured.');
   const updateBody: Record<string, unknown> = {};
   if (patch.role) updateBody.role = patch.role;
   if (patch.permissions) updateBody.permissions = patch.permissions;

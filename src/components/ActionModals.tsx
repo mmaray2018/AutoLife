@@ -15,8 +15,10 @@ import {
   X,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
+import { getUi } from '../data/uiTranslations';
 import {
   CurrencyCode,
+  LanguageCode,
   MaintenanceItem,
   ParsedVehicleDocument,
   PowertrainType,
@@ -28,6 +30,7 @@ import {
 import { isBusinessPlan } from '../utils/billing';
 import {
   VEHICLE_COLOR_SWATCHES,
+  getLocalizedColorLabel,
   resolveVehicleColorStyle,
 } from '../utils/vehicleVisualResolver';
 
@@ -36,6 +39,7 @@ interface LogCheckModalProps {
   items: MaintenanceItem[];
   initialItem: MaintenanceItem | null;
   currency: CurrencyCode;
+  language?: LanguageCode;
   t: Translations;
   onClose: () => void;
   onSave: (payload: {
@@ -52,17 +56,19 @@ export function LogCheckModal({
   items,
   initialItem,
   currency,
+  language = 'pt',
   t,
   onClose,
   onSave,
 }: LogCheckModalProps) {
+  const ui = getUi(language).modals;
   const vehicleItems = items.filter((i) => i.vehicleId === vehicle.id);
   const [selectedItemId, setSelectedItemId] = useState<string>(
     initialItem?.id ?? vehicleItems[0]?.id ?? ''
   );
   const [odometerKm, setOdometerKm] = useState<string>(String(vehicle.odometerKm));
   const [cost, setCost] = useState<string>('0');
-  const [workshopName, setWorkshopName] = useState<string>('Verificação Própria');
+  const [workshopName, setWorkshopName] = useState<string>(ui.logSelfCheck);
   const [notes, setNotes] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -211,7 +217,7 @@ function readFileAsBase64(file: File): Promise<{ mimeType: string; data: string 
       const commaIdx = result.indexOf(',');
       const base64 = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
       if (!base64) {
-        reject(new Error('Arquivo vazio ou ilegível.'));
+        reject(new Error('invalid_file'));
         return;
       }
       const fallbackMime =
@@ -221,7 +227,7 @@ function readFileAsBase64(file: File): Promise<{ mimeType: string; data: string 
         data: base64,
       });
     };
-    reader.onerror = () => reject(new Error('Falha ao ler arquivo selecionado.'));
+    reader.onerror = () => reject(new Error('file_read_error'));
     reader.readAsDataURL(file);
   });
 }
@@ -231,7 +237,7 @@ async function prepareDocumentPayload(file: File): Promise<{ mimeType: string; d
   const isPdf = mime === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if (isPdf) {
     if (file.size > 9.5 * 1024 * 1024) {
-      throw new Error('O PDF excede o limite de 9,5 MB.');
+      throw new Error('max_size_9_5mb');
     }
     return readFileAsBase64(file);
   }
@@ -270,7 +276,7 @@ async function prepareDocumentPayload(file: File): Promise<{ mimeType: string; d
   }
 
   if (file.size > 9.5 * 1024 * 1024) {
-    throw new Error('A imagem excede o limite de 9,5 MB.');
+    throw new Error('max_size_9_5mb');
   }
   return readFileAsBase64(file);
 }
@@ -371,6 +377,7 @@ export function AddVehicleModal({
   const [capturedDocFile, setCapturedDocFile] = useState<File | null>(null);
   const [saveDocToVault, setSaveDocToVault] = useState(true);
 
+  const ui = getUi(prefs.language).modals;
   const resolvedColorStyle = resolveVehicleColorStyle(color);
 
   const handleSwitchVehicleType = (nextType: VehicleType) => {
@@ -410,10 +417,7 @@ export function AddVehicleModal({
         error?: string;
       };
       if (!res.ok) {
-        throw new Error(
-          data.error ||
-            'Não foi possível ler o documento automaticamente. Você pode preencher manualmente.'
-        );
+        throw new Error(data.error || ui.scanFailed);
       }
 
       const nextType: VehicleType =
@@ -446,16 +450,17 @@ export function AddVehicleModal({
 
       setDocBanner({
         kind: 'success',
-        text: 'Dados extraídos do documento — confira antes de salvar',
+        text: ui.scanSuccess,
       });
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : 'Leitura automática indisponível no momento. Preencha manualmente abaixo.';
+      const rawMsg = err instanceof Error ? err.message : '';
+      const mapped =
+        rawMsg === 'invalid_file' || rawMsg === 'file_read_error' || rawMsg === 'max_size_9_5mb'
+          ? ui.scanInvalidFile
+          : rawMsg || ui.scanFailed;
       setDocBanner({
         kind: 'warning',
-        text: `${msg} O cadastro manual continua funcionando normalmente.`,
+        text: mapped,
       });
     } finally {
       setDocParsing(false);
@@ -518,13 +523,13 @@ export function AddVehicleModal({
       <div className="autolife-glass rounded-2xl max-w-lg w-full p-5 sm:p-6 space-y-4 my-8 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
-            {isEditing ? 'Editar Veículo' : t.actions.addVehicle}
+            {isEditing ? ui.editTitle : ui.addTitle}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-            aria-label={t.actions.close}
+            aria-label={ui.close}
           >
             <X className="w-5 h-5" />
           </button>
@@ -535,18 +540,12 @@ export function AddVehicleModal({
             <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 space-y-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-200">
                 <Lock className="w-4 h-4 shrink-0" />
-                <span>
-                  {isExpiredLocked
-                    ? 'Assinatura expirada para novos cadastros'
-                    : `Limite de ${vehicleLimit} veículo(s) atingido`}
-                </span>
+                <span>{ui.planLimitReached}</span>
               </div>
               <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
                 {isExpiredLocked
-                  ? 'Seus veículos e históricos continuam preservados e acessíveis. Renove ou contrate um plano para liberar novos cadastros.'
-                  : hasBusinessAccess
-                  ? `Sua empresa já utiliza ${vehiclesCount} de ${vehicleLimit} veículos contratados. Contrate uma faixa maior (25, 50 ou 100 veículos) para expandir sua frota.`
-                  : 'O Plano Particular contempla 1 veículo. Para cadastrar mais veículos ou gerenciar frota empresarial, escolha um Plano Frotas.'}
+                  ? ui.planLimitExpiredPrefix
+                  : `${ui.planLimitActivePrefix} ${vehicleLimit ?? vehiclesCount} (${vehiclesCount}).`}
               </p>
             </div>
             <div className="flex justify-end gap-2">
@@ -555,7 +554,7 @@ export function AddVehicleModal({
                 onClick={onClose}
                 className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"
               >
-                {t.actions.close}
+                {ui.close}
               </button>
               {onOpenPlans && (
                 <button
@@ -566,7 +565,7 @@ export function AddVehicleModal({
                   }}
                   className="px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white"
                 >
-                  {hasBusinessAccess ? 'Expandir Frota' : 'Ver Planos de Frota'}
+                  {ui.planLimitUpgradeBtn}
                 </button>
               )}
             </div>
@@ -579,10 +578,10 @@ export function AddVehicleModal({
                 <div className="space-y-0.5">
                   <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-700 dark:text-sky-300">
                     <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                    <span>Preencher com foto do documento (Opcional)</span>
+                    <span>{ui.scanBannerTitle}</span>
                   </div>
                   <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
-                    CRLV, Title, DUA, Carte Grise ou documento veicular de qualquer país (JPG, PNG, WEBP ou PDF).
+                    {ui.scanBannerDesc}
                   </p>
                 </div>
               </div>
@@ -623,7 +622,7 @@ export function AddVehicleModal({
                   ) : (
                     <Camera className="w-3.5 h-3.5 shrink-0" />
                   )}
-                  <span>{docParsing ? 'Lendo...' : 'Usar Câmera'}</span>
+                  <span>{docParsing ? ui.scanning : ui.scanCameraBtn}</span>
                 </button>
                 <button
                   type="button"
@@ -636,7 +635,7 @@ export function AddVehicleModal({
                   ) : (
                     <Upload className="w-3.5 h-3.5 shrink-0" />
                   )}
-                  <span>Enviar Foto / PDF</span>
+                  <span>{ui.scanFileBtn}</span>
                 </button>
               </div>
 
@@ -668,9 +667,7 @@ export function AddVehicleModal({
                   />
                   <FileText className="w-3.5 h-3.5 text-sky-500 shrink-0" />
                   <span className="truncate">
-                    {cloudUserId
-                      ? `Salvar "${capturedDocFile.name}" nos anexos do veículo`
-                      : `Entre na conta nuvem para salvar "${capturedDocFile.name}" nos anexos`}
+                    {ui.attachDocLabel}: {capturedDocFile.name}
                   </span>
                 </label>
               )}
@@ -688,7 +685,7 @@ export function AddVehicleModal({
                 }`}
               >
                 <Car className="w-4 h-4" />
-                <span>{t.vehicleTypes.car}</span>
+                <span>{ui.vehicleKindCar}</span>
               </button>
               <button
                 type="button"
@@ -700,7 +697,7 @@ export function AddVehicleModal({
                 }`}
               >
                 <Bike className="w-4 h-4" />
-                <span>{t.vehicleTypes.motorcycle}</span>
+                <span>{ui.vehicleKindMoto}</span>
               </button>
             </div>
 
@@ -708,12 +705,12 @@ export function AddVehicleModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    Marca
+                    {ui.brandLabel}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Marca do fabricante"
+                    placeholder={vehicleType === 'motorcycle' ? ui.brandPlaceholderMoto : ui.brandPlaceholderCar}
                     value={make}
                     onChange={(e) => setMake(e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -721,12 +718,12 @@ export function AddVehicleModal({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    Modelo
+                    {ui.modelLabel}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Modelo e versão"
+                    placeholder={vehicleType === 'motorcycle' ? ui.modelPlaceholderMoto : ui.modelPlaceholderCar}
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -738,7 +735,7 @@ export function AddVehicleModal({
               <div className="space-y-2 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/70 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                    Cor do veículo
+                    {ui.colorLabel}
                   </label>
                   {resolvedColorStyle.hasColor && (
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 dark:text-sky-200">
@@ -746,24 +743,26 @@ export function AddVehicleModal({
                         className="w-3 h-3 rounded-full border border-white/40 shadow-xs"
                         style={{ backgroundColor: resolvedColorStyle.primaryHex }}
                       />
-                      <span>{resolvedColorStyle.displayName}</span>
+                      <span>{getLocalizedColorLabel(color, prefs.language)}</span>
                     </span>
                   )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
                   {VEHICLE_COLOR_SWATCHES.map((swatch) => {
+                    const localizedSwatchLabel = getLocalizedColorLabel(swatch.id, prefs.language);
                     const isSelected =
-                      color.trim().toLowerCase() === swatch.label.toLowerCase();
+                      resolvedColorStyle.searchKeywordEn === swatch.id ||
+                      color.trim().toLowerCase() === localizedSwatchLabel.toLowerCase();
                     const isLightSwatch =
                       swatch.id === 'white' || swatch.id === 'silver' || swatch.id === 'yellow';
                     return (
                       <button
                         key={swatch.id}
                         type="button"
-                        onClick={() => setColor(swatch.label)}
-                        title={swatch.label}
-                        aria-label={`Cor ${swatch.label}`}
+                        onClick={() => setColor(localizedSwatchLabel)}
+                        title={localizedSwatchLabel}
+                        aria-label={`${ui.colorLabel}: ${localizedSwatchLabel}`}
                         className={`w-7 h-7 rounded-full flex items-center justify-center transition-transform border ${
                           isSelected
                             ? 'ring-2 ring-sky-400 ring-offset-2 ring-offset-white dark:ring-offset-[#081020] scale-110'
@@ -789,7 +788,7 @@ export function AddVehicleModal({
 
                 <input
                   type="text"
-                  placeholder="Ou digite qualquer cor (ex: Branco Pérola, Azul Marinho, Verde Musgo)"
+                  placeholder={ui.colorCustomPlaceholder}
                   value={color}
                   onChange={(e) => setColor(e.target.value)}
                   className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629] text-slate-900 dark:text-slate-100"
@@ -799,12 +798,12 @@ export function AddVehicleModal({
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    Ano
+                    {ui.yearLabel}
                   </label>
                   <input
                     type="number"
                     min={1980}
-                    max={2027}
+                    max={2030}
                     value={year}
                     onChange={(e) => setYear(e.target.value)}
                     className="w-full px-3 py-2 text-sm font-mono tabular-nums rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -812,11 +811,11 @@ export function AddVehicleModal({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    Placa
+                    {ui.plateLabel}
                   </label>
                   <input
                     type="text"
-                    placeholder="Placa do veículo"
+                    placeholder="ABC-1234"
                     value={plate}
                     onChange={(e) => setPlate(e.target.value)}
                     className="w-full px-3 py-2 text-sm font-mono uppercase rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -824,7 +823,7 @@ export function AddVehicleModal({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    Cilindrada (cc)
+                    {ui.displacementLabel}
                   </label>
                   <input
                     type="number"
@@ -842,7 +841,7 @@ export function AddVehicleModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    Motorização
+                    {ui.powertrainLabel}
                   </label>
                   <select
                     value={powertrain}
@@ -869,7 +868,7 @@ export function AddVehicleModal({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    {t.health.odometerLabel} (km)
+                    {ui.odometerLabel} (km)
                   </label>
                   <input
                     type="number"
@@ -884,7 +883,7 @@ export function AddVehicleModal({
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    PSI Dianteiro
+                    {ui.frontPsiLabel}
                   </label>
                   <input
                     type="number"
@@ -897,7 +896,7 @@ export function AddVehicleModal({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    PSI Traseiro
+                    {ui.rearPsiLabel}
                   </label>
                   <input
                     type="number"
@@ -910,7 +909,7 @@ export function AddVehicleModal({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    Uso (km/sem)
+                    {ui.weeklyKmLabel}
                   </label>
                   <input
                     type="number"
@@ -926,7 +925,7 @@ export function AddVehicleModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    {t.garage.docLicense} (opcional)
+                    {ui.licenseDateLabel}
                   </label>
                   <input
                     type="date"
@@ -937,7 +936,7 @@ export function AddVehicleModal({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    {t.garage.docInsurance} (opcional)
+                    {ui.insuranceDateLabel}
                   </label>
                   <input
                     type="date"
@@ -950,11 +949,11 @@ export function AddVehicleModal({
 
               <div>
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                  VIN / Chassi / RENAVAM (opcional)
+                  {ui.vinLabel}
                 </label>
                 <input
                   type="text"
-                  placeholder="Código identificador do documento (se aplicável)"
+                  placeholder="VIN / Chassis"
                   value={vinOrRenavam}
                   onChange={(e) => setVinOrRenavam(e.target.value)}
                   className="w-full px-3 py-2 text-xs font-mono uppercase rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -964,15 +963,15 @@ export function AddVehicleModal({
               {hasBusinessAccess && (
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    Classificação do Veículo na Empresa
+                    {ui.fleetGroupLabel}
                   </label>
                   <select
                     value={fleetGroup}
                     onChange={(e) => setFleetGroup(e.target.value as 'personal' | 'fleet')}
                     className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   >
-                    <option value="fleet">{t.garage.modeFleet}</option>
-                    <option value="personal">{t.garage.modePersonal}</option>
+                    <option value="fleet">{ui.fleetGroup}</option>
+                    <option value="personal">{ui.personalGroup}</option>
                   </select>
                 </div>
               )}
@@ -983,13 +982,13 @@ export function AddVehicleModal({
                   onClick={onClose}
                   className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
                 >
-                  {t.actions.cancel}
+                  {ui.cancel}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white"
                 >
-                  {t.actions.save}
+                  {isEditing ? ui.saveChanges : ui.saveVehicle}
                 </button>
               </div>
             </form>
@@ -1006,6 +1005,7 @@ interface DeleteVehicleConfirmModalProps {
   chargesCount: number;
   itemsCount: number;
   attachmentsCount: number;
+  language?: LanguageCode;
   t: Translations;
   onClose: () => void;
   onConfirm: () => void;
@@ -1017,10 +1017,12 @@ export function DeleteVehicleConfirmModal({
   chargesCount,
   itemsCount,
   attachmentsCount,
+  language = 'pt',
   t,
   onClose,
   onConfirm,
 }: DeleteVehicleConfirmModalProps) {
+  const ui = getUi(language).modals;
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#040812]/80 backdrop-blur-xs"
@@ -1032,7 +1034,7 @@ export function DeleteVehicleConfirmModal({
           <div className="flex items-center gap-2.5">
             <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
             <h2 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
-              Remover veículo e histórico?
+              {ui.deleteTitle}
             </h2>
           </div>
           <button
@@ -1047,18 +1049,18 @@ export function DeleteVehicleConfirmModal({
 
         <div className="space-y-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
           <p>
-            Você está prestes a apagar{' '}
+            {ui.deleteDescPrefix}{' '}
             <strong className="text-slate-900 dark:text-slate-100">
               {vehicle.make} {vehicle.model} ({vehicle.year})
             </strong>{' '}
-            · Placa <span className="font-mono font-semibold">{vehicle.plate}</span>.
+            · <span className="font-mono font-semibold">{vehicle.plate}</span>
           </p>
           <p className="text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 rounded-xl p-3 leading-relaxed tabular-nums">
-            Ao apagar o veículo, <strong>todo o histórico vinculado também será excluído permanentemente</strong>:
+            {logsCount} {ui.deleteLogsLabel} · {chargesCount} {ui.deleteChargesLabel} ·{' '}
+            {itemsCount} {ui.deleteItemsLabel}
+            {attachmentsCount > 0 ? ` · ${attachmentsCount} ${ui.deleteDocsLabel}` : ''}.
             <br />
-            {logsCount} registro(s) de manutenção/gastos · {chargesCount} recarga(s) EV ·{' '}
-            {itemsCount} item(ns) preventivo(s)
-            {attachmentsCount > 0 ? ` · ${attachmentsCount} foto(s)/anexo(s)` : ''}.
+            {ui.deletePermanentNote}
           </p>
         </div>
 
@@ -1068,7 +1070,7 @@ export function DeleteVehicleConfirmModal({
             onClick={onClose}
             className="px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
           >
-            {t.actions.cancel}
+            {ui.cancel}
           </button>
           <button
             type="button"
@@ -1076,7 +1078,7 @@ export function DeleteVehicleConfirmModal({
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-red-600 hover:bg-red-500 text-white whitespace-nowrap shrink-0"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Apagar Veículo e Histórico</span>
+            <span>{ui.deleteConfirmBtn}</span>
           </button>
         </div>
       </div>

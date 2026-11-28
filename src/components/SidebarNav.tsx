@@ -13,14 +13,16 @@ import {
   Zap,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
+import { getUi } from '../data/uiTranslations';
 import {
+  LanguageCode,
   ModuleId,
   UnitSystem,
   Vehicle,
   VehicleAttachment,
 } from '../types/autolife';
 import { formatDistance } from '../utils/autolife';
-import { resolveVehicleColorStyle } from '../utils/vehicleVisualResolver';
+import { getLocalizedColorLabel, resolveVehicleColorStyle } from '../utils/vehicleVisualResolver';
 import { PWAInstallButton } from './PWAInstallButton';
 import { VehicleVisual } from './VehicleVisual';
 
@@ -34,6 +36,7 @@ interface SidebarNavProps {
   onAddVehicle: () => void;
   onRequestDeleteVehicle: (vehicleId: string) => void;
   t: Translations;
+  language?: LanguageCode;
   units: UnitSystem;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -52,6 +55,7 @@ export function SidebarNav({
   onAddVehicle,
   onRequestDeleteVehicle,
   t,
+  language = 'en',
   units,
   theme,
   onToggleTheme,
@@ -59,6 +63,7 @@ export function SidebarNav({
   onCloseMobile,
   isAdmin = false,
 }: SidebarNavProps) {
+  const sidebarUi = getUi(language).sidebar;
   const navItems: { id: ModuleId; label: string; icon: typeof Activity }[] = [
     { id: 'settings', label: t.nav.settings, icon: Globe },
     { id: 'health', label: t.nav.health, icon: Activity },
@@ -107,7 +112,7 @@ export function SidebarNav({
             className="w-full px-3 py-2 text-sm font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#0c1629] text-slate-900 dark:text-slate-100 focus-visible:outline-2 focus-visible:outline-sky-500 disabled:opacity-60"
           >
             {vehicles.length === 0 ? (
-              <option value="">Nenhum veículo cadastrado</option>
+              <option value="">{sidebarUi.noVehicles}</option>
             ) : (
               vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
@@ -146,7 +151,7 @@ export function SidebarNav({
                               .primaryHex,
                           }}
                         />
-                        <span>{activeVehicle.color}</span>
+                        <span>{getLocalizedColorLabel(activeVehicle.color, language)}</span>
                       </span>
                     )}
                   </div>
@@ -183,7 +188,7 @@ export function SidebarNav({
             className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#101d36] transition-colors whitespace-nowrap shrink-0"
           >
             <Plus className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-            <span>Adicionar</span>
+            <span>{sidebarUi.add}</span>
           </button>
           {activeVehicle && (
             <button
@@ -193,10 +198,10 @@ export function SidebarNav({
                 onCloseMobile();
               }}
               className="inline-flex items-center justify-center gap-1 px-2.5 py-2 text-xs font-medium rounded-xl border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors whitespace-nowrap shrink-0"
-              title="Remover veículo e todo o seu histórico"
+              title={sidebarUi.removeTitle}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Remover</span>
+              <span>{sidebarUi.remove}</span>
             </button>
           )}
         </div>
@@ -230,7 +235,7 @@ export function SidebarNav({
 
       {/* Bottom PWA Install & Theme Toggle */}
       <div className="px-4 py-3 border-t border-slate-200 dark:border-white/10 space-y-2">
-        <PWAInstallButton />
+        <PWAInstallButton language={language} />
         <button
           type="button"
           onClick={onToggleTheme}

@@ -1,11 +1,83 @@
 import { Translations } from '../data/i18n';
 import {
+  LanguageCode,
   MaintenanceItem,
   MaintenanceStatus,
   UserPreferences,
   Vehicle,
 } from '../types/autolife';
 import { computeMaintenanceStatus } from '../utils/autolife';
+
+const PUSH_COPY: Record<
+  LanguageCode,
+  {
+    overdueBody: (label: string) => string;
+    upcomingBody: (label: string, date: string) => string;
+    unsupported: string;
+    denied: string;
+    vapidFail: string;
+    subscribeFail: string;
+    enableFirst: string;
+    testFail: string;
+    testSent: string;
+  }
+> = {
+  pt: {
+    overdueBody: (label) => `Atenção: verificação de ${label} vencida ou prevista para hoje.`,
+    upcomingBody: (label, date) => `Lembrete programado: verificar ${label} (previsto para ${date}).`,
+    unsupported: 'Notificações Push via Service Worker não são suportadas neste navegador.',
+    denied: 'Permissão de notificação negada no navegador.',
+    vapidFail: 'Falha ao obter chave pública VAPID.',
+    subscribeFail: 'Falha ao registrar lembretes push.',
+    enableFirst: 'Ative primeiro as notificações Push em segundo plano.',
+    testFail: 'Falha ao enviar push de teste.',
+    testSent: 'Notificação Push enviada pelo Service Worker!',
+  },
+  en: {
+    overdueBody: (label) => `Attention: ${label} check is overdue or due today.`,
+    upcomingBody: (label, date) => `Scheduled reminder: inspect ${label} (due ${date}).`,
+    unsupported: 'Service Worker Push Notifications are not supported in this browser.',
+    denied: 'Notification permission denied in browser.',
+    vapidFail: 'Failed to retrieve VAPID public key.',
+    subscribeFail: 'Failed to register push reminders.',
+    enableFirst: 'Enable background Push notifications first.',
+    testFail: 'Failed to send test push notification.',
+    testSent: 'Test Push notification sent by Service Worker!',
+  },
+  es: {
+    overdueBody: (label) => `Atención: revisión de ${label} vencida o prevista para hoy.`,
+    upcomingBody: (label, date) => `Recordatorio programado: revisar ${label} (previsto para ${date}).`,
+    unsupported: 'Las notificaciones Push mediante Service Worker no son compatibles con este navegador.',
+    denied: 'Permiso de notificación denegado en el navegador.',
+    vapidFail: 'Error al obtener la clave pública VAPID.',
+    subscribeFail: 'Error al registrar recordatorios push.',
+    enableFirst: 'Activa primero las notificaciones Push en segundo plano.',
+    testFail: 'Error al enviar notificación push de prueba.',
+    testSent: '¡Notificación Push de prueba enviada!',
+  },
+  de: {
+    overdueBody: (label) => `Achtung: Prüfung für ${label} überfällig oder heute fällig.`,
+    upcomingBody: (label, date) => `Geplante Erinnerung: ${label} prüfen (fällig am ${date}).`,
+    unsupported: 'Push-Benachrichtigungen über Service Worker werden von diesem Browser nicht unterstützt.',
+    denied: 'Benachrichtigungsberechtigung im Browser verweigert.',
+    vapidFail: 'VAPID-Schlüssel konnte nicht abgerufen werden.',
+    subscribeFail: 'Push-Erinnerungen konnten nicht registriert werden.',
+    enableFirst: 'Aktivieren Sie zuerst Hintergrund-Push-Benachrichtigungen.',
+    testFail: 'Test-Push konnte nicht gesendet werden.',
+    testSent: 'Test-Push-Benachrichtigung gesendet!',
+  },
+  fr: {
+    overdueBody: (label) => `Attention : le contrôle de ${label} est en retard ou prévu aujourd’hui.`,
+    upcomingBody: (label, date) => `Rappel planifié : vérifier ${label} (prévu le ${date}).`,
+    unsupported: 'Les notifications Push via Service Worker ne sont pas prises en charge sur ce navigateur.',
+    denied: 'Autorisation de notification refusée dans le navigateur.',
+    vapidFail: 'Impossible de récupérer la clé publique VAPID.',
+    subscribeFail: 'Échec de l’enregistrement des rappels push.',
+    enableFirst: 'Activez d’abord les notifications Push en arrière-plan.',
+    testFail: 'Échec de l’envoi du push de test.',
+    testSent: 'Notification Push de test envoyée !',
+  },
+};
 
 export interface ScheduledReminderPayload {
   id: string;
@@ -57,12 +129,13 @@ export function buildScheduledMaintenanceReminders(
         ? new Date(Date.now() + 60_000).toISOString()
         : `${dueDate}T09:00:00`;
 
+      const c = PUSH_COPY[prefs.language] ?? PUSH_COPY.en;
       reminders.push({
         id: item.id,
         title: `${vehicle.make} ${vehicle.model} · ${itemLabel}`,
         body: isOverdueOrToday
-          ? `Atenção: verificação de ${itemLabel} vencida ou prevista para hoje.`
-          : `Lembrete programado: verificar ${itemLabel} (previsto para ${dueDate}).`,
+          ? c.overdueBody(itemLabel)
+          : c.upcomingBody(itemLabel, dueDate),
         dueAtIso,
       });
     }
@@ -77,23 +150,25 @@ export async function getActivePushSubscription(): Promise<PushSubscription | nu
 }
 
 export async function subscribeAndSchedulePush(
-  reminders: ScheduledReminderPayload[]
+  reminders: ScheduledReminderPayload[],
+  language: LanguageCode = 'en'
 ): Promise<{
   subscription: PushSubscription;
   scheduledCount: number;
   persistentVapidConfigured: boolean;
 }> {
+  const c = PUSH_COPY[language] ?? PUSH_COPY.en;
   if (!isWebPushSupported()) {
-    throw new Error('Notificações Push via Service Worker não são suportadas neste navegador.');
+    throw new Error(c.unsupported);
   }
 
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
-    throw new Error('Permissão de notificação negada no navegador.');
+    throw new Error(c.denied);
   }
 
   const keyRes = await fetch('/api/push/vapid-public-key');
-  if (!keyRes.ok) throw new Error('Falha ao obter chave pública VAPID.');
+  if (!keyRes.ok) throw new Error(c.vapidFail);
   const { publicKey } = (await keyRes.json()) as { publicKey: string };
 
   const reg = await navigator.serviceWorker.ready;
@@ -115,7 +190,7 @@ export async function subscribeAndSchedulePush(
   });
   const syncData = await syncRes.json();
   if (!syncRes.ok) {
-    throw new Error(syncData.error || 'Falha ao registrar lembretes push.');
+    throw new Error(syncData.error || c.subscribeFail);
   }
 
   return {
@@ -151,10 +226,14 @@ export async function unsubscribePush(): Promise<void> {
   await sub.unsubscribe();
 }
 
-export async function sendTestScheduledPush(delaySeconds = 5): Promise<string> {
+export async function sendTestScheduledPush(
+  delaySeconds = 5,
+  language: LanguageCode = 'en'
+): Promise<string> {
+  const c = PUSH_COPY[language] ?? PUSH_COPY.en;
   const sub = await getActivePushSubscription();
   if (!sub) {
-    throw new Error('Ative primeiro as notificações Push em segundo plano.');
+    throw new Error(c.enableFirst);
   }
   const res = await fetch('/api/push/test', {
     method: 'POST',
@@ -166,7 +245,7 @@ export async function sendTestScheduledPush(delaySeconds = 5): Promise<string> {
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || 'Falha ao enviar push de teste.');
+    throw new Error(data.error || c.testFail);
   }
-  return data.message || 'Notificação Push enviada pelo Service Worker!';
+  return c.testSent;
 }

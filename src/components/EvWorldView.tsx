@@ -7,6 +7,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
+import { getUi } from '../data/uiTranslations';
 import {
   ChargingSession,
   LanguageCode,
@@ -83,7 +84,8 @@ export function EvWorldView({
   onOpenAddVehicle,
   onUpdatePrefs,
 }: EvWorldViewProps) {
-  const copy = EV_COPY[prefs.language] ?? EV_COPY.pt;
+  const copy = EV_COPY[prefs.language] ?? EV_COPY.en;
+  const evUi = getUi(prefs.language).evUi;
   const isEvOrHybrid =
     vehicle?.powertrain === PowertrainType.ELECTRIC ||
     vehicle?.powertrain === PowertrainType.HYBRID;
@@ -165,10 +167,10 @@ export function EvWorldView({
           <Zap className="w-10 h-10 text-sky-500 dark:text-sky-400 mx-auto" />
           <div className="space-y-1">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-slate-100">
-              Nenhum veículo cadastrado
+              {evUi.emptyTitle}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              Cadastre seu veículo elétrico, híbrido ou a combustão para planejar rotas e registrar recargas.
+              {evUi.emptyDesc}
             </p>
           </div>
           <button
@@ -504,11 +506,12 @@ export function EvWorldView({
                       language={prefs.language}
                       compact
                       label=""
-                      title="Enviar recarga para WhatsApp cadastrado"
+                      title={evUi.sendChargeWaTitle}
                       message={buildChargingSessionWhatsAppText({
                         vehicle,
                         session: s,
                         currency: prefs.currency,
+                        language: prefs.language,
                       })}
                       onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
                     />

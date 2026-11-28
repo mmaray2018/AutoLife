@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { getUi } from '../data/uiTranslations';
 import {
   ChargingSession,
   PowertrainType,
@@ -52,26 +53,11 @@ interface VehicleCarbonDatum {
 }
 
 const GRID_FACTORS_KG_PER_KWH: Record<GridMix, number> = {
-  brazil: 0.095, // Matriz renovável (hidro/solar/eólica)
-  global: 0.28,  // Média elétrica global
+  brazil: 0.095,
+  global: 0.28,
 };
 
-const MONTH_SHORT_PT = [
-  'Jan',
-  'Fev',
-  'Mar',
-  'Abr',
-  'Mai',
-  'Jun',
-  'Jul',
-  'Ago',
-  'Set',
-  'Out',
-  'Nov',
-  'Dez',
-];
-
-function getRecentMonths(count: number): { key: string; label: string; startIso: string; endIso: string; daysInMonth: number }[] {
+function getRecentMonths(count: number, monthNames: string[]): { key: string; label: string; startIso: string; endIso: string; daysInMonth: number }[] {
   const now = new Date();
   const months: { key: string; label: string; startIso: string; endIso: string; daysInMonth: number }[] = [];
 
@@ -82,7 +68,7 @@ function getRecentMonths(count: number): { key: string; label: string; startIso:
     const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
     const mm = String(monthIdx + 1).padStart(2, '0');
     const key = `${year}-${mm}`;
-    const label = `${MONTH_SHORT_PT[monthIdx]}/${String(year).slice(-2)}`;
+    const label = `${(monthNames[monthIdx] ?? mm).slice(0, 3)}/${String(year).slice(-2)}`;
     months.push({
       key,
       label,
@@ -221,6 +207,11 @@ export function CarbonFootprintSection({
   chargingSessions,
   prefs,
 }: CarbonFootprintSectionProps) {
+  const bundle = getUi(prefs.language);
+  const ui = bundle.carbonUi;
+  const scopeUi = bundle.analyticsUi;
+  const monthNames = bundle.medicalUi.monthNames;
+
   const [scope, setScope] = useState<'all' | 'car' | 'motorcycle' | 'active'>('all');
   const [gridMix, setGridMix] = useState<GridMix>('brazil');
 
@@ -231,7 +222,7 @@ export function CarbonFootprintSection({
     return vehicles;
   }, [vehicles, scope, activeVehicle]);
 
-  const months = useMemo(() => getRecentMonths(6), []);
+  const months = useMemo(() => getRecentMonths(6, monthNames), [monthNames]);
   const today = todayIso();
 
   // Monthly 6-month carbon series
@@ -306,12 +297,12 @@ export function CarbonFootprintSection({
 
       const powertrainLabel =
         v.powertrain === PowertrainType.ELECTRIC
-          ? 'Elétrico'
+          ? ui.powertrainLabels.electric
           : v.powertrain === PowertrainType.HYBRID
-          ? 'Híbrido'
+          ? ui.powertrainLabels.hybrid
           : v.powertrain === PowertrainType.DIESEL
-          ? 'Diesel'
-          : 'Combustão';
+          ? ui.powertrainLabels.diesel
+          : ui.powertrainLabels.combustion;
 
       return {
         id: v.id,
@@ -323,7 +314,7 @@ export function CarbonFootprintSection({
         combustionBaselineKg,
       };
     });
-  }, [scopedVehicles, logs, chargingSessions, currentMonth, gridMix, today]);
+  }, [scopedVehicles, logs, chargingSessions, currentMonth, gridMix, today, ui.powertrainLabels]);
 
   const kpis = useMemo(() => {
     const latest = monthlyData[monthlyData.length - 1] ?? {
@@ -394,23 +385,23 @@ export function CarbonFootprintSection({
           <div className="flex items-center gap-2">
             <Leaf className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-              Pegada de Carbono Mensal &amp; Redução EV
+              {ui.title}
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Cálculo de CO₂e baseado no histórico de odômetro, rodagem mensal e propulsão (combustão, híbrido e elétrico)
+            {ui.subtitle}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <select
-            aria-label="Matriz elétrica de cálculo de CO2"
+            aria-label={ui.title}
             value={gridMix}
             onChange={(e) => setGridMix(e.target.value as GridMix)}
             className="px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
           >
-            <option value="brazil">Matriz Brasil (95 gCO₂/kWh)</option>
-            <option value="global">Média Global (280 gCO₂/kWh)</option>
+            <option value="brazil">{ui.gridBrazil}</option>
+            <option value="global">{ui.gridGlobal}</option>
           </select>
 
           <div className="inline-flex flex-wrap rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] p-1 w-fit shrink-0">
@@ -423,7 +414,7 @@ export function CarbonFootprintSection({
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
-              Todos ({vehicles.length})
+              {scopeUi.scopeAll} ({vehicles.length})
             </button>
             <button
               type="button"
@@ -434,7 +425,7 @@ export function CarbonFootprintSection({
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
-              Carros ({carCount})
+              {scopeUi.scopeCars} ({carCount})
             </button>
             <button
               type="button"
@@ -445,7 +436,7 @@ export function CarbonFootprintSection({
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
-              Motos ({motoCount})
+              {scopeUi.scopeMotos} ({motoCount})
             </button>
             <button
               type="button"
@@ -456,7 +447,7 @@ export function CarbonFootprintSection({
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
-              Ativo
+              {scopeUi.scopeActive}
             </button>
           </div>
         </div>
@@ -466,49 +457,49 @@ export function CarbonFootprintSection({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 tabular-nums">
         <div className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            Pegada Mensal Atual
+            {ui.kpiMonthlyCo2}
           </div>
           <div className="mt-1 font-mono text-lg font-bold text-slate-900 dark:text-slate-100">
             {kpis.monthlyActualKg.toFixed(1)} kg CO₂
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-            {formatDistance(kpis.monthlyDistanceKm, prefs.units)}/mês estimados
+            {formatDistance(kpis.monthlyDistanceKm, prefs.units)} {ui.kpiEstMonthDist}
           </div>
         </div>
 
         <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-700/50 bg-emerald-50/50 dark:bg-emerald-950/25">
           <div className="text-xs text-emerald-700 dark:text-emerald-300">
-            CO₂ Evitado (Elétricos / Híbridos)
+            {ui.kpiAvoidedCo2}
           </div>
           <div className="mt-1 font-mono text-lg font-bold text-emerald-600 dark:text-emerald-400">
-            -{kpis.monthlyAvoidedKg.toFixed(1)} kg/mês
+            -{kpis.monthlyAvoidedKg.toFixed(1)} kg
           </div>
           <div className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 mt-0.5">
-            {kpis.sixMonthAvoidedKg.toFixed(0)} kg evitados em 6 meses
+            {kpis.sixMonthAvoidedKg.toFixed(0)} kg · {ui.kpiAvoided6m}
           </div>
         </div>
 
         <div className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            Redução de Impacto vs Combustão
+            {ui.kpiReduction}
           </div>
           <div className="mt-1 font-mono text-lg font-bold text-sky-600 dark:text-sky-400">
             -{kpis.reductionPct}%
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-            ~{kpis.annualTreesEquivalent} árvores/ano equivalentes
+            ~{kpis.annualTreesEquivalent} {ui.kpiTreesYear}
           </div>
         </div>
 
         <div className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            Intensidade Média da Frota
+            {ui.kpiIntensity}
           </div>
           <div className="mt-1 font-mono text-lg font-bold text-slate-900 dark:text-slate-100">
             {kpis.avgGramsPerKm} g/km
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-            Meta referência EV: &lt; 25 g/km
+            {ui.kpiEvTarget}: &lt; 25 g/km
           </div>
         </div>
       </div>
@@ -518,7 +509,7 @@ export function CarbonFootprintSection({
         {/* Chart 1: 6-Month CO2 Trend + EV Reduction Stack vs Combustion Baseline */}
         <div className="space-y-3">
           <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Evolução Mensal: Emissão Real vs CO₂ Evitado por EVs (kg CO₂)
+            {ui.chartEvolutionTitle}
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -556,19 +547,19 @@ export function CarbonFootprintSection({
                           {row.label} · {formatDistance(row.distanceKm, prefs.units)}
                         </div>
                         <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-300">
-                          <span>Emissão Real:</span>
+                          <span>{ui.tooltipReal}:</span>
                           <span className="font-mono font-semibold text-sky-600 dark:text-sky-400">
                             {row.actualCo2Kg.toFixed(1)} kg CO₂
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-300">
-                          <span>CO₂ Evitado (EV/Híbrido):</span>
+                          <span>{ui.tooltipAvoided}:</span>
                           <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
                             -{row.avoidedCo2Kg.toFixed(1)} kg CO₂
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-4 text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-white/10 pt-1">
-                          <span>Cenário 100% Combustão:</span>
+                          <span>{ui.tooltipBaseline}:</span>
                           <span className="font-mono font-semibold">
                             {row.combustionBaselineKg.toFixed(1)} kg CO₂
                           </span>
@@ -580,14 +571,14 @@ export function CarbonFootprintSection({
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar
                   dataKey="actualCo2Kg"
-                  name="Emissão Real (kg)"
+                  name={ui.legendReal}
                   stackId="carbon"
                   fill="#2563eb"
                   radius={[0, 0, 0, 0]}
                 />
                 <Bar
                   dataKey="avoidedCo2Kg"
-                  name="Redução EV / Híbrido (kg)"
+                  name={ui.legendAvoided}
                   stackId="carbon"
                   fill="#10b981"
                   radius={[4, 4, 0, 0]}
@@ -595,7 +586,7 @@ export function CarbonFootprintSection({
                 <Line
                   type="monotone"
                   dataKey="combustionBaselineKg"
-                  name="Linha Base 100% Combustão"
+                  name={ui.legendBaseline}
                   stroke="#f59e0b"
                   strokeWidth={2}
                   strokeDasharray="4 4"
@@ -609,7 +600,7 @@ export function CarbonFootprintSection({
         {/* Chart 2: Per-Vehicle Monthly Emissions vs EV Savings */}
         <div className="space-y-3">
           <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Pegada Mensal vs Economia EV por Veículo (kg CO₂/mês)
+            {ui.chartPerVehicleTitle}
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -647,18 +638,18 @@ export function CarbonFootprintSection({
                           {row.name} ({row.powertrainLabel})
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                          Rodagem mensal: {formatDistance(row.monthlyKm, prefs.units)}
+                          {ui.tooltipMonthlyDist}: {formatDistance(row.monthlyKm, prefs.units)}
                         </div>
                         <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-300">
-                          <span>Emissão Atual:</span>
+                          <span>{ui.tooltipReal}:</span>
                           <span className="font-mono font-semibold text-sky-600 dark:text-sky-400">
-                            {row.actualCo2Kg.toFixed(1)} kg/mês
+                            {row.actualCo2Kg.toFixed(1)} kg
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-300">
-                          <span>CO₂ Evitado (EV/Híbrido):</span>
+                          <span>{ui.tooltipAvoided}:</span>
                           <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                            -{row.avoidedCo2Kg.toFixed(1)} kg/mês
+                            -{row.avoidedCo2Kg.toFixed(1)} kg
                           </span>
                         </div>
                       </div>
@@ -668,13 +659,13 @@ export function CarbonFootprintSection({
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar
                   dataKey="actualCo2Kg"
-                  name="Emissão Atual (kg)"
+                  name={ui.legendActualVehicle}
                   fill="#0284c7"
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar
                   dataKey="avoidedCo2Kg"
-                  name="Economia EV/Híbrido (kg)"
+                  name={ui.legendSavingsVehicle}
                   fill="#10b981"
                   radius={[4, 4, 0, 0]}
                 />
@@ -691,22 +682,22 @@ export function CarbonFootprintSection({
           <div className="text-slate-700 dark:text-slate-200 leading-relaxed">
             {kpis.topCandidateInsight ? (
               <>
-                <strong>Simulação de Eletrificação:</strong> Substituir{' '}
-                <strong>{kpis.topCandidateInsight.name}</strong> por um modelo 100% elétrico
-                reduziria mais{' '}
+                <strong>{ui.simPrefix}:</strong>{' '}
+                <strong>{kpis.topCandidateInsight.name}</strong> {ui.simMiddle}{' '}
                 <strong className="font-mono text-emerald-700 dark:text-emerald-300">
-                  {kpis.topCandidateInsight.extraMonthlySavingsKg.toFixed(1)} kg CO₂/mês
+                  {kpis.topCandidateInsight.extraMonthlySavingsKg.toFixed(1)} kg CO₂
                 </strong>{' '}
-                ({Math.round((kpis.topCandidateInsight.extraMonthlySavingsKg * 12) / 21.7)} árvores/ano
-                equivalentes).
+                {ui.simMiddle2} (
+                {Math.round((kpis.topCandidateInsight.extraMonthlySavingsKg * 12) / 21.7)}{' '}
+                {ui.simTrees}).
               </>
             ) : (
               <>
-                <strong>Frota 100% Elétrica neste filtro:</strong> Redução de{' '}
+                <strong>{ui.simAllEvTitle}:</strong>{' '}
                 <strong className="font-mono text-emerald-700 dark:text-emerald-300">
-                  {kpis.reductionPct}%
+                  -{kpis.reductionPct}%
                 </strong>{' '}
-                nas emissões de carbono em relação a equivalentes a gasolina.
+                {ui.simAllEvSuffix}
               </>
             )}
           </div>

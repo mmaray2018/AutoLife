@@ -22,6 +22,7 @@ export interface CloudSnapshot {
   logs: ServiceLog[];
   chargingSessions: ChargingSession[];
   prefs: UserPreferences | null;
+  preferencesUntouched: boolean;
 }
 
 export async function fetchCloudSnapshot(userId: string): Promise<CloudSnapshot | null> {
@@ -129,6 +130,12 @@ export async function fetchCloudSnapshot(userId: string): Promise<CloudSnapshot 
 
   const p = prefRes.data;
   const resolvedCurrency = ((p?.currency as CurrencyCode) ?? 'BRL') as CurrencyCode;
+  const createdMs = p?.created_at ? new Date(p.created_at).getTime() : 0;
+  const updatedMs = p?.updated_at ? new Date(p.updated_at).getTime() : 0;
+  const preferencesUntouched = Boolean(
+    !p ||
+      (createdMs > 0 && updatedMs > 0 && Math.abs(updatedMs - createdMs) <= 5000)
+  );
   const prefs: UserPreferences | null = p
     ? {
         language: p.language,
@@ -145,7 +152,7 @@ export async function fetchCloudSnapshot(userId: string): Promise<CloudSnapshot 
       }
     : null;
 
-  return { vehicles, items, logs, chargingSessions, prefs };
+  return { vehicles, items, logs, chargingSessions, prefs, preferencesUntouched };
 }
 
 export async function syncVehicleToCloud(userId: string, v: Vehicle): Promise<void> {

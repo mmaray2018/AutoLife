@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ExternalLink, MessageCircle, X } from 'lucide-react';
+import { getUi } from '../data/uiTranslations';
 import { LanguageCode } from '../types/autolife';
 import { buildWhatsAppUrl, sanitizeWhatsAppNumber } from '../utils/whatsapp';
 
@@ -18,16 +19,19 @@ export function WhatsAppConnectButton({
   whatsappNumber,
   language,
   message,
-  label = 'WhatsApp',
+  label,
   compact = false,
-  title = 'Enviar para WhatsApp cadastrado',
+  title,
   className,
   onSaveWhatsApp,
 }: WhatsAppConnectButtonProps) {
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [phoneInput, setPhoneInput] = useState(whatsappNumber ?? '');
   const [validationError, setValidationError] = useState<string | null>(null);
+  const ui = getUi(language).whatsapp;
 
+  const effectiveLabel = label === undefined ? ui.buttonLabel : label;
+  const effectiveTitle = title ?? ui.buttonDefaultTitle;
   const waUrl = buildWhatsAppUrl(whatsappNumber, language, message);
 
   const defaultClass = compact
@@ -41,11 +45,11 @@ export function WhatsAppConnectButton({
         target="_blank"
         rel="noopener noreferrer"
         className={className ?? defaultClass}
-        title={title}
-        aria-label={title}
+        title={effectiveTitle}
+        aria-label={effectiveTitle}
       >
         <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-        {label ? <span>{label}</span> : null}
+        {effectiveLabel ? <span>{effectiveLabel}</span> : null}
       </a>
     );
   }
@@ -54,7 +58,7 @@ export function WhatsAppConnectButton({
     e.preventDefault();
     const clean = sanitizeWhatsAppNumber(phoneInput, language);
     if (!clean) {
-      setValidationError('Informe um WhatsApp válido com DDD (ex.: +55 11 99999-8888).');
+      setValidationError(ui.invalidError);
       return;
     }
     setValidationError(null);
@@ -74,11 +78,11 @@ export function WhatsAppConnectButton({
           setShowSetupModal(true);
         }}
         className={className ?? defaultClass}
-        title={title}
-        aria-label={title}
+        title={effectiveTitle}
+        aria-label={effectiveTitle}
       >
         <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-        {label ? <span>{label}</span> : null}
+        {effectiveLabel ? <span>{effectiveLabel}</span> : null}
       </button>
 
       {showSetupModal && (
@@ -92,17 +96,17 @@ export function WhatsAppConnectButton({
               <div>
                 <h3 className="font-display text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>Conectar WhatsApp</span>
+                  <span>{ui.connectTitle}</span>
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Cadastre seu número uma vez para enviar qualquer serviço, nota ou agendamento direto para o seu WhatsApp.
+                  {ui.connectDesc}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowSetupModal(false)}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-                aria-label="Fechar"
+                aria-label={ui.close}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -111,12 +115,12 @@ export function WhatsAppConnectButton({
             <form onSubmit={handleSave} className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                  WhatsApp cadastrado (com DDI + DDD)
+                  {ui.inputLabel}
                 </label>
                 <input
                   type="tel"
                   required
-                  placeholder="Ex.: +55 11 99999-8888"
+                  placeholder={ui.inputPlaceholder}
                   value={phoneInput}
                   onChange={(e) => setPhoneInput(e.target.value)}
                   className="w-full px-3 py-2 text-sm font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -133,13 +137,13 @@ export function WhatsAppConnectButton({
                   onClick={() => setShowSetupModal(false)}
                   className="px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"
                 >
-                  Cancelar
+                  {ui.cancel}
                 </button>
                 <button
                   type="submit"
                   className="px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 text-white"
                 >
-                  Salvar WhatsApp
+                  {ui.saveOnly}
                 </button>
                 {savedPreviewUrl && (
                   <a
@@ -153,7 +157,7 @@ export function WhatsAppConnectButton({
                     }}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white"
                   >
-                    <span>Salvar e Abrir WhatsApp</span>
+                    <span>{ui.saveAndOpen}</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 )}

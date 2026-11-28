@@ -22,9 +22,11 @@ import {
   Zap,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
+import { getUi } from '../data/uiTranslations';
 import {
   AttachmentCategory,
   ChargingSession,
+  LanguageCode,
   MaintenanceCategory,
   MaintenanceItem,
   MaintenanceStatus,
@@ -42,11 +44,11 @@ import {
 } from '../utils/autolife';
 import { convertCurrency } from '../utils/billing';
 import {
-  ATTACHMENT_CATEGORY_LABELS,
   buildVehicleTimelineEntries,
   downloadPdfBlob,
   FinalReportTimelineItem,
   generateVehicleFinalPdf,
+  getLocalizedAttachmentLabels,
   sharePdfViaWebShare,
 } from '../utils/pdfReport';
 import {
@@ -88,6 +90,289 @@ function isSafeHttpsUrl(url?: string): url is string {
   }
 }
 
+const FINAL_REPORT_COPY: Record<
+  LanguageCode,
+  {
+    titlePrefix: string;
+    duePlannedPrefix: string;
+    daysLeftSuffix: string;
+    pdfErrorFallback: string;
+    shareTitlePrefix: string;
+    pdfSharedOk: (filename: string, photos: number) => string;
+    pdfAttachedWaNote: (filename: string, photos: number) => string;
+    pdfWaFallbackOk: (filename: string, photos: number) => string;
+    pdfWaError: string;
+    pdfEmailSharedOk: (filename: string, photos: number) => string;
+    pdfEmailBodyNote: (filename: string, photos: number) => string;
+    pdfEmailFallbackOk: (filename: string, photos: number, targetEmail: string) => string;
+    pdfEmailError: string;
+    visualNotePrefix: string;
+    photoSavedOk: (fileName: string) => string;
+    photoUploadErr: string;
+    attDeleteErr: string;
+    printTitle: string;
+    waInputAria: string;
+    emailInputAria: string;
+    emailInputPlaceholder: string;
+    issuedPrefix: string;
+    platePrefix: string;
+    currentOdometer: string;
+    recommendedTire: string;
+    licenseLabel: string;
+    insuranceLabel: string;
+    ownerLabel: string;
+    localAccount: string;
+    notInformed: string;
+    timelineSubtitle: string;
+    filterAll: string;
+    filterMaint: string;
+    filterFuel: string;
+    filterEv: string;
+    filterExpense: string;
+    searchPlaceholder: string;
+    filteredEmpty: string;
+    photoCategoryAria: string;
+    pdfDocumentLabel: string;
+    signInPhotosBtn: string;
+  }
+> = {
+  pt: {
+    titlePrefix: 'Relatório Final',
+    duePlannedPrefix: 'Previsto',
+    daysLeftSuffix: 'd restantes',
+    pdfErrorFallback: 'Não foi possível gerar o PDF completo.',
+    shareTitlePrefix: 'Relatório Final',
+    pdfSharedOk: (f, p) => `PDF "${f}" compartilhado diretamente com ${p} foto(s).`,
+    pdfAttachedWaNote: (f, p) => `*Anexo em PDF gerado:* ${f} (${p} foto(s) incluída(s)).`,
+    pdfWaFallbackOk: (f, p) =>
+      `PDF "${f}" baixado com ${p} foto(s) e WhatsApp aberto — basta anexar o PDF baixado na conversa.`,
+    pdfWaError: 'Erro ao preparar o PDF para o WhatsApp.',
+    pdfEmailSharedOk: (f, p) => `PDF "${f}" enviado para compartilhamento por e-mail com ${p} foto(s).`,
+    pdfEmailBodyNote: (f, p) =>
+      `Arquivo PDF completo com ${p} foto(s) baixado: ${f} (anexe este arquivo ao e-mail antes de enviar).`,
+    pdfEmailFallbackOk: (f, p, em) =>
+      `PDF "${f}" baixado com ${p} foto(s) e seu cliente de e-mail foi aberto${em ? ` para ${em}` : ''} — anexe o PDF baixado.`,
+    pdfEmailError: 'Erro ao gerar PDF para e-mail.',
+    visualNotePrefix: 'Registro visual',
+    photoSavedOk: (n) => `Arquivo "${n}" salvo e já incluído no Relatório Final e no PDF.`,
+    photoUploadErr: 'Erro ao enviar foto.',
+    attDeleteErr: 'Erro ao remover anexo.',
+    printTitle: 'Imprimir página do relatório',
+    waInputAria: 'WhatsApp de destino para o relatório em PDF',
+    emailInputAria: 'E-mail de destino para o relatório em PDF',
+    emailInputPlaceholder: 'E-mail de destino (comprador, oficina ou seu)',
+    issuedPrefix: 'Emissão',
+    platePrefix: 'Placa',
+    currentOdometer: 'Odômetro atual',
+    recommendedTire: 'Calibragem recomendada',
+    licenseLabel: 'Licenciamento / Inspeção',
+    insuranceLabel: 'Apólice de Seguro',
+    ownerLabel: 'Proprietário',
+    localAccount: 'Conta local',
+    notInformed: 'Não informado',
+    timelineSubtitle:
+      'Tudo que foi realizado e registrado no veículo com datas, quilometragem, oficinas, valores e fotos vinculadas',
+    filterAll: 'Tudo',
+    filterMaint: 'Manutenções',
+    filterFuel: 'Abastecimentos',
+    filterEv: 'Recargas EV',
+    filterExpense: 'Gastos & Docs',
+    searchPlaceholder: 'Filtrar serviço, oficina, peça ou data...',
+    filteredEmpty: 'Nenhum registro encontrado para este filtro ou busca.',
+    photoCategoryAria: 'Categoria da foto',
+    pdfDocumentLabel: 'Documento PDF',
+    signInPhotosBtn: 'Entrar na conta para anexar fotos',
+  },
+  en: {
+    titlePrefix: 'Final Report',
+    duePlannedPrefix: 'Due',
+    daysLeftSuffix: 'd left',
+    pdfErrorFallback: 'Could not generate the complete PDF.',
+    shareTitlePrefix: 'Final Report',
+    pdfSharedOk: (f, p) => `PDF "${f}" shared directly with ${p} photo(s).`,
+    pdfAttachedWaNote: (f, p) => `*PDF Attachment generated:* ${f} (${p} photo(s) included).`,
+    pdfWaFallbackOk: (f, p) =>
+      `PDF "${f}" downloaded with ${p} photo(s) and WhatsApp opened — attach the downloaded PDF in the chat.`,
+    pdfWaError: 'Error preparing the PDF for WhatsApp.',
+    pdfEmailSharedOk: (f, p) => `PDF "${f}" ready to share by email with ${p} photo(s).`,
+    pdfEmailBodyNote: (f, p) =>
+      `Complete PDF file with ${p} photo(s) downloaded: ${f} (attach this file to your email before sending).`,
+    pdfEmailFallbackOk: (f, p, em) =>
+      `PDF "${f}" downloaded with ${p} photo(s) and your email client opened${em ? ` for ${em}` : ''} — attach the downloaded PDF.`,
+    pdfEmailError: 'Error generating PDF for email.',
+    visualNotePrefix: 'Visual record',
+    photoSavedOk: (n) => `File "${n}" saved and included in the Final Report and PDF.`,
+    photoUploadErr: 'Error uploading photo.',
+    attDeleteErr: 'Error deleting attachment.',
+    printTitle: 'Print report page',
+    waInputAria: 'Destination WhatsApp for PDF report',
+    emailInputAria: 'Destination email for PDF report',
+    emailInputPlaceholder: 'Destination email (buyer, workshop, or yours)',
+    issuedPrefix: 'Issued',
+    platePrefix: 'Plate',
+    currentOdometer: 'Current odometer',
+    recommendedTire: 'Recommended tire pressure',
+    licenseLabel: 'Registration / Inspection',
+    insuranceLabel: 'Insurance Policy',
+    ownerLabel: 'Owner',
+    localAccount: 'Local account',
+    notInformed: 'Not provided',
+    timelineSubtitle:
+      'Everything performed and logged for the vehicle with dates, mileage, workshops, costs, and attached photos',
+    filterAll: 'All',
+    filterMaint: 'Maintenance',
+    filterFuel: 'Refueling',
+    filterEv: 'EV Charging',
+    filterExpense: 'Expenses & Docs',
+    searchPlaceholder: 'Filter service, workshop, part, or date...',
+    filteredEmpty: 'No records found for this filter or search.',
+    photoCategoryAria: 'Photo category',
+    pdfDocumentLabel: 'PDF Document',
+    signInPhotosBtn: 'Sign in to attach photos',
+  },
+  es: {
+    titlePrefix: 'Informe Final',
+    duePlannedPrefix: 'Previsto',
+    daysLeftSuffix: 'd restantes',
+    pdfErrorFallback: 'No se pudo generar el PDF completo.',
+    shareTitlePrefix: 'Informe Final',
+    pdfSharedOk: (f, p) => `PDF "${f}" compartido directamente con ${p} foto(s).`,
+    pdfAttachedWaNote: (f, p) => `*Adjunto en PDF generado:* ${f} (${p} foto(s) incluida(s)).`,
+    pdfWaFallbackOk: (f, p) =>
+      `PDF "${f}" descargado con ${p} foto(s) y WhatsApp abierto — solo adjunta el PDF descargado en el chat.`,
+    pdfWaError: 'Error al preparar el PDF para WhatsApp.',
+    pdfEmailSharedOk: (f, p) => `PDF "${f}" enviado para compartir por correo con ${p} foto(s).`,
+    pdfEmailBodyNote: (f, p) =>
+      `Archivo PDF completo con ${p} foto(s) descargado: ${f} (adjunta este archivo al correo antes de enviarlo).`,
+    pdfEmailFallbackOk: (f, p, em) =>
+      `PDF "${f}" descargado con ${p} foto(s) y cliente de correo abierto${em ? ` para ${em}` : ''} — adjunta el PDF descargado.`,
+    pdfEmailError: 'Error al generar el PDF para correo.',
+    visualNotePrefix: 'Registro visual',
+    photoSavedOk: (n) => `Archivo "${n}" guardado e incluido en el Informe Final y el PDF.`,
+    photoUploadErr: 'Error al subir la foto.',
+    attDeleteErr: 'Error al eliminar el adjunto.',
+    printTitle: 'Imprimir página del informe',
+    waInputAria: 'WhatsApp de destino para el informe en PDF',
+    emailInputAria: 'Correo electrónico de destino para el informe en PDF',
+    emailInputPlaceholder: 'Correo de destino (comprador, taller o tuyo)',
+    issuedPrefix: 'Emisión',
+    platePrefix: 'Matrícula',
+    currentOdometer: 'Odómetro actual',
+    recommendedTire: 'Presión recomendada',
+    licenseLabel: 'Permiso / ITV',
+    insuranceLabel: 'Póliza de Seguro',
+    ownerLabel: 'Propietario',
+    localAccount: 'Cuenta local',
+    notInformed: 'No indicado',
+    timelineSubtitle:
+      'Todo lo realizado y registrado en el vehículo con fechas, kilometraje, talleres, importes y fotos vinculadas',
+    filterAll: 'Todo',
+    filterMaint: 'Mantenimientos',
+    filterFuel: 'Repostajes',
+    filterEv: 'Cargas EV',
+    filterExpense: 'Gastos y Docs',
+    searchPlaceholder: 'Filtrar servicio, taller, pieza o fecha...',
+    filteredEmpty: 'No se encontraron registros para este filtro o búsqueda.',
+    photoCategoryAria: 'Categoría de la foto',
+    pdfDocumentLabel: 'Documento PDF',
+    signInPhotosBtn: 'Inicia sesión para adjuntar fotos',
+  },
+  de: {
+    titlePrefix: 'Abschlussbericht',
+    duePlannedPrefix: 'Fällig',
+    daysLeftSuffix: 'T verbleibend',
+    pdfErrorFallback: 'Vollständiges PDF konnte nicht erstellt werden.',
+    shareTitlePrefix: 'Abschlussbericht',
+    pdfSharedOk: (f, p) => `PDF "${f}" direkt mit ${p} Foto(s) geteilt.`,
+    pdfAttachedWaNote: (f, p) => `*PDF-Anhang erstellt:* ${f} (${p} Foto(s) enthalten).`,
+    pdfWaFallbackOk: (f, p) =>
+      `PDF "${f}" mit ${p} Foto(s) heruntergeladen und WhatsApp geöffnet — fügen Sie das PDF im Chat hinzu.`,
+    pdfWaError: 'Fehler beim Vorbereiten des PDFs für WhatsApp.',
+    pdfEmailSharedOk: (f, p) => `PDF "${f}" mit ${p} Foto(s) für E-Mail-Versand bereit.`,
+    pdfEmailBodyNote: (f, p) =>
+      `Vollständiges PDF mit ${p} Foto(s) heruntergeladen: ${f} (bitte vor dem Senden an die E-Mail anhängen).`,
+    pdfEmailFallbackOk: (f, p, em) =>
+      `PDF "${f}" mit ${p} Foto(s) heruntergeladen und E-Mail-Client geöffnet${em ? ` für ${em}` : ''} — bitte PDF anhängen.`,
+    pdfEmailError: 'Fehler beim Erstellen des PDFs für E-Mail.',
+    visualNotePrefix: 'Fotonachweis',
+    photoSavedOk: (n) => `Datei "${n}" gespeichert und im Abschlussbericht sowie PDF enthalten.`,
+    photoUploadErr: 'Fehler beim Hochladen des Fotos.',
+    attDeleteErr: 'Fehler beim Löschen des Anhangs.',
+    printTitle: 'Berichtsseite drucken',
+    waInputAria: 'Ziel-WhatsApp für PDF-Bericht',
+    emailInputAria: 'Ziel-E-Mail für PDF-Bericht',
+    emailInputPlaceholder: 'Ziel-E-Mail (Käufer, Werkstatt oder Ihre)',
+    issuedPrefix: 'Ausgestellt',
+    platePrefix: 'Kennzeichen',
+    currentOdometer: 'Aktueller Kilometerstand',
+    recommendedTire: 'Empfohlener Reifendruck',
+    licenseLabel: 'Zulassung / TÜV',
+    insuranceLabel: 'Versicherungspolice',
+    ownerLabel: 'Inhaber',
+    localAccount: 'Lokales Konto',
+    notInformed: 'Nicht angegeben',
+    timelineSubtitle:
+      'Alle durchgeführten und erfassten Arbeiten mit Datum, Kilometerstand, Werkstätten, Kosten und Fotos',
+    filterAll: 'Alle',
+    filterMaint: 'Wartungen',
+    filterFuel: 'Tankvorgänge',
+    filterEv: 'EV-Ladungen',
+    filterExpense: 'Ausgaben & Dok.',
+    searchPlaceholder: 'Service, Werkstatt, Teil oder Datum filtern...',
+    filteredEmpty: 'Keine Einträge für diesen Filter oder diese Suche gefunden.',
+    photoCategoryAria: 'Fotokategorie',
+    pdfDocumentLabel: 'PDF-Dokument',
+    signInPhotosBtn: 'Anmelden, um Fotos anzuhängen',
+  },
+  fr: {
+    titlePrefix: 'Rapport Final',
+    duePlannedPrefix: 'Prévu',
+    daysLeftSuffix: 'j restants',
+    pdfErrorFallback: 'Impossible de générer le PDF complet.',
+    shareTitlePrefix: 'Rapport Final',
+    pdfSharedOk: (f, p) => `PDF "${f}" partagé directement avec ${p} photo(s).`,
+    pdfAttachedWaNote: (f, p) => `*Pièce jointe PDF générée :* ${f} (${p} photo(s) incluse(s)).`,
+    pdfWaFallbackOk: (f, p) =>
+      `PDF "${f}" téléchargé avec ${p} photo(s) et WhatsApp ouvert — joignez le PDF téléchargé dans la discussion.`,
+    pdfWaError: 'Erreur lors de la préparation du PDF pour WhatsApp.',
+    pdfEmailSharedOk: (f, p) => `PDF "${f}" prêt pour le partage par e-mail avec ${p} photo(s).`,
+    pdfEmailBodyNote: (f, p) =>
+      `Fichier PDF complet avec ${p} photo(s) téléchargé : ${f} (joignez ce fichier à l’e-mail avant l’envoi).`,
+    pdfEmailFallbackOk: (f, p, em) =>
+      `PDF "${f}" téléchargé avec ${p} photo(s) et client e-mail ouvert${em ? ` pour ${em}` : ''} — joignez le PDF.`,
+    pdfEmailError: 'Erreur lors de la génération du PDF pour e-mail.',
+    visualNotePrefix: 'Trace visuelle',
+    photoSavedOk: (n) => `Fichier "${n}" enregistré et inclus dans le Rapport Final et le PDF.`,
+    photoUploadErr: 'Erreur lors de l’envoi de la photo.',
+    attDeleteErr: 'Erreur lors de la suppression de la pièce jointe.',
+    printTitle: 'Imprimer la page du rapport',
+    waInputAria: 'WhatsApp destinataire pour le rapport PDF',
+    emailInputAria: 'E-mail destinataire pour le rapport PDF',
+    emailInputPlaceholder: 'E-mail destinataire (acheteur, garage ou le vôtre)',
+    issuedPrefix: 'Émission',
+    platePrefix: 'Immatriculation',
+    currentOdometer: 'Kilométrage actuel',
+    recommendedTire: 'Pression recommandée',
+    licenseLabel: 'Contrôle Technique / Carte grise',
+    insuranceLabel: 'Police d’Assurance',
+    ownerLabel: 'Propriétaire',
+    localAccount: 'Compte local',
+    notInformed: 'Non précisé',
+    timelineSubtitle:
+      'Tout ce qui a été réalisé et enregistré sur le véhicule avec dates, kilométrage, garages, montants et photos',
+    filterAll: 'Tout',
+    filterMaint: 'Entretiens',
+    filterFuel: 'Pleins',
+    filterEv: 'Recharges EV',
+    filterExpense: 'Frais & Docs',
+    searchPlaceholder: 'Filtrer service, garage, pièce ou date...',
+    filteredEmpty: 'Aucun enregistrement trouvé pour ce filtre ou cette recherche.',
+    photoCategoryAria: 'Catégorie de la photo',
+    pdfDocumentLabel: 'Document PDF',
+    signInPhotosBtn: 'Se connecter pour joindre des photos',
+  },
+};
+
 export function VehicleFinalReportTab({
   vehicle,
   maintenanceItems,
@@ -104,6 +389,13 @@ export function VehicleFinalReportTab({
   onOpenCloudSettings,
   onUpdatePrefs,
 }: VehicleFinalReportTabProps) {
+  const ui = getUi(prefs.language);
+  const fCopy = FINAL_REPORT_COPY[prefs.language] ?? FINAL_REPORT_COPY.en;
+  const attachmentLabels = useMemo(
+    () => getLocalizedAttachmentLabels(prefs.language),
+    [prefs.language]
+  );
+
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [categoryFilter, setCategoryFilter] = useState<ReportCategoryFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,8 +426,9 @@ export function VehicleFinalReportTab({
         attachments,
         currency: prefs.currency,
         order: sortOrder,
+        language: prefs.language,
       }),
-    [vehicle, logs, chargingSessions, attachments, prefs.currency, sortOrder]
+    [vehicle, logs, chargingSessions, attachments, prefs.currency, sortOrder, prefs.language]
   );
 
   const filteredEntries = useMemo(() => {
@@ -207,8 +500,8 @@ export function VehicleFinalReportTab({
         title: localized,
         statusLabel: t.status[calc.status],
         dueSummary: calc.projectedDueDate
-          ? `Previsto ${calc.projectedDueDate}`
-          : `${Math.max(0, calc.daysRemaining)}d restantes`,
+          ? `${fCopy.duePlannedPrefix} ${calc.projectedDueDate}`
+          : `${Math.max(0, calc.daysRemaining)}${fCopy.daysLeftSuffix}`,
       }));
 
     return buildFullMedicalDossierText({
@@ -225,6 +518,7 @@ export function VehicleFinalReportTab({
       })),
       currency: prefs.currency,
       units: prefs.units,
+      language: prefs.language,
       ownerEmail: cloudUserEmail,
       upcomingReminders: urgentReminders,
       maxChars,
@@ -248,12 +542,12 @@ export function VehicleFinalReportTab({
       downloadPdfBlob(res.blob, res.filename);
       setFeedback({
         type: 'success',
-        message: `PDF "${res.filename}" gerado com ${timelineEntries.length} registro(s) e ${res.embeddedPhotosCount} foto(s) incorporada(s).`,
+        message: ui.finalReportUi.pdfGeneratedMsg,
       });
     } catch (err) {
       setFeedback({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Não foi possível gerar o PDF completo.',
+        message: err instanceof Error ? err.message : fCopy.pdfErrorFallback,
       });
     } finally {
       setPdfActionState('idle');
@@ -285,14 +579,14 @@ export function VehicleFinalReportTab({
       const summary = buildSummaryDossierText(1400);
       const shareStatus = await sharePdfViaWebShare({
         file: res.file,
-        title: `Relatório Final — ${vehicle.make} ${vehicle.model} (${vehicle.plate})`,
+        title: `${fCopy.shareTitlePrefix} — ${vehicle.make} ${vehicle.model} (${vehicle.plate})`,
         text: summary,
       });
 
       if (shareStatus === 'shared') {
         setFeedback({
           type: 'success',
-          message: `PDF "${res.filename}" compartilhado diretamente com ${res.embeddedPhotosCount} foto(s).`,
+          message: fCopy.pdfSharedOk(res.filename, res.embeddedPhotosCount),
         });
         return;
       }
@@ -302,10 +596,8 @@ export function VehicleFinalReportTab({
       }
 
       // Fallback for desktop browsers that don't support sharing files via navigator.share:
-      // 1. Download the real PDF file with all photos
-      // 2. Open WhatsApp Web/App with full text summary + notice of attached PDF filename
       downloadPdfBlob(res.blob, res.filename);
-      const messageWithPdfNote = `${summary}\n\n*Anexo em PDF gerado:* ${res.filename} (${res.embeddedPhotosCount} foto(s) incluída(s)).`;
+      const messageWithPdfNote = `${summary}\n\n${fCopy.pdfAttachedWaNote(res.filename, res.embeddedPhotosCount)}`;
       const targetPhone = sanitizeWhatsAppNumber(
         cleanPhone || prefs.whatsappNumber,
         prefs.language
@@ -317,13 +609,12 @@ export function VehicleFinalReportTab({
 
       setFeedback({
         type: 'success',
-        message: `PDF "${res.filename}" baixado com ${res.embeddedPhotosCount} foto(s) e WhatsApp aberto — basta anexar o PDF baixado na conversa.`,
+        message: fCopy.pdfWaFallbackOk(res.filename, res.embeddedPhotosCount),
       });
     } catch (err) {
       setFeedback({
         type: 'error',
-        message:
-          err instanceof Error ? err.message : 'Erro ao preparar o PDF para o WhatsApp.',
+        message: err instanceof Error ? err.message : fCopy.pdfWaError,
       });
     } finally {
       setPdfActionState('idle');
@@ -349,14 +640,14 @@ export function VehicleFinalReportTab({
       const summary = buildSummaryDossierText();
       const shareStatus = await sharePdfViaWebShare({
         file: res.file,
-        title: `Relatório Final — ${vehicle.make} ${vehicle.model} (${vehicle.plate})`,
+        title: `${fCopy.shareTitlePrefix} — ${vehicle.make} ${vehicle.model} (${vehicle.plate})`,
         text: summary.replace(/\*/g, '').slice(0, 1200),
       });
 
       if (shareStatus === 'shared') {
         setFeedback({
           type: 'success',
-          message: `PDF "${res.filename}" enviado para compartilhamento por e-mail com ${res.embeddedPhotosCount} foto(s).`,
+          message: fCopy.pdfEmailSharedOk(res.filename, res.embeddedPhotosCount),
         });
         return;
       }
@@ -367,22 +658,23 @@ export function VehicleFinalReportTab({
 
       // Desktop fallback: download the real PDF with photos and launch default mail client
       downloadPdfBlob(res.blob, res.filename);
-      const emailBody = `${summary}\n\nArquivo PDF completo com ${res.embeddedPhotosCount} foto(s) baixado: ${res.filename} (anexe este arquivo ao e-mail antes de enviar).`;
+      const emailBody = `${summary}\n\n${fCopy.pdfEmailBodyNote(res.filename, res.embeddedPhotosCount)}`;
       const mailtoUrl = buildMedicalDossierEmailUrl({
         recipientEmail: targetEmail,
         vehicle,
         dossierText: emailBody,
+        language: prefs.language,
       });
       window.location.href = mailtoUrl;
 
       setFeedback({
         type: 'success',
-        message: `PDF "${res.filename}" baixado com ${res.embeddedPhotosCount} foto(s) e seu cliente de e-mail foi aberto${targetEmail ? ` para ${targetEmail}` : ''} — anexe o PDF baixado.`,
+        message: fCopy.pdfEmailFallbackOk(res.filename, res.embeddedPhotosCount, targetEmail),
       });
     } catch (err) {
       setFeedback({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Erro ao gerar PDF para e-mail.',
+        message: err instanceof Error ? err.message : fCopy.pdfEmailError,
       });
     } finally {
       setPdfActionState('idle');
@@ -408,18 +700,18 @@ export function VehicleFinalReportTab({
         file,
         category: uploadCategory,
         attachmentDate: todayIso(),
-        notes: uploadNotes.trim() || `Registro visual — ${vehicle.make} ${vehicle.model}`,
+        notes: uploadNotes.trim() || `${fCopy.visualNotePrefix} — ${vehicle.make} ${vehicle.model}`,
       });
       onAttachmentCreated(uploaded);
       setUploadNotes('');
       setFeedback({
         type: 'success',
-        message: `Arquivo "${uploaded.fileName}" salvo e já incluído no Relatório Final e no PDF.`,
+        message: fCopy.photoSavedOk(uploaded.fileName),
       });
     } catch (err) {
       setFeedback({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Erro ao enviar foto.',
+        message: err instanceof Error ? err.message : fCopy.photoUploadErr,
       });
     } finally {
       setUploadingPhoto(false);
@@ -435,7 +727,7 @@ export function VehicleFinalReportTab({
     } catch (err) {
       setFeedback({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Erro ao remover anexo.',
+        message: err instanceof Error ? err.message : fCopy.attDeleteErr,
       });
     }
   };
@@ -462,10 +754,10 @@ export function VehicleFinalReportTab({
         <div className="p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-200/80 dark:border-white/10">
           <div className="min-w-0">
             <h2 className="font-display text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100">
-              Relatório Final — {vehicle.make} {vehicle.model} ({vehicle.year})
+              {fCopy.titlePrefix} — {vehicle.make} {vehicle.model} ({vehicle.year})
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Registro total do início ao fim com todos os serviços, gastos e fotos prontos para exportar ou enviar em PDF.
+              {ui.finalReportUi.headerSubtitle}
             </p>
           </div>
 
@@ -481,7 +773,7 @@ export function VehicleFinalReportTab({
               ) : (
                 <FileDown className="w-3.5 h-3.5" />
               )}
-              <span>Baixar PDF Completo</span>
+              <span>{ui.finalReportUi.downloadPdfBtn}</span>
             </button>
 
             <button
@@ -495,7 +787,7 @@ export function VehicleFinalReportTab({
               ) : (
                 <MessageCircle className="w-3.5 h-3.5" />
               )}
-              <span>Enviar PDF no WhatsApp</span>
+              <span>{ui.finalReportUi.sendWaPdfBtn}</span>
             </button>
 
             <button
@@ -509,17 +801,17 @@ export function VehicleFinalReportTab({
               ) : (
                 <Mail className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
               )}
-              <span>Enviar PDF por E-mail</span>
+              <span>{ui.finalReportUi.sendEmailBtn}</span>
             </button>
 
             <button
               type="button"
               onClick={() => window.print()}
               className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors whitespace-nowrap shrink-0"
-              title="Imprimir página do relatório"
+              title={fCopy.printTitle}
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Imprimir</span>
+              <span>{ui.finalReportUi.printBtn}</span>
             </button>
           </div>
         </div>
@@ -530,8 +822,8 @@ export function VehicleFinalReportTab({
             <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <input
               type="tel"
-              aria-label="WhatsApp de destino para o relatório em PDF"
-              placeholder="WhatsApp de destino (+55 11 99999-8888)"
+              aria-label={fCopy.waInputAria}
+              placeholder={`${ui.finalReportUi.quickSendWaLabel} (${ui.whatsapp.inputPlaceholder})`}
               value={whatsappInput}
               onChange={(e) => setWhatsappInput(e.target.value)}
               className="w-full max-w-xs px-2.5 py-1.5 text-xs font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -542,8 +834,8 @@ export function VehicleFinalReportTab({
             <Mail className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
             <input
               type="email"
-              aria-label="E-mail de destino para o relatório em PDF"
-              placeholder="E-mail de destino (comprador, oficina ou seu)"
+              aria-label={fCopy.emailInputAria}
+              placeholder={fCopy.emailInputPlaceholder}
               value={recipientEmail}
               onChange={(e) => setRecipientEmail(e.target.value)}
               className="w-full max-w-sm px-2.5 py-1.5 text-xs font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -571,10 +863,10 @@ export function VehicleFinalReportTab({
           <div className="px-5 py-4 border-b border-slate-200/80 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <div className="text-xs font-semibold text-sky-600 dark:text-sky-400">
-                Dossiê Técnico Completo · Emissão {todayIso()}
+                {ui.finalReportUi.headerBadge} · {fCopy.issuedPrefix} {todayIso()}
               </div>
               <h3 className="font-display text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
-                {vehicle.make} {vehicle.model} ({vehicle.year}) · Placa{' '}
+                {vehicle.make} {vehicle.model} ({vehicle.year}) · {fCopy.platePrefix}{' '}
                 <span className="font-mono">{vehicle.plate}</span>
               </h3>
             </div>
@@ -589,7 +881,7 @@ export function VehicleFinalReportTab({
           <div className="grid grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200/80 dark:divide-white/10 border-b border-slate-200/80 dark:border-white/10 tabular-nums">
             <div className="px-5 py-3.5 flex items-baseline justify-between gap-2">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Eventos totais
+                {ui.finalReportUi.kpiEvents}
               </span>
               <span className="font-mono text-xl font-semibold text-slate-900 dark:text-slate-100">
                 {timelineEntries.length}
@@ -598,7 +890,7 @@ export function VehicleFinalReportTab({
 
             <div className="px-5 py-3.5 flex items-baseline justify-between gap-2">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Manutenções
+                {ui.finalReportUi.kpiMaintenances}
               </span>
               <span className="font-mono text-xl font-semibold text-blue-600 dark:text-blue-400">
                 {maintenanceCount}
@@ -607,7 +899,7 @@ export function VehicleFinalReportTab({
 
             <div className="px-5 py-3.5 flex items-baseline justify-between gap-2">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Fotos e anexos
+                {ui.finalReportUi.kpiPhotosDocs}
               </span>
               <span className="font-mono text-xl font-semibold text-emerald-600 dark:text-emerald-400">
                 {vehicleAttachments.length}
@@ -616,7 +908,7 @@ export function VehicleFinalReportTab({
 
             <div className="px-5 py-3.5 flex items-baseline justify-between gap-2">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Investimento total
+                {ui.finalReportUi.kpiTotalInvested}
               </span>
               <span className="font-mono text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
                 {formatCurrency(totalInvested, prefs.currency)}
@@ -627,20 +919,20 @@ export function VehicleFinalReportTab({
           {/* Vehicle Specs Key-Value Grid */}
           <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs tabular-nums">
             <div>
-              <div className="text-slate-500 dark:text-slate-400">Odômetro atual</div>
+              <div className="text-slate-500 dark:text-slate-400">{fCopy.currentOdometer}</div>
               <div className="mt-0.5 font-mono font-semibold text-slate-900 dark:text-slate-100">
                 {formatDistance(vehicle.odometerKm, prefs.units)}
               </div>
             </div>
             <div>
-              <div className="text-slate-500 dark:text-slate-400">Calibragem recomendada</div>
+              <div className="text-slate-500 dark:text-slate-400">{fCopy.recommendedTire}</div>
               <div className="mt-0.5 font-mono font-semibold text-slate-900 dark:text-slate-100">
                 {vehicle.tirePressurePsi}
                 {vehicle.rearTirePressurePsi ? ` / ${vehicle.rearTirePressurePsi}` : ''} PSI
               </div>
             </div>
             <div>
-              <div className="text-slate-500 dark:text-slate-400">Licenciamento / ITV</div>
+              <div className="text-slate-500 dark:text-slate-400">{fCopy.licenseLabel}</div>
               <div className="mt-0.5 font-mono font-semibold text-slate-900 dark:text-slate-100">
                 {isDateRecorded(vehicle.documentExpiryDate)
                   ? vehicle.documentExpiryDate
@@ -648,7 +940,7 @@ export function VehicleFinalReportTab({
               </div>
             </div>
             <div>
-              <div className="text-slate-500 dark:text-slate-400">Apólice de Seguro</div>
+              <div className="text-slate-500 dark:text-slate-400">{fCopy.insuranceLabel}</div>
               <div className="mt-0.5 font-mono font-semibold text-slate-900 dark:text-slate-100">
                 {isDateRecorded(vehicle.insuranceExpiryDate)
                   ? vehicle.insuranceExpiryDate
@@ -658,15 +950,18 @@ export function VehicleFinalReportTab({
             {(cloudUserEmail || prefs.whatsappNumber) && (
               <>
                 <div>
-                  <div className="text-slate-500 dark:text-slate-400">Proprietário</div>
+                  <div className="text-slate-500 dark:text-slate-400">{fCopy.ownerLabel}</div>
                   <div className="mt-0.5 font-mono text-slate-700 dark:text-slate-200 truncate">
-                    {cloudUserEmail || 'Conta local'}
+                    {cloudUserEmail || fCopy.localAccount}
                   </div>
                 </div>
                 <div>
-                  <div className="text-slate-500 dark:text-slate-400">WhatsApp</div>
+                  <div className="text-slate-500 dark:text-slate-400">
+                    {ui.whatsapp.buttonLabel}
+                  </div>
                   <div className="mt-0.5 font-mono text-slate-700 dark:text-slate-200">
-                    {formatWhatsAppDisplay(prefs.whatsappNumber, prefs.language) || 'Não informado'}
+                    {formatWhatsAppDisplay(prefs.whatsappNumber, prefs.language) ||
+                      fCopy.notInformed}
                   </div>
                 </div>
               </>
@@ -679,10 +974,10 @@ export function VehicleFinalReportTab({
           <div className="px-5 py-4 border-b border-slate-200/80 dark:border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
               <h3 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-                Registro Cronológico Completo ({filteredEntries.length})
+                {ui.finalReportUi.timelineTitle} ({filteredEntries.length})
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Tudo que foi realizado e registrado no veículo com datas, quilometragem, oficinas, valores e fotos vinculadas
+                {fCopy.timelineSubtitle}
               </p>
             </div>
 
@@ -697,7 +992,7 @@ export function VehicleFinalReportTab({
                       : 'text-slate-600 dark:text-slate-400'
                   }`}
                 >
-                  Do início ao fim
+                  {ui.finalReportUi.sortOldest}
                 </button>
                 <button
                   type="button"
@@ -708,7 +1003,7 @@ export function VehicleFinalReportTab({
                       : 'text-slate-600 dark:text-slate-400'
                   }`}
                 >
-                  Mais recentes
+                  {ui.finalReportUi.sortNewest}
                 </button>
               </div>
             </div>
@@ -719,11 +1014,11 @@ export function VehicleFinalReportTab({
             <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 dark:bg-[#081020] border border-slate-200/80 dark:border-white/10 rounded-xl w-fit">
               {(
                 [
-                  { id: 'all', label: 'Tudo' },
-                  { id: 'maintenance', label: 'Manutenções' },
-                  { id: 'fuel', label: 'Abastecimentos' },
-                  { id: 'ev', label: 'Recargas EV' },
-                  { id: 'expense', label: 'Gastos & Docs' },
+                  { id: 'all', label: fCopy.filterAll },
+                  { id: 'maintenance', label: fCopy.filterMaint },
+                  { id: 'fuel', label: fCopy.filterFuel },
+                  { id: 'ev', label: fCopy.filterEv },
+                  { id: 'expense', label: fCopy.filterExpense },
                 ] as const
               ).map((tab) => (
                 <button
@@ -747,7 +1042,7 @@ export function VehicleFinalReportTab({
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filtrar serviço, oficina, peça ou data..."
+                placeholder={fCopy.searchPlaceholder}
                 className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
               />
             </div>
@@ -756,8 +1051,8 @@ export function VehicleFinalReportTab({
           {filteredEntries.length === 0 ? (
             <div className="p-10 text-center text-xs sm:text-sm text-slate-500 dark:text-slate-400">
               {timelineEntries.length === 0
-                ? 'Ainda não há registros lançados para este veículo. Registre uma manutenção ou adicione fotos para compor o relatório final.'
-                : 'Nenhum registro encontrado para este filtro ou busca.'}
+                ? ui.finalReportUi.timelineEmpty
+                : fCopy.filteredEmpty}
             </div>
           ) : (
             <div className="divide-y divide-slate-200/80 dark:divide-white/10">
@@ -848,7 +1143,7 @@ export function VehicleFinalReportTab({
                                   {att.fileName}
                                 </div>
                                 <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                                  {ATTACHMENT_CATEGORY_LABELS[att.fileCategory] ?? att.fileCategory}
+                                  {attachmentLabels[att.fileCategory] ?? att.fileCategory}
                                 </div>
                               </div>
                             </div>
@@ -868,10 +1163,10 @@ export function VehicleFinalReportTab({
           <div className="px-5 py-4 border-b border-slate-200/80 dark:border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
               <h3 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-                Galeria Completa de Fotos, Notas e Comprovantes ({vehicleAttachments.length})
+                {ui.finalReportUi.galleryTitle} ({vehicleAttachments.length})
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Todas as imagens registradas neste veículo — incluídas automaticamente no PDF final
+                {ui.finalReportUi.galleryConnectHint}
               </p>
             </div>
 
@@ -897,21 +1192,21 @@ export function VehicleFinalReportTab({
                   <select
                     value={uploadCategory}
                     onChange={(e) => setUploadCategory(e.target.value as AttachmentCategory)}
-                    aria-label="Categoria da foto"
+                    aria-label={fCopy.photoCategoryAria}
                     className="px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-800 dark:text-slate-200"
                   >
-                    <option value="vehicle_photo">Foto do Veículo</option>
-                    <option value="receipt">Nota / Recibo</option>
-                    <option value="inspection">Vistoria / Peça</option>
-                    <option value="document">ITV / Documento</option>
-                    <option value="insurance">Seguro</option>
-                    <option value="diagnostic">Laudo / Scanner</option>
+                    <option value="vehicle_photo">{attachmentLabels.vehicle_photo}</option>
+                    <option value="receipt">{attachmentLabels.receipt}</option>
+                    <option value="inspection">{attachmentLabels.inspection}</option>
+                    <option value="document">{attachmentLabels.document}</option>
+                    <option value="insurance">{attachmentLabels.insurance}</option>
+                    <option value="diagnostic">{attachmentLabels.diagnostic}</option>
                   </select>
                   <input
                     type="text"
                     value={uploadNotes}
                     onChange={(e) => setUploadNotes(e.target.value)}
-                    placeholder="Legenda opcional..."
+                    placeholder={ui.finalReportUi.uploadNotesPlaceholder}
                     className="w-36 px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                   />
                   <button
@@ -925,7 +1220,7 @@ export function VehicleFinalReportTab({
                     ) : (
                       <Camera className="w-3.5 h-3.5" />
                     )}
-                    <span>Tirar Foto</span>
+                    <span>{ui.medicalUi.takePhotoBtn}</span>
                   </button>
                   <button
                     type="button"
@@ -934,7 +1229,7 @@ export function VehicleFinalReportTab({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0 disabled:opacity-60"
                   >
                     <ImagePlus className="w-3.5 h-3.5" />
-                    <span>Galeria</span>
+                    <span>{ui.medicalUi.galleryBtn}</span>
                   </button>
                 </>
               ) : (
@@ -944,7 +1239,7 @@ export function VehicleFinalReportTab({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0"
                 >
                   <ImagePlus className="w-3.5 h-3.5" />
-                  <span>Entrar na conta para anexar fotos</span>
+                  <span>{fCopy.signInPhotosBtn}</span>
                 </button>
               )}
             </div>
@@ -954,11 +1249,11 @@ export function VehicleFinalReportTab({
             {attachmentsLoading ? (
               <div className="py-8 flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Carregando fotos e comprovantes...</span>
+                <span>{ui.vaultUi.loading}</span>
               </div>
             ) : vehicleAttachments.length === 0 ? (
               <p className="py-6 text-center text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                Nenhuma foto ou documento anexado a este veículo até o momento.
+                {ui.finalReportUi.galleryEmpty}
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -985,7 +1280,7 @@ export function VehicleFinalReportTab({
                       ) : (
                         <div className="aspect-[4/3] w-full bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center gap-2 text-slate-400">
                           <FileText className="w-8 h-8" />
-                          <span className="text-xs font-medium">Documento PDF</span>
+                          <span className="text-xs font-medium">{fCopy.pdfDocumentLabel}</span>
                         </div>
                       )}
 
@@ -994,7 +1289,7 @@ export function VehicleFinalReportTab({
                           <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
                             <span className="font-mono">{att.attachmentDate}</span>
                             <span aria-hidden="true">·</span>
-                            <span>{ATTACHMENT_CATEGORY_LABELS[att.fileCategory] ?? att.fileCategory}</span>
+                            <span>{attachmentLabels[att.fileCategory] ?? att.fileCategory}</span>
                           </div>
                           <div className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100 truncate">
                             {att.fileName}
@@ -1015,7 +1310,7 @@ export function VehicleFinalReportTab({
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline"
                               >
-                                <span>Abrir</span>
+                                <span>{ui.finalReportUi.openBtn}</span>
                                 <ExternalLink className="w-3 h-3" />
                               </a>
                               <a
@@ -1024,7 +1319,7 @@ export function VehicleFinalReportTab({
                                 className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 hover:underline"
                               >
                                 <Download className="w-3 h-3" />
-                                <span>Baixar</span>
+                                <span>{ui.finalReportUi.downloadBtn}</span>
                               </a>
                             </>
                           )}
@@ -1033,7 +1328,7 @@ export function VehicleFinalReportTab({
                               type="button"
                               onClick={() => void handleRemoveAttachment(att)}
                               className="ml-auto text-slate-400 hover:text-red-600 dark:hover:text-red-400"
-                              aria-label="Excluir anexo"
+                              aria-label={ui.finalReportUi.deleteAria}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1053,17 +1348,19 @@ export function VehicleFinalReportTab({
           <section className="autolife-glass rounded-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-200/80 dark:border-white/10">
               <h3 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-                Quadro Preventivo no Momento da Emissão
+                {ui.finalReportUi.snapshotTitle}
               </h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs tabular-nums">
                 <thead>
                   <tr className="border-b border-slate-200/80 dark:border-white/10 text-slate-500 dark:text-slate-400">
-                    <th className="py-2.5 px-5 font-medium">Item</th>
-                    <th className="py-2.5 px-4 font-medium">Status</th>
-                    <th className="py-2.5 px-4 font-medium">Último registro</th>
-                    <th className="py-2.5 px-5 font-medium text-right">Próxima previsão</th>
+                    <th className="py-2.5 px-5 font-medium">{ui.finalReportUi.snapshotColItem}</th>
+                    <th className="py-2.5 px-4 font-medium">{ui.finalReportUi.snapshotColStatus}</th>
+                    <th className="py-2.5 px-4 font-medium">{ui.finalReportUi.snapshotColLast}</th>
+                    <th className="py-2.5 px-5 font-medium text-right">
+                      {ui.finalReportUi.snapshotColNext}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/80 dark:divide-white/10">
@@ -1131,7 +1428,7 @@ export function VehicleFinalReportTab({
                 </div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
                   {previewAttachment.attachmentDate} ·{' '}
-                  {ATTACHMENT_CATEGORY_LABELS[previewAttachment.fileCategory] ??
+                  {attachmentLabels[previewAttachment.fileCategory] ??
                     previewAttachment.fileCategory}
                 </div>
               </div>
@@ -1142,7 +1439,7 @@ export function VehicleFinalReportTab({
                   className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Baixar</span>
+                  <span>{ui.finalReportUi.downloadBtn}</span>
                 </a>
                 <button
                   type="button"

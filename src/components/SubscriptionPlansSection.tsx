@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
+import { getUi } from '../data/uiTranslations';
 import {
   getAccessToken,
   manageUserSubscription,
@@ -24,20 +25,32 @@ import {
   CanonicalPlanId,
   CountryCode,
   CurrencyCode,
+  LanguageCode,
   PaymentMethodType,
   SubscriptionPaymentRecord,
   SubscriptionPlanCatalogItem,
   UserPreferences,
   UserSubscriptionRecord,
 } from '../types/autolife';
+
+const COUNTRY_ARIA_LABEL: Record<LanguageCode, string> = {
+  pt: 'País / Região',
+  en: 'Country / Region',
+  es: 'País / Región',
+  de: 'Land / Region',
+  fr: 'Pays / Région',
+};
 import { formatCurrency } from '../utils/autolife';
 import {
   COUNTRY_CATALOG,
   COUNTRY_LIST,
   CURRENCY_CATALOG,
   CURRENCY_LIST,
-  PAYMENT_METHOD_LABELS,
   computePriceBreakdown,
+  getLocalizedCountryName,
+  getLocalizedCurrencyConfig,
+  getLocalizedPaymentMethodLabel,
+  getLocalizedTaxLabel,
   minorToMajor,
   normalizePlanTier,
 } from '../utils/billing';
@@ -67,15 +80,6 @@ interface PixCheckoutData {
   status: string;
 }
 
-const SUBSCRIPTION_STATUS_LABELS: Record<UserSubscriptionRecord['status'], string> = {
-  active: 'Ativa',
-  trialing: 'Em avaliação',
-  past_due: 'Pagamento em atraso',
-  grace_period: 'Período de tolerância (7 dias)',
-  canceled: 'Cancelada',
-  expired: 'Expirada (somente leitura para novos cadastros)',
-};
-
 export function SubscriptionPlansSection({
   catalogPlans,
   catalogSource,
@@ -90,6 +94,9 @@ export function SubscriptionPlansSection({
   onSubscriptionUpdated,
   onRefreshSubscription,
 }: SubscriptionPlansSectionProps) {
+  const ui = getUi(prefs.language).plansUi;
+  const passportCopied = getUi(prefs.language).passportUi;
+
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [checkoutPlan, setCheckoutPlan] = useState<SubscriptionPlanCatalogItem | null>(null);
   const [checkoutMethod, setCheckoutMethod] = useState<PaymentMethodType>('card');
@@ -106,8 +113,8 @@ export function SubscriptionPlansSection({
   const [pixConfirmed, setPixConfirmed] = useState(false);
 
   const activePlanId = normalizePlanTier(prefs.activePlan);
-  const countryCode: CountryCode = prefs.countryCode ?? 'BR';
-  const currencyMeta = CURRENCY_CATALOG[prefs.currency] ?? CURRENCY_CATALOG.BRL;
+  const countryCode: CountryCode = prefs.countryCode ?? 'US';
+  const currencyMeta = getLocalizedCurrencyConfig(prefs.currency, prefs.language);
 
   useEffect(() => {
     if (cloudUserEmail && !payerEmail) {
@@ -137,7 +144,7 @@ export function SubscriptionPlansSection({
           await onRefreshSubscription();
           setCheckoutFeedback({
             mode: 'success',
-            message: 'Pagamento Pix confirmado! Sua assinatura foi ativada e salva no histórico.',
+            message: ui.pixConfirmedMsg,
           });
         }
       } catch {
@@ -149,7 +156,7 @@ export function SubscriptionPlansSection({
       active = false;
       window.clearInterval(timer);
     };
-  }, [pixCheckout, pixConfirmed, onUpdatePrefs, onRefreshSubscription]);
+  }, [pixCheckout, pixConfirmed, onUpdatePrefs, onRefreshSubscription, ui.pixConfirmedMsg]);
 
   const personalPlan = catalogPlans.find((p) => p.id === 'personal');
   const businessPlans = catalogPlans.filter((p) => p.accountScope === 'business');
@@ -243,12 +250,12 @@ export function SubscriptionPlansSection({
 
       setCheckoutFeedback({
         mode: 'error',
-        message: 'Não foi possível iniciar o pagamento online. Verifique a configuração do gateway.',
+        message: `HTTP ${res.status}`,
       });
     } catch (err) {
       setCheckoutFeedback({
         mode: 'error',
-        message: err instanceof Error ? err.message : 'Falha ao iniciar checkout.',
+        message: err instanceof Error ? err.message : 'Checkout error',
       });
     } finally {
       setIsCheckingOut(false);
@@ -266,26 +273,25 @@ export function SubscriptionPlansSection({
         token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
       );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Falha ao consultar pagamento Pix.');
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       if (data.verified) {
         setPixConfirmed(true);
         onUpdatePrefs({ activePlan: data.planId ?? pixCheckout.planId });
         await onRefreshSubscription();
         setCheckoutFeedback({
           mode: 'success',
-          message: 'Pagamento Pix confirmado! Sua assinatura foi ativada.',
+          message: ui.pixConfirmedMsg,
         });
       } else {
         setCheckoutFeedback({
           mode: 'error',
-          message:
-            'Pagamento Pix ainda aguardando compensação. Conclua no app do seu banco e clique novamente em Verificar.',
+          message: ui.pixPendingMsg,
         });
       }
     } catch (err) {
       setCheckoutFeedback({
         mode: 'error',
-        message: err instanceof Error ? err.message : 'Erro ao verificar pagamento Pix.',
+        message: err instanceof Error ? err.message : ui.pixPendingMsg,
       });
     } finally {
       setPixVerifying(false);
@@ -348,7 +354,7 @@ export function SubscriptionPlansSection({
             {t.garage.plansTitle}
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Preços regionais configurados por país e moeda local ({catalogSource === 'database' ? 'catálogo sincronizado com banco de dados' : 'tabela regional oficial'}).
+            {ui.subtitle} ({catalogSource === 'database' ? ui.sourceDb : ui.sourceFallback}).
           </p>
         </div>
 
@@ -356,21 +362,21 @@ export function SubscriptionPlansSection({
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629]/85">
             <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
-              aria-label="País de cobrança"
+              aria-label={COUNTRY_ARIA_LABEL[prefs.language]}
               value={countryCode}
               onChange={(e) => handleSelectCountry(e.target.value as CountryCode)}
               className="text-xs font-medium bg-transparent text-slate-800 dark:text-slate-100 focus:outline-none"
             >
               {COUNTRY_LIST.map((c) => (
                 <option key={c.code} value={c.code} className="dark:bg-[#0c1629]">
-                  {c.name} ({c.defaultCurrency})
+                  {getLocalizedCountryName(c.code, prefs.language)} ({c.defaultCurrency})
                 </option>
               ))}
             </select>
           </div>
 
           <select
-            aria-label="Moeda de cobrança"
+            aria-label={t.settings.currencyLabel}
             value={prefs.currency}
             onChange={(e) => onUpdatePrefs({ currency: e.target.value as CurrencyCode })}
             className="px-2.5 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629]/85 text-slate-800 dark:text-slate-100"
@@ -392,7 +398,7 @@ export function SubscriptionPlansSection({
                   : 'text-slate-600 dark:text-slate-400'
               }`}
             >
-              Mensal
+              {ui.monthly}
             </button>
             <button
               type="button"
@@ -403,7 +409,7 @@ export function SubscriptionPlansSection({
                   : 'text-slate-600 dark:text-slate-400'
               }`}
             >
-              Anual (-20%)
+              {ui.annualDiscount}
             </button>
           </div>
         </div>
@@ -414,34 +420,32 @@ export function SubscriptionPlansSection({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Assinatura &amp; Limite Atual
+              {ui.currentHeader}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-display text-base font-bold text-slate-900 dark:text-slate-100">
-                {activePlanObj?.name ?? 'Plano Particular'}
+                {activePlanObj?.name ?? catalogPlans[0]?.name ?? ui.currentPlanBadge}
               </span>
               <span className="text-xs font-mono text-slate-500 dark:text-slate-400 tabular-nums">
                 · {vehiclesCount}
-                {currentLimit !== null ? ` / ${currentLimit}` : ''} veículo(s)
+                {currentLimit !== null ? ` / ${currentLimit}` : ''} {ui.vehicleUnit}
               </span>
               {subscription && (
                 <span className="text-xs font-semibold text-sky-600 dark:text-sky-400">
-                  · {SUBSCRIPTION_STATUS_LABELS[subscription.status]}
+                  · {ui.statusLabels[subscription.status] ?? subscription.status}
                 </span>
               )}
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>
-                Seus veículos e históricos nunca são excluídos caso a assinatura vença ou seja cancelada.
-              </span>
+              <span>{ui.neverDeletedNote}</span>
             </div>
           </div>
 
           {subscription && (
             <div className="flex flex-wrap items-center gap-2 shrink-0">
               <div className="text-xs font-mono text-slate-600 dark:text-slate-300 mr-2">
-                Vencimento: {subscription.currentPeriodEnd.slice(0, 10)}
+                {ui.dueLabel} {subscription.currentPeriodEnd.slice(0, 10)}
               </div>
               <button
                 type="button"
@@ -449,7 +453,7 @@ export function SubscriptionPlansSection({
                 onClick={() => void handleToggleAutoRenew()}
                 className="px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0"
               >
-                Renovação automática: {subscription.autoRenew ? 'Ativa' : 'Desativada'}
+                {ui.autoRenewLabel} {subscription.autoRenew ? ui.on : ui.off}
               </button>
               {subscription.status !== 'canceled' && (
                 <button
@@ -458,7 +462,7 @@ export function SubscriptionPlansSection({
                   onClick={() => void handleCancelSubscription()}
                   className="px-3 py-1.5 text-xs font-medium rounded-xl border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 whitespace-nowrap shrink-0"
                 >
-                  Cancelar assinatura
+                  {ui.cancelSubBtn}
                 </button>
               )}
             </div>
@@ -469,11 +473,11 @@ export function SubscriptionPlansSection({
           <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>
-              Assinatura em período de tolerância até{' '}
+              {ui.graceWarningPrefix}{' '}
               <strong className="font-mono">
                 {subscription.gracePeriodEnd?.slice(0, 10) || subscription.currentPeriodEnd.slice(0, 10)}
-              </strong>
-              . Regularize o pagamento para manter novos cadastros liberados.
+              </strong>{' '}
+              {ui.graceWarningSuffix}
             </span>
           </div>
         )}
@@ -482,7 +486,7 @@ export function SubscriptionPlansSection({
           <div className="pt-3 border-t border-slate-200/80 dark:border-white/10 space-y-2">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
               <Receipt className="w-3.5 h-3.5" />
-              <span>Histórico de Pagamentos</span>
+              <span>{ui.paymentHistoryTitle}</span>
             </div>
             <div className="divide-y divide-slate-200/80 dark:divide-white/10 max-h-36 overflow-y-auto text-xs tabular-nums">
               {payments.map((pay) => (
@@ -520,19 +524,19 @@ export function SubscriptionPlansSection({
                   </span>
                   {isCurrent && (
                     <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                      Plano atual
+                      {ui.currentPlanBadge}
                     </span>
                   )}
                 </div>
 
                 <div className="tabular-nums">
                   <div className="font-display text-2xl font-bold text-slate-900 dark:text-slate-100">
-                    {formatCurrency(br.displayMonthlyMajor, prefs.currency)} / mês
+                    {formatCurrency(br.displayMonthlyMajor, prefs.currency)} {ui.perMonth}
                   </div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    {personalPlan.price.taxLabel}
+                    {getLocalizedTaxLabel(personalPlan.price.taxLabel, prefs.language)}
                     {br.processingFeeMajor > 0
-                      ? ` · Taxa est. ${formatCurrency(br.processingFeeMajor, prefs.currency)}`
+                      ? ` · ${ui.estFee} ${formatCurrency(br.processingFeeMajor, prefs.currency)}`
                       : ''}
                   </div>
                 </div>
@@ -554,7 +558,7 @@ export function SubscriptionPlansSection({
                 onClick={() => handleOpenCheckout(personalPlan)}
                 className="w-full py-2.5 px-3 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white whitespace-nowrap shrink-0 shadow-sm shadow-sky-950/25"
               >
-                {isCurrent ? 'Renovar / Trocar Moeda' : `Assinar Plano Particular (${prefs.currency})`}
+                {isCurrent ? ui.renewSwitchCurrency : `${ui.subscribePersonal} (${prefs.currency})`}
               </button>
             </div>
           );
@@ -581,7 +585,7 @@ export function SubscriptionPlansSection({
                     </span>
                     {isCurrent && (
                       <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                        Ativo
+                        {ui.activeBadge}
                       </span>
                     )}
                   </div>
@@ -589,14 +593,14 @@ export function SubscriptionPlansSection({
                   <div className="tabular-nums">
                     <div className="font-display text-xl font-bold text-slate-900 dark:text-slate-100">
                       {isEnterprise
-                        ? `A partir de ${formatCurrency(br.displayMonthlyMajor, prefs.currency)}`
-                        : `${formatCurrency(br.displayMonthlyMajor, prefs.currency)} / mês`}
+                        ? `${ui.fromPrice} ${formatCurrency(br.displayMonthlyMajor, prefs.currency)}`
+                        : `${formatCurrency(br.displayMonthlyMajor, prefs.currency)} ${ui.perMonth}`}
                     </div>
                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                       {plan.vehicleLimit !== null
-                        ? `Até ${plan.vehicleLimit} veículos`
-                        : 'Acima de 100 veículos'}{' '}
-                      · {plan.price.taxLabel}
+                        ? `${ui.upToVehicles} ${plan.vehicleLimit} ${ui.vehicleUnit}`
+                        : ui.over100Vehicles}{' '}
+                      · {getLocalizedTaxLabel(plan.price.taxLabel, prefs.language)}
                     </div>
                   </div>
 
@@ -612,10 +616,10 @@ export function SubscriptionPlansSection({
 
                 {isEnterprise ? (
                   <a
-                    href="mailto:empresas@autolife.world?subject=Plano%20Empresarial%20Personalizado%20AutoLife"
+                    href="mailto:empresas@autolife.world?subject=Enterprise%20Plan%20AutoLife"
                     className="w-full py-2 px-3 text-center text-xs font-medium rounded-xl border border-slate-300 dark:border-white/15 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-white/5 whitespace-nowrap shrink-0"
                   >
-                    Falar com Consultor B2B
+                    {ui.contactB2b}
                   </a>
                 ) : (
                   <button
@@ -624,8 +628,8 @@ export function SubscriptionPlansSection({
                     className="w-full py-2 px-3 text-xs font-medium rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-sky-600 dark:hover:bg-sky-500 text-white whitespace-nowrap shrink-0"
                   >
                     {isCurrent
-                      ? 'Gerenciar / Renovar'
-                      : `Contratar ${plan.name} (${prefs.currency})`}
+                      ? ui.manageRenew
+                      : `${ui.subscribePlan} ${plan.name} (${prefs.currency})`}
                   </button>
                 )}
               </div>
@@ -646,7 +650,7 @@ export function SubscriptionPlansSection({
               <div>
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
                   {pixCheckout ? <QrCode className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
-                  <span>{pixCheckout ? 'Pagamento Instantâneo via Pix' : 'Pagamento Seguro Internacional'}</span>
+                  <span>{pixCheckout ? ui.checkoutPixTitle : ui.checkoutIntlTitle}</span>
                 </div>
                 <h2 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
                   {activeModalPlan.name}
@@ -670,7 +674,7 @@ export function SubscriptionPlansSection({
               <div className="space-y-4">
                 <div className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#081020]/60 flex flex-col items-center text-center space-y-3">
                   <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                    Escaneie o QR Code no app do seu banco ({pixCheckout.formattedAmount})
+                    {ui.scanPixPrompt} ({pixCheckout.formattedAmount})
                   </div>
                   {pixCheckout.qrCodeBase64 ? (
                     <img
@@ -681,7 +685,7 @@ export function SubscriptionPlansSection({
                   ) : null}
                   <div className="w-full space-y-1.5 text-left">
                     <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                      Pix Copia e Cola
+                      {ui.pixCopyPasteLabel}
                     </label>
                     <div className="flex items-center gap-2">
                       <input
@@ -696,7 +700,7 @@ export function SubscriptionPlansSection({
                         className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 text-white whitespace-nowrap shrink-0"
                       >
                         {pixCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{pixCopied ? 'Copiado' : 'Copiar'}</span>
+                        <span>{pixCopied ? passportCopied.copiedBtn : passportCopied.copyBtn}</span>
                       </button>
                     </div>
                   </div>
@@ -724,7 +728,7 @@ export function SubscriptionPlansSection({
                     }}
                     className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-300"
                   >
-                    Trocar forma de pagamento
+                    {ui.changeMethodBtn}
                   </button>
                   {pixConfirmed ? (
                     <button
@@ -735,7 +739,7 @@ export function SubscriptionPlansSection({
                       }}
                       className="px-4 py-2 text-xs font-medium rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white"
                     >
-                      Concluir
+                      {ui.doneBtn}
                     </button>
                   ) : (
                     <button
@@ -749,7 +753,7 @@ export function SubscriptionPlansSection({
                       ) : (
                         <RefreshCw className="w-3.5 h-3.5" />
                       )}
-                      <span>Verificar Pagamento Pix</span>
+                      <span>{ui.verifyPixBtn}</span>
                     </button>
                   )}
                 </div>
@@ -759,7 +763,7 @@ export function SubscriptionPlansSection({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                      Moeda local
+                      {ui.localCurrencyLabel}
                     </label>
                     <select
                       value={prefs.currency}
@@ -768,17 +772,20 @@ export function SubscriptionPlansSection({
                       }
                       className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
                     >
-                      {CURRENCY_LIST.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.code} ({c.symbol}) — {c.name}
-                        </option>
-                      ))}
+                      {CURRENCY_LIST.map((c) => {
+                        const localized = getLocalizedCurrencyConfig(c.code, prefs.language);
+                        return (
+                          <option key={c.code} value={c.code}>
+                            {c.code} ({c.symbol}) — {localized.name}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                      Ciclo de faturamento
+                      {ui.billingCycleLabel}
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -790,7 +797,7 @@ export function SubscriptionPlansSection({
                             : 'border-slate-200 dark:border-white/15 text-slate-600 dark:text-slate-300'
                         }`}
                       >
-                        Mensal
+                        {ui.monthly}
                       </button>
                       <button
                         type="button"
@@ -801,7 +808,7 @@ export function SubscriptionPlansSection({
                             : 'border-slate-200 dark:border-white/15 text-slate-600 dark:text-slate-300'
                         }`}
                       >
-                        Anual (-20%)
+                        {ui.annualDiscount}
                       </button>
                     </div>
                   </div>
@@ -809,11 +816,11 @@ export function SubscriptionPlansSection({
 
                 <div className="space-y-2">
                   <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    Meios de pagamento ({currencyMeta.code})
+                    {ui.paymentMethodsLabel} ({currencyMeta.code})
                   </div>
                   <div className="space-y-2">
                     {currencyMeta.paymentMethods.map((method) => {
-                      const info = PAYMENT_METHOD_LABELS[method];
+                      const info = getLocalizedPaymentMethodLabel(method, prefs.language);
                       const selected = checkoutMethod === method;
                       return (
                         <button
@@ -844,11 +851,11 @@ export function SubscriptionPlansSection({
                 {!cloudUserEmail && (
                   <div>
                     <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                      E-mail para comprovante (opcional)
+                      {ui.receiptEmailLabel}
                     </label>
                     <input
                       type="email"
-                      placeholder="seu@email.com"
+                      placeholder="name@email.com"
                       value={payerEmail}
                       onChange={(e) => setPayerEmail(e.target.value)}
                       className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -859,25 +866,33 @@ export function SubscriptionPlansSection({
                 {/* Transparent Price Breakdown (Subtotal + Tax + Processing Fee) */}
                 <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#081020]/60 border border-slate-200 dark:border-white/10 space-y-1.5 text-xs tabular-nums">
                   <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
-                    <span>Subtotal do plano ({billingCycle === 'annual' ? 'Anual' : 'Mensal'})</span>
+                    <span>
+                      {ui.subtotalLabel} ({billingCycle === 'annual' ? ui.annualLabel : ui.monthlyLabel})
+                    </span>
                     <span className="font-mono">
                       {formatCurrency(activeModalBreakdown.subtotalMajor, prefs.currency)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
-                    <span>{activeModalPlan.price.taxLabel || 'Impostos regionais'}</span>
+                    <span>
+                      {activeModalPlan.price.taxLabel
+                        ? getLocalizedTaxLabel(activeModalPlan.price.taxLabel, prefs.language)
+                        : ui.regionalTaxesFallback}
+                    </span>
                     <span className="font-mono">
                       {formatCurrency(activeModalBreakdown.taxMajor, prefs.currency)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
-                    <span>Taxa de processamento</span>
+                    <span>{ui.processingFeeLabel}</span>
                     <span className="font-mono">
                       {formatCurrency(activeModalBreakdown.processingFeeMajor, prefs.currency)}
                     </span>
                   </div>
                   <div className="pt-1.5 border-t border-slate-200 dark:border-white/10 flex items-center justify-between">
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">Total final</span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">
+                      {ui.finalTotalLabel}
+                    </span>
                     <span className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
                       {formatCurrency(activeModalBreakdown.totalMajor, prefs.currency)}
                     </span>
@@ -913,8 +928,8 @@ export function SubscriptionPlansSection({
                     {isCheckingOut && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                     <span>
                       {checkoutMethod === 'pix'
-                        ? `Gerar QR Code Pix (${prefs.currency})`
-                        : `Pagar com Cartão (${prefs.currency})`}
+                        ? `${ui.generatePixBtn} (${prefs.currency})`
+                        : `${ui.payWithCardBtn} (${prefs.currency})`}
                     </span>
                   </button>
                 </div>

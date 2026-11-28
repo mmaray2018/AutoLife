@@ -10,7 +10,9 @@ import {
   X,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
+import { getUi } from '../data/uiTranslations';
 import {
+  LanguageCode,
   MaintenanceItem,
   MaintenanceStatus,
   NetworkPartner,
@@ -20,6 +22,7 @@ import {
   VehicleType,
 } from '../types/autolife';
 import { computeMaintenanceStatus, formatDistance } from '../utils/autolife';
+import { getLocalizedCountryName } from '../utils/billing';
 import { haversineDistanceKm } from '../utils/calendar';
 import { buildPartnerWhatsAppText } from '../utils/whatsapp';
 import { WhatsAppConnectButton } from './WhatsAppConnectButton';
@@ -34,13 +37,63 @@ interface GlobalNetworkViewProps {
 
 const SAVED_PLACES_KEY = 'autolife_saved_places_v1';
 
-const CATEGORY_MAP_TERMS: Record<'all' | NetworkPartner['category'], string> = {
-  all: 'Oficina mecânica automotiva',
-  workshop: 'Oficina mecânica',
-  ev_charger: 'Carregador veículo elétrico eletroposto',
-  tires: 'Centro automotivo pneus alinhamento',
-  fuel: 'Posto de combustível',
-  dealership: 'Concessionária autorizada',
+const NETWORK_EXTRA_COPY: Record<
+  LanguageCode,
+  {
+    locating: string;
+    cityPlaceholder: string;
+    filterEmptyTitle: string;
+    countryLabel: string;
+    specialtiesLabel: string;
+    sendWaBtn: string;
+    sendWaTitle: string;
+  }
+> = {
+  pt: {
+    locating: 'Obtendo GPS...',
+    cityPlaceholder: 'Cidade / Região',
+    filterEmptyTitle: 'Nenhum local encontrado para este filtro',
+    countryLabel: 'País',
+    specialtiesLabel: 'Especialidades / Serviços (separados por vírgula)',
+    sendWaBtn: 'Enviar no WhatsApp',
+    sendWaTitle: 'Enviar resumo deste local para o WhatsApp cadastrado',
+  },
+  en: {
+    locating: 'Locating GPS...',
+    cityPlaceholder: 'City / Area',
+    filterEmptyTitle: 'No places match this filter',
+    countryLabel: 'Country',
+    specialtiesLabel: 'Specialties / Services (comma-separated)',
+    sendWaBtn: 'Send via WhatsApp',
+    sendWaTitle: 'Send this place summary to your saved WhatsApp',
+  },
+  es: {
+    locating: 'Obteniendo GPS...',
+    cityPlaceholder: 'Ciudad / Zona',
+    filterEmptyTitle: 'No se encontraron lugares para este filtro',
+    countryLabel: 'País',
+    specialtiesLabel: 'Especialidades / Servicios (separados por coma)',
+    sendWaBtn: 'Enviar por WhatsApp',
+    sendWaTitle: 'Enviar resumen de este lugar a tu WhatsApp guardado',
+  },
+  de: {
+    locating: 'GPS wird gesucht...',
+    cityPlaceholder: 'Stadt / Region',
+    filterEmptyTitle: 'Keine Orte für diesen Filter gefunden',
+    countryLabel: 'Land',
+    specialtiesLabel: 'Leistungen / Fachgebiete (kommagetrennt)',
+    sendWaBtn: 'Per WhatsApp senden',
+    sendWaTitle: 'Zusammenfassung an gespeichertes WhatsApp senden',
+  },
+  fr: {
+    locating: 'Localisation GPS...',
+    cityPlaceholder: 'Ville / Zone',
+    filterEmptyTitle: 'Aucun lieu trouvé pour ce filtre',
+    countryLabel: 'Pays',
+    specialtiesLabel: 'Spécialités / Services (séparés par virgule)',
+    sendWaBtn: 'Envoyer par WhatsApp',
+    sendWaTitle: 'Envoyer le résumé de ce lieu sur votre WhatsApp enregistré',
+  },
 };
 
 function loadSavedPlaces(): NetworkPartner[] {
@@ -61,6 +114,14 @@ export function GlobalNetworkView({
   t,
   onUpdatePrefs,
 }: GlobalNetworkViewProps) {
+  const bundle = getUi(prefs.language);
+  const ui = bundle.networkUi;
+  const extra = NETWORK_EXTRA_COPY[prefs.language] ?? NETWORK_EXTRA_COPY.en;
+  const defaultCountryName = getLocalizedCountryName(
+    prefs.countryCode ?? 'US',
+    prefs.language
+  );
+
   const [places, setPlaces] = useState<NetworkPartner[]>(loadSavedPlaces);
   const [categoryFilter, setCategoryFilter] = useState<
     'all' | NetworkPartner['category']
@@ -79,11 +140,15 @@ export function GlobalNetworkView({
   const [placeName, setPlaceName] = useState('');
   const [placeCategory, setPlaceCategory] = useState<NetworkPartner['category']>('workshop');
   const [placeCity, setPlaceCity] = useState('');
-  const [placeCountry, setPlaceCountry] = useState('Brasil');
+  const [placeCountry, setPlaceCountry] = useState(defaultCountryName);
   const [placeAddress, setPlaceAddress] = useState('');
   const [placeSpecialties, setPlaceSpecialties] = useState('');
   const [supportsCar, setSupportsCar] = useState(true);
   const [supportsMoto, setSupportsMoto] = useState(true);
+
+  useEffect(() => {
+    setPlaceCountry((prev) => prev || defaultCountryName);
+  }, [defaultCountryName]);
 
   useEffect(() => {
     try {
@@ -96,9 +161,7 @@ export function GlobalNetworkView({
   const handleLocateMe = () => {
     setGeoMessage(null);
     if (!navigator.geolocation) {
-      setGeoMessage(
-        'Geolocalização não suportada neste navegador. Informe sua cidade ou bairro abaixo para buscar no Google Maps.'
-      );
+      setGeoMessage(ui.geoUnsupported);
       return;
     }
 
@@ -112,31 +175,18 @@ export function GlobalNetworkView({
       });
     };
 
-    const handleFinalError = (err: GeolocationPositionError) => {
+    const handleFinalError = () => {
       setLocating(false);
-      if (err.code === 1) {
-        setGeoMessage(
-          'Permissão de localização bloqueada no navegador. Libere o acesso no cadeado da URL ou informe sua cidade/bairro abaixo.'
-        );
-      } else if (err.code === 2) {
-        setGeoMessage(
-          'Localização do dispositivo indisponível no momento. Digite sua cidade ou bairro abaixo para buscar oficinas próximas.'
-        );
-      } else {
-        setGeoMessage(
-          'Tempo esgotado ao obter coordenadas GPS. Informe sua cidade/bairro abaixo para buscar no Google Maps.'
-        );
-      }
+      setGeoMessage(ui.geoDenied);
     };
 
     navigator.geolocation.getCurrentPosition(
       onSuccess,
       (firstErr) => {
         if (firstErr.code === 1) {
-          handleFinalError(firstErr);
+          handleFinalError();
           return;
         }
-        // Fallback attempt with high accuracy disabled / shorter max age if coarse check failed
         navigator.geolocation.getCurrentPosition(
           onSuccess,
           handleFinalError,
@@ -196,14 +246,17 @@ export function GlobalNetworkView({
   }, [maintenanceItems, vehicle, prefs]);
 
   const liveMapsSearchUrl = useMemo(() => {
-    const baseCategory = CATEGORY_MAP_TERMS[categoryFilter] ?? CATEGORY_MAP_TERMS.all;
+    const baseCategory =
+      categoryFilter === 'all'
+        ? ui.mapSearchTerms.workshop
+        : ui.mapSearchTerms[categoryFilter] ?? ui.mapSearchTerms.workshop;
     const vehicleHint =
       vehicleFilter === 'motorcycle'
-        ? 'moto'
+        ? t.vehicleTypes.motorcycle
         : vehicleFilter === 'car'
-        ? 'carro'
+        ? t.vehicleTypes.car
         : vehicle?.vehicleType === 'motorcycle'
-        ? 'moto'
+        ? t.vehicleTypes.motorcycle
         : '';
     const terms = [
       baseCategory,
@@ -217,7 +270,16 @@ export function GlobalNetworkView({
       return `https://www.google.com/maps/search/${encodeURIComponent(terms)}/@${userCoords.lat},${userCoords.lng},14z`;
     }
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(terms)}`;
-  }, [categoryFilter, vehicleFilter, vehicle?.vehicleType, searchQuery, manualLocationQuery, userCoords]);
+  }, [
+    categoryFilter,
+    vehicleFilter,
+    vehicle?.vehicleType,
+    searchQuery,
+    manualLocationQuery,
+    userCoords,
+    ui.mapSearchTerms,
+    t.vehicleTypes,
+  ]);
 
   const handleCreatePlace = (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,9 +293,9 @@ export function GlobalNetworkView({
       id: `place-${Date.now()}`,
       name: placeName.trim(),
       category: placeCategory,
-      city: placeCity.trim() || 'Minha cidade',
-      country: placeCountry.trim() || 'Brasil',
-      address: placeAddress.trim() || 'Endereço não informado',
+      city: placeCity.trim() || extra.cityPlaceholder,
+      country: placeCountry.trim() || defaultCountryName,
+      address: placeAddress.trim() || bundle.garageUi.specs.notInformed,
       lat: userCoords?.lat ?? 0,
       lng: userCoords?.lng ?? 0,
       distanceKm: 0,
@@ -255,6 +317,7 @@ export function GlobalNetworkView({
     setPlaces((prev) => [newPlace, ...prev]);
     setPlaceName('');
     setPlaceCity('');
+    setPlaceCountry(defaultCountryName);
     setPlaceAddress('');
     setPlaceSpecialties('');
     setShowAddModal(false);
@@ -286,20 +349,23 @@ export function GlobalNetworkView({
             <LocateFixed className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
             <span>
               {locating
-                ? 'Obtendo GPS...'
+                ? extra.locating
                 : userCoords
-                ? 'Localização ativa'
-                : 'Usar minha localização'}
+                ? ui.locActive
+                : ui.useLocation}
             </span>
           </button>
 
           <button
             type="button"
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              setPlaceCountry(defaultCountryName);
+              setShowAddModal(true);
+            }}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white transition-colors whitespace-nowrap shrink-0 w-fit"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Adicionar Local</span>
+            <span>{ui.addPlace}</span>
           </button>
         </div>
       </div>
@@ -311,7 +377,7 @@ export function GlobalNetworkView({
             type="text"
             value={manualLocationQuery}
             onChange={(e) => setManualLocationQuery(e.target.value)}
-            placeholder="Cidade / Bairro (ex.: Lisboa, São Paulo)"
+            placeholder={extra.cityPlaceholder}
             className="px-2.5 py-1.5 text-xs rounded-xl border border-amber-300 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100 sm:w-64"
           />
         </div>
@@ -387,7 +453,7 @@ export function GlobalNetworkView({
                 type="text"
                 value={manualLocationQuery}
                 onChange={(e) => setManualLocationQuery(e.target.value)}
-                placeholder="Cidade / Região"
+                placeholder={extra.cityPlaceholder}
                 className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
               />
             </div>
@@ -399,7 +465,7 @@ export function GlobalNetworkView({
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl border border-sky-200 dark:border-sky-400/35 bg-sky-50/70 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-500/20 transition-colors whitespace-nowrap shrink-0"
             >
               <MapPin className="w-3.5 h-3.5" />
-              <span>Buscar no Google Maps</span>
+              <span>{ui.searchMapsBtn}</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
@@ -412,22 +478,23 @@ export function GlobalNetworkView({
           <MapPin className="w-9 h-9 text-slate-400 mx-auto" />
           <div className="space-y-1">
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-              {places.length === 0
-                ? 'Nenhum local de confiança cadastrado'
-                : 'Nenhum local encontrado para este filtro'}
+              {places.length === 0 ? ui.emptyTitle : extra.filterEmptyTitle}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              Cadastre suas oficinas, postos, borracharias ou eletropostos favoritos, ou pesquise estabelecimentos reais próximos pelo Google Maps.
+              {ui.emptyDesc}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
             <button
               type="button"
-              onClick={() => setShowAddModal(true)}
+              onClick={() => {
+                setPlaceCountry(defaultCountryName);
+                setShowAddModal(true);
+              }}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Adicionar Local</span>
+              <span>{ui.addPlace}</span>
             </button>
             <a
               href={liveMapsSearchUrl}
@@ -435,7 +502,7 @@ export function GlobalNetworkView({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5"
             >
-              <span>Buscar no Google Maps</span>
+              <span>{ui.searchMapsBtn}</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -468,7 +535,7 @@ export function GlobalNetworkView({
                       type="button"
                       onClick={() => handleDeletePlace(partner.id)}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors shrink-0"
-                      aria-label="Remover local"
+                      aria-label={ui.removePlace}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -506,8 +573,8 @@ export function GlobalNetworkView({
                       whatsappNumber={prefs.whatsappNumber}
                       language={prefs.language}
                       compact
-                      label="WhatsApp"
-                      title="Enviar resumo deste local/serviço no WhatsApp cadastrado"
+                      label={bundle.whatsapp.buttonLabel}
+                      title={extra.sendWaTitle}
                       message={buildPartnerWhatsAppText({
                         partner,
                         vehicle,
@@ -515,6 +582,7 @@ export function GlobalNetworkView({
                           (u) => t.items[u.item.titleKey]?.title ?? u.item.titleKey
                         ),
                         units: prefs.units,
+                        language: prefs.language,
                       })}
                       onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
                     />
@@ -523,8 +591,8 @@ export function GlobalNetworkView({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 rounded-xl border border-slate-200 dark:border-white/15 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
-                      title="Abrir rota no mapa"
-                      aria-label="Abrir rota no mapa"
+                      title={ui.openMaps}
+                      aria-label={ui.openMaps}
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
@@ -556,7 +624,7 @@ export function GlobalNetworkView({
           <div className="autolife-glass rounded-2xl max-w-md w-full p-6 space-y-4 my-8">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-display text-lg font-bold text-slate-900 dark:text-slate-100">
-                Adicionar Local de Confiança
+                {ui.addModalTitle}
               </h2>
               <button
                 type="button"
@@ -571,7 +639,7 @@ export function GlobalNetworkView({
             <form onSubmit={handleCreatePlace} className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                  Nome do local
+                  {ui.placeName}
                 </label>
                 <input
                   type="text"
@@ -585,7 +653,7 @@ export function GlobalNetworkView({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    Categoria
+                    {ui.placeCategory}
                   </label>
                   <select
                     value={placeCategory}
@@ -604,7 +672,7 @@ export function GlobalNetworkView({
 
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    Cidade
+                    {ui.placeCity}
                   </label>
                   <input
                     type="text"
@@ -618,7 +686,7 @@ export function GlobalNetworkView({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    Endereço
+                    {ui.placeAddress}
                   </label>
                   <input
                     type="text"
@@ -629,7 +697,7 @@ export function GlobalNetworkView({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                    País
+                    {extra.countryLabel}
                   </label>
                   <input
                     type="text"
@@ -642,7 +710,7 @@ export function GlobalNetworkView({
 
               <div>
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                  Especialidades / Serviços (separados por vírgula)
+                  {extra.specialtiesLabel}
                 </label>
                 <input
                   type="text"
@@ -685,7 +753,7 @@ export function GlobalNetworkView({
                   type="submit"
                   className="px-4 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white"
                 >
-                  {t.actions.save}
+                  {ui.savePlace}
                 </button>
               </div>
             </form>
@@ -760,7 +828,7 @@ export function GlobalNetworkView({
               <WhatsAppConnectButton
                 whatsappNumber={prefs.whatsappNumber}
                 language={prefs.language}
-                label="Enviar no WhatsApp"
+                label={extra.sendWaBtn}
                 message={buildPartnerWhatsAppText({
                   partner: selectedPartner,
                   vehicle,
@@ -768,6 +836,7 @@ export function GlobalNetworkView({
                     (u) => t.items[u.item.titleKey]?.title ?? u.item.titleKey
                   ),
                   units: prefs.units,
+                  language: prefs.language,
                 })}
                 onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
               />

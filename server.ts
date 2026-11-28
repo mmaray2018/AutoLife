@@ -1893,6 +1893,11 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
       'IT', 'NL', 'BE', 'AT', 'IE', 'FI', 'GR', 'LU',
       'SK', 'SI', 'EE', 'LV', 'LT', 'MT', 'CY', 'HR',
     ]);
+    const latamSpanishSet = new Set([
+      'AR', 'CO', 'CL', 'PE', 'UY', 'EC', 'PY', 'BO',
+      'VE', 'CR', 'GT', 'DO', 'PA', 'SV', 'HN', 'NI', 'CU', 'PR',
+    ]);
+    const lusophoneSet = new Set(['AO', 'MZ', 'CV', 'GW', 'ST', 'TL']);
 
     let countryCode = 'GLOBAL';
     let currency = 'USD';
@@ -1923,12 +1928,18 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
         units = 'imperial';
         break;
       case 'ES':
+      case 'AD':
         countryCode = 'ES';
         currency = 'EUR';
         language = 'es';
         break;
       case 'DE':
         countryCode = 'DE';
+        currency = 'EUR';
+        language = 'de';
+        break;
+      case 'AT':
+        countryCode = 'EU';
         currency = 'EUR';
         language = 'de';
         break;
@@ -1961,6 +1972,16 @@ Respond strictly in ${targetLanguage} and output ONLY a single valid JSON object
         if (euSet.has(validIso)) {
           countryCode = 'EU';
           currency = 'EUR';
+          if (validIso === 'BE' && !detectedLanguage) language = 'fr';
+          if (validIso === 'LU' && !detectedLanguage) language = 'fr';
+        } else if (latamSpanishSet.has(validIso)) {
+          countryCode = 'GLOBAL';
+          currency = 'USD';
+          language = 'es';
+        } else if (lusophoneSet.has(validIso)) {
+          countryCode = 'GLOBAL';
+          currency = 'USD';
+          language = 'pt';
         }
         break;
     }

@@ -10,8 +10,10 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react';
+import { getUi } from '../data/uiTranslations';
 import { getAccessToken } from '../services/enterpriseRepository';
-import { CanonicalPlanId } from '../types/autolife';
+import { CanonicalPlanId, LanguageCode } from '../types/autolife';
+import { buildFallbackPlanCatalog, localizePlanCatalog } from '../utils/billing';
 
 export interface AdminUserRow {
   userId: string;
@@ -28,24 +30,42 @@ export interface AdminUserRow {
 
 interface AdminPanelViewProps {
   adminEmail: string | null;
+  language?: LanguageCode;
   onOwnPlanGranted: (planId: CanonicalPlanId) => Promise<void> | void;
 }
 
-const PLAN_OPTIONS: { id: CanonicalPlanId; label: string }[] = [
-  { id: 'personal', label: 'Plano Particular (1 veículo)' },
-  { id: 'fleet_10', label: 'Plano Frotas 10 (até 10 veículos)' },
-  { id: 'fleet_25', label: 'Plano Frotas 25 (até 25 veículos)' },
-  { id: 'fleet_50', label: 'Plano Frotas 50 (até 50 veículos)' },
-  { id: 'fleet_100', label: 'Plano Frotas 100 (até 100 veículos)' },
-  { id: 'enterprise', label: 'Empresarial Personalizado (Ilimitado)' },
-];
-
-const DURATION_OPTIONS = [
-  { days: 30, label: '30 dias' },
-  { days: 90, label: '90 dias' },
-  { days: 365, label: '1 ano (365 dias)' },
-  { days: 3650, label: '10 anos (VIP)' },
-];
+const DURATION_OPTIONS_BY_LANG: Record<LanguageCode, Array<{ days: number; label: string }>> = {
+  pt: [
+    { days: 30, label: '30 dias' },
+    { days: 90, label: '90 dias' },
+    { days: 365, label: '1 ano (365 dias)' },
+    { days: 3650, label: '10 anos (VIP)' },
+  ],
+  en: [
+    { days: 30, label: '30 days' },
+    { days: 90, label: '90 days' },
+    { days: 365, label: '1 year (365 days)' },
+    { days: 3650, label: '10 years (VIP)' },
+  ],
+  es: [
+    { days: 30, label: '30 días' },
+    { days: 90, label: '90 días' },
+    { days: 365, label: '1 año (365 días)' },
+    { days: 3650, label: '10 años (VIP)' },
+  ],
+  de: [
+    { days: 30, label: '30 Tage' },
+    { days: 90, label: '90 Tage' },
+    { days: 365, label: '1 Jahr (365 Tage)' },
+    { days: 3650, label: '10 Jahre (VIP)' },
+  ],
+  fr: [
+    { days: 30, label: '30 jours' },
+    { days: 90, label: '90 jours' },
+    { days: 365, label: '1 an (365 jours)' },
+    { days: 3650, label: '10 ans (VIP)' },
+  ],
+};
 
 const ADMIN_SETUP_SQL = `create or replace function public.admin_list_users()
 returns table (
@@ -68,7 +88,7 @@ declare
   v_caller_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
 begin
   if v_caller_email <> 'picelador@gmail.com' then
-    raise exception 'Acesso restrito ao administrador.';
+    raise exception 'Restricted to administrator.';
   end if;
 
   return query
@@ -114,11 +134,11 @@ declare
   v_cycle text := case when v_days >= 300 then 'annual' else 'monthly' end;
 begin
   if v_caller_email <> 'picelador@gmail.com' then
-    raise exception 'Acesso restrito ao administrador.';
+    raise exception 'Restricted to administrator.';
   end if;
 
   if target_plan_id not in ('personal', 'fleet_10', 'fleet_25', 'fleet_50', 'fleet_100', 'enterprise') then
-    raise exception 'Plano invalido: %', target_plan_id;
+    raise exception 'Invalid plan: %', target_plan_id;
   end if;
 
   select id, email::text
@@ -128,7 +148,7 @@ begin
   limit 1;
 
   if v_user_id is null then
-    raise exception 'Conta nao encontrada para o e-mail informado.';
+    raise exception 'Account not found for email.';
   end if;
 
   insert into public.user_subscriptions (
@@ -174,11 +194,26 @@ grant execute on function public.admin_list_users() to authenticated;
 revoke all on function public.admin_grant_plan(text, text, integer) from public;
 grant execute on function public.admin_grant_plan(text, text, integer) to authenticated;`;
 
-function planLabel(planId: CanonicalPlanId): string {
-  return PLAN_OPTIONS.find((p) => p.id === planId)?.label ?? planId;
-}
+export function AdminPanelView({
+  adminEmail,
+  language = 'pt',
+  onOwnPlanGranted,
+}: AdminPanelViewProps) {
+  const bundle = getUi(language);
+  const ui = bundle.adminUi;
+  const planOptions = useMemo(
+    () =>
+      localizePlanCatalog(buildFallbackPlanCatalog('US', 'USD'), language).map((p) => ({
+        id: p.id,
+        label: p.name,
+      })),
+    [language]
+  );
+  const durationOptions = DURATION_OPTIONS_BY_LANG[language] ?? DURATION_OPTIONS_BY_LANG.en;
 
-export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewProps) {
+  const planLabel = (planId: CanonicalPlanId) =>
+    planOptions.find((p) => p.id === planId)?.label ?? planId;
+
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [needsSqlSetup, setNeedsSqlSetup] = useState(false);
@@ -199,7 +234,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
     try {
       const token = await getAccessToken();
       if (!token) {
-        setFeedback({ mode: 'error', message: 'Sessão expirada. Faça login novamente.' });
+        setFeedback({ mode: 'error', message: ui.emptyNeedSql });
         return;
       }
       const res = await fetch('/api/admin/users', {
@@ -211,19 +246,19 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
         error?: string;
       };
       if (!res.ok) {
-        throw new Error(data.error || `Erro HTTP ${res.status}`);
+        throw new Error(data.error || `HTTP ${res.status}`);
       }
       setNeedsSqlSetup(Boolean(data.needsSqlSetup));
       setUsers(Array.isArray(data.users) ? data.users : []);
     } catch (err) {
       setFeedback({
         mode: 'error',
-        message: err instanceof Error ? err.message : 'Não foi possível carregar os usuários.',
+        message: err instanceof Error ? err.message : `HTTP error`,
       });
     } finally {
       setLoadingUsers(false);
     }
-  }, []);
+  }, [ui.emptyNeedSql]);
 
   useEffect(() => {
     void loadUsers();
@@ -250,7 +285,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
     const daysToUse = daysOverride ?? durationDays;
 
     if (!emailToUse || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToUse)) {
-      setFeedback({ mode: 'error', message: 'Digite um e-mail válido para liberar o plano.' });
+      setFeedback({ mode: 'error', message: ui.emailLabel });
       return;
     }
 
@@ -258,7 +293,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
     setFeedback(null);
     try {
       const token = await getAccessToken();
-      if (!token) throw new Error('Sessão expirada. Entre novamente.');
+      if (!token) throw new Error('Unauthorized');
 
       const res = await fetch('/api/admin/grant-plan', {
         method: 'POST',
@@ -285,12 +320,12 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
       }
 
       if (!res.ok || !data.granted) {
-        throw new Error(data.error || 'Falha ao liberar plano.');
+        throw new Error(data.error || `HTTP ${res.status}`);
       }
 
       setFeedback({
         mode: 'success',
-        message: `Plano "${planLabel(planToUse)}" ativado para ${data.email ?? emailToUse} por ${daysToUse} dias.`,
+        message: `${planLabel(planToUse)} → ${data.email ?? emailToUse} (${daysToUse}d)`,
       });
 
       if (adminEmail && emailToUse === adminEmail.trim().toLowerCase()) {
@@ -301,7 +336,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
     } catch (err) {
       setFeedback({
         mode: 'error',
-        message: err instanceof Error ? err.message : 'Erro ao atualizar plano.',
+        message: err instanceof Error ? err.message : 'Error',
       });
     } finally {
       setGrantBusy(false);
@@ -325,11 +360,11 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0" />
             <h1 className="font-display text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">
-              Painel Admin — Liberação de Planos
+              {ui.title}
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Acesso exclusivo para <strong className="font-mono">{adminEmail}</strong>. Libere planos VIP, frotas ou cortesias em 1 clique sem abrir o Supabase.
+            {ui.subtitlePrefix} <strong className="font-mono">{adminEmail}</strong>. {ui.subtitleSuffix}
           </p>
         </div>
 
@@ -344,7 +379,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
           ) : (
             <RefreshCw className="w-3.5 h-3.5" />
           )}
-          <span>Atualizar contas</span>
+          <span>{ui.refreshBtn}</span>
         </button>
       </div>
 
@@ -353,10 +388,10 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="font-display text-sm font-semibold text-slate-900 dark:text-slate-100">
-                Ativação única no SQL Editor do Supabase
+                {ui.sqlSetupTitle}
               </h2>
               <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                Como você usa apenas a chave pública no servidor, cole este SQL uma única vez no SQL Editor do Supabase e clique em <strong>Run</strong> para habilitar a listagem e liberação direto por aqui.
+                {ui.sqlSetupDesc}
               </p>
             </div>
             <button
@@ -365,7 +400,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 text-white hover:bg-slate-800 dark:hover:bg-sky-500 whitespace-nowrap shrink-0"
             >
               {copiedSql ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedSql ? 'SQL copiado' : 'Copiar SQL único'}</span>
+              <span>{copiedSql ? ui.copiedSqlBtn : ui.copySqlBtn}</span>
             </button>
           </div>
           <pre className="p-3 rounded-xl bg-[#040812] text-slate-200 text-[11px] font-mono overflow-x-auto max-h-48 border border-white/10">
@@ -379,7 +414,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
         <div className="flex items-center gap-2">
           <Crown className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
           <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-            Liberar ou Alterar Plano por E-mail
+            {ui.grantTitle}
           </h2>
         </div>
 
@@ -395,13 +430,13 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               htmlFor="admin-target-email"
               className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1"
             >
-              E-mail da conta
+              {ui.emailLabel}
             </label>
             <input
               id="admin-target-email"
               type="email"
               required
-              placeholder="cliente@gmail.com"
+              placeholder="name@email.com"
               value={targetEmail}
               onChange={(e) => setTargetEmail(e.target.value)}
               className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -413,7 +448,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               htmlFor="admin-target-plan"
               className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1"
             >
-              Plano a liberar
+              {ui.planLabel}
             </label>
             <select
               id="admin-target-plan"
@@ -421,7 +456,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               onChange={(e) => setTargetPlanId(e.target.value as CanonicalPlanId)}
               className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             >
-              {PLAN_OPTIONS.map((p) => (
+              {planOptions.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.label}
                 </option>
@@ -434,7 +469,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               htmlFor="admin-duration-days"
               className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1"
             >
-              Validade
+              {ui.durationLabel}
             </label>
             <select
               id="admin-duration-days"
@@ -442,7 +477,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               onChange={(e) => setDurationDays(Number(e.target.value))}
               className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             >
-              {DURATION_OPTIONS.map((d) => (
+              {durationOptions.map((d) => (
                 <option key={d.days} value={d.days}>
                   {d.label}
                 </option>
@@ -452,7 +487,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
 
           <div className="md:col-span-12 flex flex-wrap items-center justify-between gap-3 pt-1">
             <span className="text-xs text-slate-500 dark:text-slate-400">
-              A pessoa precisa já ter entrado no app pelo menos uma vez (Google ou e-mail) para aparecer abaixo.
+              {ui.grantHint}
             </span>
             <button
               type="submit"
@@ -464,7 +499,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
               ) : (
                 <CheckCircle2 className="w-3.5 h-3.5" />
               )}
-              <span>Liberar Plano Agora</span>
+              <span>{ui.grantBtn}</span>
             </button>
           </div>
         </form>
@@ -488,7 +523,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-              Contas Cadastradas ({users.length})
+              {ui.accountsTitle} ({users.length})
             </h2>
           </div>
 
@@ -496,7 +531,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Buscar por e-mail ou nome..."
+              placeholder={ui.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -507,20 +542,18 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
         {loadingUsers ? (
           <div className="px-6 py-10 text-center text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Carregando contas...</span>
+            <span>{ui.loading}</span>
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="px-6 py-10 text-center text-xs text-slate-500 dark:text-slate-400">
-            {needsSqlSetup
-              ? 'Execute o SQL acima no Supabase e clique em "Atualizar contas" para listar os usuários.'
-              : 'Nenhuma conta encontrada.'}
+            {needsSqlSetup ? ui.emptyNeedSql : ui.emptyNoMatch}
           </div>
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-white/10 tabular-nums">
             {filteredUsers.map((user) => {
               const expiryLabel = user.currentPeriodEnd
-                ? new Date(user.currentPeriodEnd).toLocaleDateString('pt-BR')
-                : 'Sem vencimento';
+                ? new Date(user.currentPeriodEnd).toLocaleDateString(bundle.localeTag)
+                : ui.noExpiry;
               return (
                 <div
                   key={user.userId}
@@ -533,16 +566,20 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2">
                       <span>
-                        Plano: <strong>{user.activePlan}</strong>
+                        {ui.planLabelPrefix} <strong>{planLabel(user.activePlan)}</strong>
                       </span>
-                      <span aria-hidden="true">·</span>
-                      <span>Status: {user.subscriptionStatus}</span>
                       <span aria-hidden="true">·</span>
                       <span>
-                        {user.vehiclesCount} veículo{user.vehiclesCount === 1 ? '' : 's'}
+                        {ui.statusLabelPrefix} {user.subscriptionStatus}
                       </span>
                       <span aria-hidden="true">·</span>
-                      <span>Validade: {expiryLabel}</span>
+                      <span>
+                        {user.vehiclesCount} {ui.vehiclesLabel}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        {ui.expiryLabelPrefix} {expiryLabel}
+                      </span>
                     </div>
                   </div>
 
@@ -555,7 +592,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
                       }}
                       className="px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 whitespace-nowrap shrink-0"
                     >
-                      Selecionar
+                      {ui.selectBtn}
                     </button>
                     {user.activePlan !== 'enterprise' && (
                       <button
@@ -564,7 +601,7 @@ export function AdminPanelView({ adminEmail, onOwnPlanGranted }: AdminPanelViewP
                         onClick={() => void handleGrantPlan(user.email, 'enterprise', 365)}
                         className="px-3 py-1.5 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
                       >
-                        Liberar Enterprise (1 ano)
+                        {ui.grantEnterpriseBtn}
                       </button>
                     )}
                   </div>

@@ -16,6 +16,7 @@ import { OfflineIndicator } from './components/PWAInstallButton';
 import { SidebarNav } from './components/SidebarNav';
 import { PublicPassportView } from './components/VehiclePassportModal';
 import { TRANSLATIONS } from './data/i18n';
+import { getUi } from './data/uiTranslations';
 import {
   DEFAULT_PREFERENCES,
   INITIAL_CHARGING_SESSIONS,
@@ -79,16 +80,58 @@ import {
   detectLocaleRegionDefaults,
   inferCountryFromCurrency,
   isBusinessPlan,
+  localizePlanCatalog,
   normalizePlanTier,
   resolveRegionForCountryCode,
 } from './utils/billing';
 import { sanitizeWhatsAppNumber } from './utils/whatsapp';
 
-const STORAGE_KEY = 'autolife_world_state_v2';
-const LEGACY_STORAGE_KEY = 'autolife_world_state_v1';
+const APP_RELEASE_VERSION = '2026-11-28-clean-v3';
+const RELEASE_MARKER_KEY = 'autolife_release_version';
+const STORAGE_KEY = 'autolife_world_state_v3';
 const CURRENCY_STORAGE_KEY = 'autolife_preferred_currency';
 const WHATSAPP_STORAGE_KEY = 'autolife_whatsapp_number';
 const REGION_MANUAL_KEY = 'autolife_region_manual_v1';
+
+function runCleanReleaseMigrationOnce(): boolean {
+  try {
+    if (localStorage.getItem(RELEASE_MARKER_KEY) === APP_RELEASE_VERSION) {
+      return false;
+    }
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('autolife_') && k !== RELEASE_MARKER_KEY) {
+        keysToRemove.push(k);
+      }
+    }
+    for (const k of keysToRemove) {
+      localStorage.removeItem(k);
+    }
+
+    try {
+      const sessionKeys: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i += 1) {
+        const k = sessionStorage.key(i);
+        if (k && k.startsWith('autolife_')) {
+          sessionKeys.push(k);
+        }
+      }
+      for (const k of sessionKeys) {
+        sessionStorage.removeItem(k);
+      }
+    } catch {
+      // Ignore sessionStorage restrictions
+    }
+
+    localStorage.setItem(RELEASE_MARKER_KEY, APP_RELEASE_VERSION);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const DID_RUN_CLEAN_MIGRATION = runCleanReleaseMigrationOnce();
 
 function isRegionManuallySet(): boolean {
   try {
@@ -152,11 +195,6 @@ function loadInitialState(): PersistedState {
   })();
 
   try {
-    // Limpa cache antigo que podia conter veiculos de demonstracao
-    if (localStorage.getItem(LEGACY_STORAGE_KEY)) {
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
-    }
-
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<PersistedState>;
@@ -268,7 +306,7 @@ function buildDefaultChecklistForVehicle(vehicle: Vehicle): MaintenanceItem[] {
         intervalKm: 1000,
         lastCheckedDate: '',
         lastCheckedKm: vehicle.odometerKm,
-        notes: `${vehicle.tirePressurePsi} PSI dianteiro / ${vehicle.rearTirePressurePsi ?? vehicle.tirePressurePsi + 4} PSI traseiro`,
+        notes: `${vehicle.tirePressurePsi} PSI / ${vehicle.rearTirePressurePsi ?? vehicle.tirePressurePsi + 4} PSI`,
       },
       {
         id: `m-${vehicle.id}-brakes`,
@@ -513,6 +551,29 @@ export default function App() {
   const latestStateRef = useRef(state);
   const hadAuthenticatedSessionRef = useRef(false);
   const userSelectedModuleRef = useRef(false);
+  const latestDetectedRegionRef = useRef(detectLocaleRegionDefaults());
+  const cloudPrefsUntouchedRef = useRef(false);
+  const cloudUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    cloudUserIdRef.current = cloudUserId;
+  }, [cloudUserId]);
+
+  useEffect(() => {
+    if (!DID_RUN_CLEAN_MIGRATION) return;
+    if (typeof window !== 'undefined' && 'caches' in window) {
+      window.caches
+        .keys()
+        .then((names) => Promise.all(names.map((n) => window.caches.delete(n))))
+        .catch(() => {});
+    }
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((regs) => Promise.all(regs.map((r) => r.update())))
+        .catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     const handleQuotaExceeded = () => setMapsQuotaExceeded(true);
@@ -532,16 +593,25 @@ export default function App() {
   const activeVehicle =
     state.vehicles.find((v) => v.id === state.activeVehicleId) ?? state.vehicles[0] ?? null;
   const activeVehicleId = activeVehicle?.id ?? '';
-  const t = TRANSLATIONS[state.prefs.language] ?? TRANSLATIONS.pt;
+  const t = TRANSLATIONS[state.prefs.language] ?? TRANSLATIONS.en;
+  const ui = getUi(state.prefs.language);
   const effectiveCountry: CountryCode =
     state.prefs.countryCode ?? inferCountryFromCurrency(state.prefs.currency);
 
+  const localizedCatalogPlans = localizePlanCatalog(catalogPlans, state.prefs.language);
   const normalizedActivePlan = normalizePlanTier(state.prefs.activePlan);
   const activePlanItem =
-    catalogPlans.find((p) => p.id === normalizedActivePlan) ?? catalogPlans[0] ?? null;
+    localizedCatalogPlans.find((p) => p.id === normalizedActivePlan) ??
+    localizedCatalogPlans[0] ??
+    null;
   const vehicleLimit =
     activePlanItem?.vehicleLimit ?? (isBusinessPlan(normalizedActivePlan) ? 10 : 1);
-  const activePlanName = activePlanItem?.name ?? 'Plano Particular';
+  const activePlanName = activePlanItem?.name ?? localizedCatalogPlans[0]?.name ?? 'Personal';
+
+  useEffect(() => {
+    document.documentElement.lang = ui.localeTag;
+    document.title = `${t.brand} — ${t.tagline}`;
+  }, [ui.localeTag, t.brand, t.tagline]);
 
   useEffect(() => {
     if (!publicPassportToken) {
@@ -557,9 +627,7 @@ export default function App() {
       .then((share) => {
         if (!mounted) return;
         if (!share) {
-          setPublicPassportError(
-            'Passaporte não encontrado, expirado ou compartilhamento desativado pelo proprietário.'
-          );
+          setPublicPassportError(ui.passportUi.unavailableDesc);
           setPublicPassportShare(null);
         } else {
           setPublicPassportShare(share);
@@ -567,7 +635,7 @@ export default function App() {
       })
       .catch(() => {
         if (mounted) {
-          setPublicPassportError('Não foi possível validar este Passaporte Digital.');
+          setPublicPassportError(ui.passportUi.unavailableDesc);
         }
       })
       .finally(() => {
@@ -601,7 +669,7 @@ export default function App() {
     const token = await getAccessToken();
     const [subRes, org, odoEvents] = await Promise.all([
       fetchUserSubscriptionState(token, userId),
-      fetchOrCreateOrganization(userId, countryCode),
+      fetchOrCreateOrganization(userId, countryCode, ui.teamUi.companyPlaceholder),
       fetchOdometerEvents(userId),
     ]);
     setSubscription(subRes.subscription);
@@ -692,7 +760,7 @@ export default function App() {
               ? err.message
               : err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string'
               ? String((err as { message: string }).message)
-              : 'Não foi possível carregar as fotos/documentos salvos.';
+              : ui.vaultUi.loadError;
           setAttachmentsError(msg);
         }
       })
@@ -745,7 +813,20 @@ export default function App() {
             ? resolveRegionForCountryCode(data.countryCode, browserLocales)
             : detectLocaleRegionDefaults();
 
+        latestDetectedRegionRef.current = resolved;
+
         setState((prev) => {
+          const updatedPrefs: UserPreferences = {
+            ...prev.prefs,
+            countryCode: resolved.countryCode,
+            currency: resolved.currency,
+            language: resolved.language,
+            units: resolved.units,
+          };
+          if (cloudUserIdRef.current && cloudPrefsUntouchedRef.current) {
+            cloudPrefsUntouchedRef.current = false;
+            void syncPreferencesToCloud(cloudUserIdRef.current, updatedPrefs).catch(() => {});
+          }
           if (
             prev.prefs.countryCode === resolved.countryCode &&
             prev.prefs.currency === resolved.currency &&
@@ -756,13 +837,7 @@ export default function App() {
           }
           return {
             ...prev,
-            prefs: {
-              ...prev.prefs,
-              countryCode: resolved.countryCode,
-              currency: resolved.currency,
-              language: resolved.language,
-              units: resolved.units,
-            },
+            prefs: updatedPrefs,
           };
         });
       })
@@ -821,35 +896,46 @@ export default function App() {
             void saveWhatsAppToUserMetadata(effectiveWhatsapp);
           }
 
+          const localPrefs = latestStateRef.current.prefs;
+          const detectedRegion = latestDetectedRegionRef.current;
+          const preferredLocalCountry =
+            localPrefs.countryCode && localPrefs.countryCode !== 'BR'
+              ? localPrefs
+              : detectedRegion;
+          const cloudLooksLikeDefaultTrigger =
+            Boolean(snap.prefs) &&
+            snap.prefs?.language === 'pt' &&
+            snap.prefs?.currency === 'BRL' &&
+            (!snap.prefs?.countryCode || snap.prefs.countryCode === 'BR');
+
+          const shouldAdoptDetectedRegion =
+            !isRegionManuallySet() &&
+            (snap.preferencesUntouched || cloudLooksLikeDefaultTrigger) &&
+            preferredLocalCountry.countryCode !== 'BR';
+
+          cloudPrefsUntouchedRef.current =
+            snap.preferencesUntouched || cloudLooksLikeDefaultTrigger;
+
           if (snap.vehicles.length === 0) {
             if (latestStateRef.current.vehicles.length > 0) {
               return syncLocalSnapshotToCloud(user.id).catch(() => {});
             }
             if (snap.prefs) {
-              const localPrefs = latestStateRef.current.prefs;
-              const cloudLooksLikeDefaultTrigger =
-                snap.prefs.language === 'pt' &&
-                snap.prefs.currency === 'BRL' &&
-                (!snap.prefs.countryCode || snap.prefs.countryCode === 'BR');
-              const keepDetectedLocalRegion =
-                !isRegionManuallySet() &&
-                cloudLooksLikeDefaultTrigger &&
-                Boolean(localPrefs.countryCode && localPrefs.countryCode !== 'BR');
-
-              const mergedPrefs: UserPreferences = keepDetectedLocalRegion
+              const mergedPrefs: UserPreferences = shouldAdoptDetectedRegion
                 ? {
                     ...snap.prefs,
-                    language: localPrefs.language,
-                    units: localPrefs.units,
-                    currency: localPrefs.currency,
-                    countryCode: localPrefs.countryCode,
+                    language: preferredLocalCountry.language,
+                    units: preferredLocalCountry.units,
+                    currency: preferredLocalCountry.currency,
+                    countryCode: preferredLocalCountry.countryCode,
                     whatsappNumber: effectiveWhatsapp,
                   }
                 : {
                     ...snap.prefs,
                     whatsappNumber: effectiveWhatsapp,
                   };
-              if (keepDetectedLocalRegion || (effectiveWhatsapp && !cloudWhatsapp)) {
+              if (shouldAdoptDetectedRegion || (effectiveWhatsapp && !cloudWhatsapp)) {
+                cloudPrefsUntouchedRef.current = false;
                 void syncPreferencesToCloud(user.id, mergedPrefs).catch(() => {});
               }
               setState((prev) => ({
@@ -864,9 +950,19 @@ export default function App() {
             const prevWa = (prev.prefs.whatsappNumber ?? '').trim();
             const mergedWa = cloudWhatsapp || metaWhatsapp || prevWa || localWhatsapp;
             const mergedPrefs: UserPreferences = snap.prefs
-              ? { ...snap.prefs, whatsappNumber: mergedWa }
+              ? shouldAdoptDetectedRegion
+                ? {
+                    ...snap.prefs,
+                    language: preferredLocalCountry.language,
+                    units: preferredLocalCountry.units,
+                    currency: preferredLocalCountry.currency,
+                    countryCode: preferredLocalCountry.countryCode,
+                    whatsappNumber: mergedWa,
+                  }
+                : { ...snap.prefs, whatsappNumber: mergedWa }
               : { ...prev.prefs, whatsappNumber: mergedWa };
-            if (mergedWa && !cloudWhatsapp) {
+            if (shouldAdoptDetectedRegion || (mergedWa && !cloudWhatsapp)) {
+              cloudPrefsUntouchedRef.current = false;
               void syncPreferencesToCloud(user.id, mergedPrefs).catch(() => {});
             }
             return {
@@ -1217,7 +1313,7 @@ export default function App() {
               vehicleId: enrichedVehicle.id,
               file: documentFile,
               category: 'document',
-              notes: 'Documento veicular capturado no cadastro',
+              notes: ui.modals.attachDocLabel,
             });
             setAttachments((prev) => [uploaded, ...prev]);
           }
@@ -1244,7 +1340,7 @@ export default function App() {
               vehicleId: updatedVehicle.id,
               file: documentFile,
               category: 'document',
-              notes: 'Documento veicular atualizado',
+              notes: ui.modals.attachDocLabel,
             });
             setAttachments((prev) => [uploaded, ...prev]);
           }
@@ -1423,6 +1519,7 @@ export default function App() {
         share={publicPassportShare}
         loading={publicPassportLoading}
         error={publicPassportError}
+        language={state.prefs.language}
         onExitPublicView={() => {
           setPublicPassportToken(null);
           window.history.replaceState({}, '', window.location.pathname);
@@ -1444,6 +1541,7 @@ export default function App() {
           onAddVehicle={() => setShowAddVehicleModal(true)}
           onRequestDeleteVehicle={requestDeleteVehicle}
           t={t}
+          language={state.prefs.language}
           units={state.prefs.units}
           theme={state.prefs.theme}
           onToggleTheme={() =>
@@ -1464,14 +1562,14 @@ export default function App() {
             <div className="flex items-center gap-2 min-w-0">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>
-                Limite temporário da chave de demonstração do Google Maps atingido.{' '}
+                {ui.app.mapsQuotaMsg}{' '}
                 <a
                   href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline font-semibold hover:text-slate-800"
                 >
-                  Saiba como usar sua própria chave com crédito gratuito
+                  {ui.app.mapsQuotaLink}
                 </a>
                 .
               </span>
@@ -1479,7 +1577,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setMapsQuotaExceeded(false)}
-              aria-label="Fechar aviso"
+              aria-label={ui.app.closeNotice}
               className="p-1 rounded hover:bg-amber-600/30 shrink-0"
             >
               <X className="w-4 h-4" />
@@ -1510,9 +1608,7 @@ export default function App() {
                   e.preventDefault();
                   const clean = onboardingWhatsappInput.trim();
                   if (!sanitizeWhatsAppNumber(clean, state.prefs.language)) {
-                    setOnboardingWhatsappError(
-                      'Informe um WhatsApp válido com DDD/DDI (ex.: +55 11 99999-8888).'
-                    );
+                    setOnboardingWhatsappError(ui.app.waInvalidError);
                     return;
                   }
                   setOnboardingWhatsappError(null);
@@ -1523,12 +1619,12 @@ export default function App() {
                 <div className="space-y-0.5 min-w-0">
                   <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100">
                     <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>Complete seu cadastro único (E-mail + WhatsApp)</span>
+                    <span>{ui.app.waBannerTitle}</span>
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-300">
-                    E-mail já vinculado:{' '}
-                    <strong className="font-mono">{cloudUserEmail || 'Conta conectada'}</strong>.{' '}
-                    Salve seu WhatsApp uma única vez para enviar toda a ficha técnica e avisos com 1 clique.
+                    {ui.app.waBannerDescPrefix}{' '}
+                    <strong className="font-mono">{cloudUserEmail || ui.app.waBannerDefaultAccount}</strong>.{' '}
+                    {ui.app.waBannerDescSuffix}
                   </p>
                   {onboardingWhatsappError && (
                     <p className="text-xs text-red-600 dark:text-red-400">
@@ -1540,7 +1636,7 @@ export default function App() {
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <input
                     type="tel"
-                    placeholder="Ex.: +55 11 99999-8888"
+                    placeholder={ui.app.waPlaceholder}
                     value={onboardingWhatsappInput}
                     onChange={(e) => setOnboardingWhatsappInput(e.target.value)}
                     className="px-3 py-1.5 text-xs sm:text-sm font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 w-52"
@@ -1550,14 +1646,14 @@ export default function App() {
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Salvar WhatsApp</span>
+                    <span>{ui.app.waSaveBtn}</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setDismissedWhatsappPrompt(true)}
                     className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                   >
-                    Agora não
+                    {ui.app.waLaterBtn}
                   </button>
                 </div>
               </form>
@@ -1600,7 +1696,7 @@ export default function App() {
               attachments={attachments}
               attachmentsLoading={attachmentsLoading}
               attachmentsError={attachmentsError}
-              catalogPlans={catalogPlans}
+              catalogPlans={localizedCatalogPlans}
               catalogSource={catalogSource}
               subscription={subscription}
               payments={payments}
@@ -1691,6 +1787,7 @@ export default function App() {
           {activeModule === 'admin' && isAdmin && (
             <AdminPanelView
               adminEmail={cloudUserEmail}
+              language={state.prefs.language}
               onOwnPlanGranted={async (planId: CanonicalPlanId) => {
                 updatePrefs({ activePlan: planId });
                 if (cloudUserId) {
@@ -1711,7 +1808,7 @@ export default function App() {
         </footer>
       </div>
 
-      <OfflineIndicator />
+      <OfflineIndicator language={state.prefs.language} />
 
       {showLogModal && activeVehicle && (
         <LogCheckModal
@@ -1719,6 +1816,7 @@ export default function App() {
           items={state.items}
           initialItem={logModalItem}
           currency={state.prefs.currency}
+          language={state.prefs.language}
           t={t}
           onClose={() => {
             setShowLogModal(false);
@@ -1766,6 +1864,7 @@ export default function App() {
             chargesCount={state.chargingSessions.filter((c) => c.vehicleId === target.id).length}
             itemsCount={state.items.filter((i) => i.vehicleId === target.id).length}
             attachmentsCount={attachments.filter((a) => a.vehicleId === target.id).length}
+            language={state.prefs.language}
             t={t}
             onClose={() => setVehicleToDeleteId(null)}
             onConfirm={() => handleDeleteVehicle(target.id)}

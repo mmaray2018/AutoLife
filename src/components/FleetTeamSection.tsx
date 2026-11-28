@@ -8,6 +8,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
+import { getUi } from '../data/uiTranslations';
 import {
   DEFAULT_ROLE_PERMISSIONS,
   inviteOrganizationMember,
@@ -17,36 +18,31 @@ import {
 } from '../services/enterpriseRepository';
 import {
   CountryCode,
+  LanguageCode,
   OrganizationMember,
   OrganizationMemberRole,
   OrganizationPermissions,
   OrganizationProfile,
 } from '../types/autolife';
-import { COUNTRY_LIST } from '../utils/billing';
+import { COUNTRY_LIST, getLocalizedCountryName } from '../utils/billing';
 
 interface FleetTeamSectionProps {
   organization: OrganizationProfile | null;
   members: OrganizationMember[];
   cloudUserId: string | null;
   maxTeamMembers: number | null;
+  language?: LanguageCode;
   onOrganizationUpdated: (org: OrganizationProfile) => void;
   onMembersChanged: (next: OrganizationMember[]) => void;
   onOpenCloudSettings: () => void;
 }
 
-const ROLE_LABELS: Record<OrganizationMemberRole, string> = {
-  admin: 'Administrador',
-  fleet_manager: 'Gestor de Frota',
-  driver: 'Motorista / Responsável',
-  viewer: 'Auditor / Leitura',
-};
-
-const PERMISSION_LABELS: Array<{ key: keyof OrganizationPermissions; label: string }> = [
-  { key: 'canViewVehicles', label: 'Ver veículos' },
-  { key: 'canEditVehicles', label: 'Editar frota' },
-  { key: 'canLogMaintenance', label: 'Lançar manutenção' },
-  { key: 'canViewExpenses', label: 'Ver despesas' },
-  { key: 'canManageTeam', label: 'Gerir equipe' },
+const PERMISSION_KEYS: Array<keyof OrganizationPermissions> = [
+  'canViewVehicles',
+  'canEditVehicles',
+  'canLogMaintenance',
+  'canViewExpenses',
+  'canManageTeam',
 ];
 
 export function FleetTeamSection({
@@ -54,14 +50,17 @@ export function FleetTeamSection({
   members,
   cloudUserId,
   maxTeamMembers,
+  language = 'pt',
   onOrganizationUpdated,
   onMembersChanged,
   onOpenCloudSettings,
 }: FleetTeamSectionProps) {
+  const ui = getUi(language).teamUi;
+
   const [companyName, setCompanyName] = useState(organization?.name ?? '');
   const [taxId, setTaxId] = useState(organization?.taxId ?? '');
   const [orgCountry, setOrgCountry] = useState<CountryCode>(
-    (organization?.countryCode as CountryCode) || 'BR'
+    (organization?.countryCode as CountryCode) || 'US'
   );
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgSaved, setOrgSaved] = useState(false);
@@ -80,7 +79,7 @@ export function FleetTeamSection({
     setSyncedOrgId(organization?.id ?? '');
     setCompanyName(organization?.name ?? '');
     setTaxId(organization?.taxId ?? '');
-    setOrgCountry((organization?.countryCode as CountryCode) || 'BR');
+    setOrgCountry((organization?.countryCode as CountryCode) || 'US');
   }
 
   const handleSaveOrg = async (e: React.FormEvent) => {
@@ -100,7 +99,7 @@ export function FleetTeamSection({
         window.setTimeout(() => setOrgSaved(false), 2500);
       }
     } catch (err) {
-      setFeedback(err instanceof Error ? err.message : 'Erro ao atualizar dados da empresa.');
+      setFeedback(err instanceof Error ? err.message : 'Error');
     } finally {
       setOrgSaving(false);
     }
@@ -110,9 +109,7 @@ export function FleetTeamSection({
     e.preventDefault();
     if (!organization || !cloudUserId) return;
     if (maxTeamMembers !== null && members.length >= maxTeamMembers) {
-      setFeedback(
-        `Limite de ${maxTeamMembers} responsáveis atingido no plano atual. Faça upgrade da frota para adicionar mais usuários.`
-      );
+      setFeedback(`${ui.limitReachedMsg} (${maxTeamMembers})`);
       return;
     }
     setInviteBusy(true);
@@ -134,9 +131,9 @@ export function FleetTeamSection({
       onMembersChanged(nextList);
       setInviteName('');
       setInviteEmail('');
-      setFeedback(`Convite registrado para ${created.memberEmail} com permissões personalizadas.`);
+      setFeedback(`${ui.inviteSuccessMsg} ${created.memberEmail}`);
     } catch (err) {
-      setFeedback(err instanceof Error ? err.message : 'Não foi possível convidar o funcionário.');
+      setFeedback(err instanceof Error ? err.message : 'Error');
     } finally {
       setInviteBusy(false);
     }
@@ -183,18 +180,18 @@ export function FleetTeamSection({
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-sky-600 dark:text-sky-400" />
           <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-            Empresa &amp; Equipe de Motoristas
+            {ui.disconnectedTitle}
           </h2>
         </div>
         <p className="text-xs text-slate-600 dark:text-slate-400">
-          Conecte-se à sua conta na nuvem para cadastrar sua empresa, convidar funcionários com permissões granulares e isolar os veículos da organização.
+          {ui.disconnectedDesc}
         </p>
         <button
           type="button"
           onClick={onOpenCloudSettings}
           className="px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white"
         >
-          Conectar Conta Empresarial
+          {ui.connectBtn}
         </button>
       </section>
     );
@@ -207,18 +204,16 @@ export function FleetTeamSection({
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-sky-600 dark:text-sky-400" />
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-              Estrutura Empresarial &amp; Responsáveis da Frota
+              {ui.title}
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>
-              Dados isolados por empresa (nenhuma organização acessa veículos ou documentos de outra).
-            </span>
+            <span>{ui.isolatedNote}</span>
           </p>
         </div>
         <span className="text-xs font-mono text-slate-500 dark:text-slate-400 shrink-0 tabular-nums">
-          Equipe: {members.length}
+          {ui.teamCountLabel}: {members.length}
           {maxTeamMembers !== null ? ` / ${maxTeamMembers}` : ''}
         </span>
       </div>
@@ -228,25 +223,25 @@ export function FleetTeamSection({
         <form onSubmit={handleSaveOrg} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
           <div className="md:col-span-2">
             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-              Razão Social / Nome da Empresa
+              {ui.companyNameLabel}
             </label>
             <input
               type="text"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Ex.: Transportes Silva Ltda"
+              placeholder={ui.companyPlaceholder}
               className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-              CNPJ / VAT / EIN
+              {ui.taxIdLabel}
             </label>
             <input
               type="text"
               value={taxId}
               onChange={(e) => setTaxId(e.target.value)}
-              placeholder="Documento fiscal"
+              placeholder={ui.taxIdPlaceholder}
               className="w-full px-3 py-2 text-sm font-mono rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             />
           </div>
@@ -258,7 +253,7 @@ export function FleetTeamSection({
             >
               {COUNTRY_LIST.map((c) => (
                 <option key={c.code} value={c.code}>
-                  {c.name}
+                  {getLocalizedCountryName(c.code, language)}
                 </option>
               ))}
             </select>
@@ -267,7 +262,7 @@ export function FleetTeamSection({
               disabled={orgSaving || !organization}
               className="px-3.5 py-2 text-xs font-medium rounded-xl bg-slate-900 dark:bg-sky-600 hover:bg-slate-800 dark:hover:bg-sky-500 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
             >
-              {orgSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : orgSaved ? '✓ Salvo' : 'Salvar'}
+              {orgSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : orgSaved ? ui.savedBtn : ui.saveBtn}
             </button>
           </div>
         </form>
@@ -279,14 +274,14 @@ export function FleetTeamSection({
         >
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-900 dark:text-slate-100">
             <UserPlus className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-            <span>Convidar Funcionário / Responsável</span>
+            <span>{ui.inviteTitle}</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input
               type="text"
               required
-              placeholder="Nome completo"
+              placeholder={ui.namePlaceholder}
               value={inviteName}
               onChange={(e) => setInviteName(e.target.value)}
               className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -294,7 +289,7 @@ export function FleetTeamSection({
             <input
               type="email"
               required
-              placeholder="funcionario@empresa.com"
+              placeholder={ui.emailPlaceholder}
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -308,9 +303,9 @@ export function FleetTeamSection({
               }}
               className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#081020] text-slate-900 dark:text-slate-100"
             >
-              {(Object.keys(ROLE_LABELS) as OrganizationMemberRole[]).map((role) => (
+              {(Object.keys(ui.roles) as OrganizationMemberRole[]).map((role) => (
                 <option key={role} value={role}>
-                  {ROLE_LABELS[role]}
+                  {ui.roles[role]}
                 </option>
               ))}
             </select>
@@ -318,17 +313,17 @@ export function FleetTeamSection({
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-700 dark:text-slate-300">
-              {PERMISSION_LABELS.map((perm) => (
-                <label key={perm.key} className="inline-flex items-center gap-1.5 cursor-pointer">
+              {PERMISSION_KEYS.map((permKey) => (
+                <label key={permKey} className="inline-flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={invitePerms[perm.key]}
+                    checked={invitePerms[permKey]}
                     onChange={(e) =>
-                      setInvitePerms((prev) => ({ ...prev, [perm.key]: e.target.checked }))
+                      setInvitePerms((prev) => ({ ...prev, [permKey]: e.target.checked }))
                     }
                     className="rounded border-slate-300 text-sky-600"
                   />
-                  <span>{perm.label}</span>
+                  <span>{ui.permissions[permKey]}</span>
                 </label>
               ))}
             </div>
@@ -339,7 +334,7 @@ export function FleetTeamSection({
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-xl bg-sky-600 hover:bg-sky-500 text-white whitespace-nowrap shrink-0 disabled:opacity-60"
             >
               {inviteBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
-              <span>Convidar Funcionário</span>
+              <span>{ui.inviteBtn}</span>
             </button>
           </div>
         </form>
@@ -358,12 +353,12 @@ export function FleetTeamSection({
                   <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                     {member.memberName || member.memberEmail}{' '}
                     <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
-                      · {ROLE_LABELS[member.role]} ·{' '}
+                      · {ui.roles[member.role] ?? member.role} ·{' '}
                       {member.inviteStatus === 'active'
-                        ? 'Ativo'
+                        ? ui.statusActive
                         : member.inviteStatus === 'pending'
-                        ? 'Convite pendente'
-                        : 'Revogado'}
+                        ? ui.statusPending
+                        : ui.statusRevoked}
                     </span>
                   </div>
                   <div className="text-xs font-mono text-slate-500 dark:text-slate-400">
@@ -372,19 +367,19 @@ export function FleetTeamSection({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {PERMISSION_LABELS.map((perm) => (
+                  {PERMISSION_KEYS.map((permKey) => (
                     <button
-                      key={perm.key}
+                      key={permKey}
                       type="button"
-                      onClick={() => void handleToggleMemberPermission(member, perm.key)}
+                      onClick={() => void handleToggleMemberPermission(member, permKey)}
                       className={`inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-lg border transition-colors whitespace-nowrap ${
-                        member.permissions[perm.key]
+                        member.permissions[permKey]
                           ? 'border-sky-300 dark:border-sky-500/40 bg-sky-50/70 dark:bg-sky-950/35 text-sky-700 dark:text-sky-300'
                           : 'border-slate-200 dark:border-white/10 text-slate-400'
                       }`}
                     >
-                      {member.permissions[perm.key] && <Check className="w-3 h-3" />}
-                      <span>{perm.label}</span>
+                      {member.permissions[permKey] && <Check className="w-3 h-3" />}
+                      <span>{ui.permissions[permKey]}</span>
                     </button>
                   ))}
 
@@ -393,14 +388,14 @@ export function FleetTeamSection({
                     onClick={() => void handleToggleStatus(member)}
                     className="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-slate-200 dark:border-white/15 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
                   >
-                    {member.inviteStatus === 'revoked' ? 'Reativar' : 'Suspender'}
+                    {member.inviteStatus === 'revoked' ? ui.reactivateBtn : ui.suspendBtn}
                   </button>
 
                   <button
                     type="button"
                     onClick={() => void handleDeleteMember(member.id)}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400"
-                    aria-label="Remover funcionário"
+                    aria-label={ui.removeMemberAria}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

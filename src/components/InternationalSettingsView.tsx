@@ -18,6 +18,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
+import { getUi } from '../data/uiTranslations';
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import {
   buildScheduledMaintenanceReminders,
@@ -29,6 +30,7 @@ import {
 } from '../services/pushClient';
 import {
   CountryCode,
+  LanguageCode,
   MaintenanceItem,
   ServiceLog,
   UnitSystem,
@@ -37,7 +39,11 @@ import {
   Vehicle,
 } from '../types/autolife';
 import { formatDistance } from '../utils/autolife';
-import { COUNTRY_CATALOG, COUNTRY_LIST } from '../utils/billing';
+import {
+  COUNTRY_CATALOG,
+  COUNTRY_LIST,
+  getLocalizedCountryName,
+} from '../utils/billing';
 import {
   buildWhatsAppUrl,
   formatWhatsAppDisplay,
@@ -67,6 +73,118 @@ interface InternationalSettingsViewProps {
   onResetAutoRegion?: () => Promise<void> | void;
 }
 
+const SETTINGS_EXTRA_COPY: Record<
+  LanguageCode,
+  {
+    connectedAs: string;
+    authenticatedAccount: string;
+    emailPh: string;
+    passwordPh: string;
+    authError: string;
+    syncError: string;
+    cascadeDeleteHint: string;
+    pushCountSuffix: string;
+    regionAutoHint: string;
+    metricTitle: string;
+    imperialTitle: string;
+    testWaBtn: string;
+    waTestMessage: string;
+    waSavedPrefix: string;
+    waRemovedMsg: string;
+  }
+> = {
+  pt: {
+    connectedAs: 'Conectado como',
+    authenticatedAccount: 'Conta autenticada',
+    emailPh: 'seu@email.com',
+    passwordPh: 'Senha (mín. 6 caracteres)',
+    authError: 'Erro na autenticação',
+    syncError: 'Não foi possível sincronizar agora.',
+    cascadeDeleteHint: 'Ao apagar um veículo, histórico e fotos também são excluídos.',
+    pushCountSuffix: 'itens',
+    regionAutoHint:
+      'Detectado automaticamente pela sua região; ajuste manualmente quando preferir outra moeda ou país.',
+    metricTitle: 'Métrico (km)',
+    imperialTitle: 'Imperial (mi)',
+    testWaBtn: 'Testar WhatsApp',
+    waTestMessage: '*AutoLife World*\nWhatsApp conectado com sucesso!',
+    waSavedPrefix: 'Número salvo:',
+    waRemovedMsg: 'Número de WhatsApp removido.',
+  },
+  en: {
+    connectedAs: 'Signed in as',
+    authenticatedAccount: 'Authenticated account',
+    emailPh: 'you@email.com',
+    passwordPh: 'Password (min. 6 characters)',
+    authError: 'Authentication error',
+    syncError: 'Unable to sync right now.',
+    cascadeDeleteHint: 'Deleting a vehicle also removes its service logs and attachments.',
+    pushCountSuffix: 'items',
+    regionAutoHint:
+      'Automatically detected from your country/region; adjust manually whenever you prefer another currency.',
+    metricTitle: 'Metric (km)',
+    imperialTitle: 'Imperial (mi)',
+    testWaBtn: 'Test WhatsApp',
+    waTestMessage: '*AutoLife World*\nWhatsApp connected successfully!',
+    waSavedPrefix: 'Saved number:',
+    waRemovedMsg: 'WhatsApp number removed.',
+  },
+  es: {
+    connectedAs: 'Conectado como',
+    authenticatedAccount: 'Cuenta autenticada',
+    emailPh: 'tu@correo.com',
+    passwordPh: 'Contraseña (mín. 6 caracteres)',
+    authError: 'Error de autenticación',
+    syncError: 'No se pudo sincronizar ahora.',
+    cascadeDeleteHint: 'Al eliminar un vehículo también se borran su historial y fotos.',
+    pushCountSuffix: 'elementos',
+    regionAutoHint:
+      'Detectado automáticamente según tu país; ajústalo manualmente si prefieres otra moneda o región.',
+    metricTitle: 'Métrico (km)',
+    imperialTitle: 'Imperial (mi)',
+    testWaBtn: 'Probar WhatsApp',
+    waTestMessage: '*AutoLife World*\n¡WhatsApp conectado correctamente!',
+    waSavedPrefix: 'Número guardado:',
+    waRemovedMsg: 'Número de WhatsApp eliminado.',
+  },
+  de: {
+    connectedAs: 'Angemeldet als',
+    authenticatedAccount: 'Authentifiziertes Konto',
+    emailPh: 'du@email.de',
+    passwordPh: 'Passwort (mind. 6 Zeichen)',
+    authError: 'Authentifizierungsfehler',
+    syncError: 'Synchronisierung derzeit nicht möglich.',
+    cascadeDeleteHint: 'Beim Löschen eines Fahrzeugs werden auch Verlauf und Fotos entfernt.',
+    pushCountSuffix: 'Einträge',
+    regionAutoHint:
+      'Automatisch für deine Region erkannt; bei Bedarf manuell auf ein anderes Land umstellen.',
+    metricTitle: 'Metrisch (km)',
+    imperialTitle: 'Imperial (mi)',
+    testWaBtn: 'WhatsApp testen',
+    waTestMessage: '*AutoLife World*\nWhatsApp erfolgreich verbunden!',
+    waSavedPrefix: 'Gespeicherte Nummer:',
+    waRemovedMsg: 'WhatsApp-Nummer entfernt.',
+  },
+  fr: {
+    connectedAs: 'Connecté en tant que',
+    authenticatedAccount: 'Compte authentifié',
+    emailPh: 'vous@email.fr',
+    passwordPh: 'Mot de passe (min. 6 caractères)',
+    authError: "Erreur d'authentification",
+    syncError: 'Impossible de synchroniser pour le moment.',
+    cascadeDeleteHint: 'La suppression d’un véhicule supprime aussi son historique et ses photos.',
+    pushCountSuffix: 'éléments',
+    regionAutoHint:
+      'Détecté automatiquement selon votre pays ; ajustez manuellement si vous préférez une autre devise.',
+    metricTitle: 'Métrique (km)',
+    imperialTitle: 'Impérial (mi)',
+    testWaBtn: 'Tester WhatsApp',
+    waTestMessage: '*AutoLife World*\nWhatsApp connecté avec succès !',
+    waSavedPrefix: 'Numéro enregistré :',
+    waRemovedMsg: 'Numéro WhatsApp supprimé.',
+  },
+};
+
 export function InternationalSettingsView({
   prefs,
   onUpdatePrefs,
@@ -88,6 +206,11 @@ export function InternationalSettingsView({
   onRequestDeleteVehicle,
   onResetAutoRegion,
 }: InternationalSettingsViewProps) {
+  const bundle = getUi(prefs.language);
+  const ui = bundle.settingsUi;
+  const waUi = bundle.whatsapp;
+  const extra = SETTINGS_EXTRA_COPY[prefs.language] ?? SETTINGS_EXTRA_COPY.en;
+
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMessage, setPushMessage] = useState<string | null>(null);
@@ -99,6 +222,7 @@ export function InternationalSettingsView({
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [detectingRegion, setDetectingRegion] = useState(false);
+  const [regionMessage, setRegionMessage] = useState<string | null>(null);
   const [whatsappInput, setWhatsappInput] = useState(prefs.whatsappNumber ?? '');
   const [editingWhatsapp, setEditingWhatsapp] = useState(
     !sanitizeWhatsAppNumber(prefs.whatsappNumber, prefs.language)
@@ -130,7 +254,7 @@ export function InternationalSettingsView({
         await unsubscribePush();
         setPushSubscribed(false);
         setScheduledCount(0);
-        setPushMessage('Notificações Push em segundo plano desativadas neste dispositivo.');
+        setPushMessage(ui.pushDisabledMsg);
       } else {
         const reminders = buildScheduledMaintenanceReminders(
           vehicles,
@@ -138,17 +262,13 @@ export function InternationalSettingsView({
           prefs,
           t
         );
-        const res = await subscribeAndSchedulePush(reminders);
+        const res = await subscribeAndSchedulePush(reminders, prefs.language);
         setPushSubscribed(true);
         setScheduledCount(res.scheduledCount);
-        setPushMessage(
-          `Service Worker conectado! ${res.scheduledCount} lembretes preventivos agendados para envio mesmo com o app fechado.`
-        );
+        setPushMessage(`${ui.pushEnabledMsg} (${res.scheduledCount} ${extra.pushCountSuffix})`);
       }
     } catch (err) {
-      setPushMessage(
-        err instanceof Error ? err.message : 'Não foi possível ativar notificações Push.'
-      );
+      setPushMessage(err instanceof Error ? err.message : ui.pushUnsupported);
     } finally {
       setPushBusy(false);
     }
@@ -158,12 +278,10 @@ export function InternationalSettingsView({
     setPushMessage(null);
     setPushBusy(true);
     try {
-      const msg = await sendTestScheduledPush(5);
-      setPushMessage(
-        `${msg} Minimize ou feche a aba agora para ver o alerta do Service Worker.`
-      );
+      const msg = await sendTestScheduledPush(5, prefs.language);
+      setPushMessage(msg);
     } catch (err) {
-      setPushMessage(err instanceof Error ? err.message : 'Falha no push de teste.');
+      setPushMessage(err instanceof Error ? err.message : ui.pushUnsupported);
     } finally {
       setPushBusy(false);
     }
@@ -176,7 +294,7 @@ export function InternationalSettingsView({
     try {
       const cleanWa = authWhatsapp.trim();
       if (mode === 'signup' && cleanWa && !sanitizeWhatsAppNumber(cleanWa, prefs.language)) {
-        throw new Error('WhatsApp inválido. Informe com DDI e DDD (ex.: +55 11 99999-8888).');
+        throw new Error(ui.whatsappInvalidMsg);
       }
       const res =
         mode === 'signin'
@@ -193,14 +311,10 @@ export function InternationalSettingsView({
       if (cleanWa) {
         onUpdatePrefs({ whatsappNumber: cleanWa });
       }
-      setAuthMessage(
-        mode === 'signup'
-          ? 'Conta criada! E-mail e WhatsApp vinculados. Verifique seu e-mail se a confirmação estiver ativa.'
-          : 'Conectado ao Supabase! Seus veículos e arquivos já podem ser sincronizados.'
-      );
+      setAuthMessage(mode === 'signup' ? ui.authSuccessSignUp : ui.authSuccessSignIn);
       setAuthPassword('');
     } catch (err) {
-      setAuthMessage(err instanceof Error ? err.message : 'Erro na autenticação');
+      setAuthMessage(err instanceof Error ? err.message : extra.authError);
     } finally {
       setIsAuthLoading(false);
     }
@@ -219,7 +333,7 @@ export function InternationalSettingsView({
       });
       if (error) throw error;
     } catch (err) {
-      setAuthMessage(err instanceof Error ? err.message : `Erro ao entrar com ${provider}.`);
+      setAuthMessage(err instanceof Error ? err.message : extra.authError);
       setIsAuthLoading(false);
     }
   };
@@ -235,13 +349,9 @@ export function InternationalSettingsView({
     setAuthMessage(null);
     try {
       await onSyncNow();
-      setAuthMessage('Garagem, histórico e preferências sincronizados com sucesso.');
+      setAuthMessage(ui.syncedMsg);
     } catch (err) {
-      setAuthMessage(
-        err instanceof Error
-          ? err.message
-          : 'Não foi possível sincronizar agora. Tente novamente em instantes.'
-      );
+      setAuthMessage(err instanceof Error ? err.message : extra.syncError);
     } finally {
       setIsSyncing(false);
     }
@@ -265,32 +375,36 @@ export function InternationalSettingsView({
             <div className="flex items-center gap-2">
               <Cloud className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-                Conta &amp; Sincronização na Nuvem
+                {ui.accountTitle}
               </h2>
             </div>
-            {supabaseReady && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                <span>Sincronização segura multi-dispositivo ativa</span>
-              </p>
-            )}
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+              {supabaseReady ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>{ui.accountSubtitle}</span>
+                </>
+              ) : (
+                <span>{ui.localOnlyBadge}</span>
+              )}
+            </p>
           </div>
         </div>
 
         {!supabaseReady ? (
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-            Sincronização em nuvem indisponível no momento. Seus dados continuam salvos localmente neste dispositivo.
+            {ui.localOnlyBadge}
           </p>
         ) : cloudUserId || cloudUserEmail || cloudUserName ? (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="text-sm text-slate-700 dark:text-slate-300">
-              Conectado como{' '}
+              {extra.connectedAs}{' '}
               <strong>
                 {cloudUserName
                   ? cloudUserEmail
                     ? `${cloudUserName} (${cloudUserEmail})`
                     : cloudUserName
-                  : cloudUserEmail || 'Conta autenticada'}
+                  : cloudUserEmail || extra.authenticatedAccount}
               </strong>
             </div>
             <div className="flex items-center gap-2">
@@ -301,7 +415,7 @@ export function InternationalSettingsView({
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60"
               >
                 {isSyncing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>Sincronizar Garagem</span>
+                <span>{isSyncing ? ui.syncingBtn : ui.syncGarageBtn}</span>
               </button>
               <button
                 type="button"
@@ -309,7 +423,7 @@ export function InternationalSettingsView({
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Sair</span>
+                <span>{ui.signOutBtn}</span>
               </button>
             </div>
           </div>
@@ -340,7 +454,7 @@ export function InternationalSettingsView({
                     d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"
                   />
                 </svg>
-                <span>Entrar com Google</span>
+                <span>{ui.continueWith} Google</span>
               </button>
 
               <button
@@ -352,7 +466,7 @@ export function InternationalSettingsView({
                 <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.428-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.886.06 4.374 2.19-.13.09-2.383 1.37-2.383 4.19 0 3.26 2.854 4.42 2.955 4.45z" />
                 </svg>
-                <span>Entrar com Apple</span>
+                <span>{ui.continueWith} Apple</span>
               </button>
 
               <button
@@ -364,34 +478,34 @@ export function InternationalSettingsView({
                 <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
-                <span>Entrar com Facebook</span>
+                <span>{ui.continueWith} Facebook</span>
               </button>
             </div>
 
             <div className="flex items-center gap-3 text-[11px] text-slate-400">
               <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
-              <span>ou entre com e-mail e senha</span>
+              <span>{ui.authOAuthHint}</span>
               <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <input
                 type="email"
-                placeholder="seu@email.com"
+                placeholder={extra.emailPh}
                 value={authEmail}
                 onChange={(e) => setAuthEmail(e.target.value)}
                 className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
               <input
                 type="password"
-                placeholder="Senha (mín. 6 caracteres)"
+                placeholder={extra.passwordPh}
                 value={authPassword}
                 onChange={(e) => setAuthPassword(e.target.value)}
                 className="px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
               <input
                 type="tel"
-                placeholder="WhatsApp (ex.: +55 11 99999-8888)"
+                placeholder={bundle.app.waPlaceholder}
                 value={authWhatsapp}
                 onChange={(e) => setAuthWhatsapp(e.target.value)}
                 className="px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
@@ -403,7 +517,7 @@ export function InternationalSettingsView({
                   onClick={() => void handleSupabaseAuth('signin')}
                   className="flex-1 px-3 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white disabled:opacity-60"
                 >
-                  Entrar
+                  {ui.signInTab}
                 </button>
                 <button
                   type="button"
@@ -411,7 +525,7 @@ export function InternationalSettingsView({
                   onClick={() => void handleSupabaseAuth('signup')}
                   className="flex-1 px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-60"
                 >
-                  Criar Conta
+                  {ui.signUpTab}
                 </button>
               </div>
             </div>
@@ -430,13 +544,16 @@ export function InternationalSettingsView({
             <div className="flex items-center gap-2">
               <Car className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
               <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-                Meus Veículos ({vehicles.length}
+                {ui.vehiclesTitle} ({vehicles.length}
                 {vehicleLimit !== null ? ` / ${vehicleLimit}` : ''})
               </h2>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Plano ativo: <strong>{activePlanName}</strong>
-              {subscription ? ` (${subscription.status})` : ''} · Ao apagar um veículo, todo o histórico e fotos dele também são excluídos.
+              {ui.vehiclesPlanUsage} <strong>{activePlanName}</strong>
+              {subscription
+                ? ` (${bundle.plansUi.statusLabels[subscription.status] ?? subscription.status})`
+                : ''}{' '}
+              · {extra.cascadeDeleteHint}
             </p>
           </div>
 
@@ -447,7 +564,7 @@ export function InternationalSettingsView({
               className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
             >
               <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span>Planos</span>
+              <span>{ui.upgradePlanBtn}</span>
             </button>
             <button
               type="button"
@@ -455,7 +572,7 @@ export function InternationalSettingsView({
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white transition-colors whitespace-nowrap shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>{t.actions.addVehicle}</span>
+              <span>{ui.addVehicleBtn}</span>
             </button>
           </div>
         </div>
@@ -463,7 +580,7 @@ export function InternationalSettingsView({
         {vehicles.length === 0 ? (
           <div className="px-6 py-8 text-center space-y-3">
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Nenhum veículo cadastrado na sua conta ainda.
+              {bundle.sidebar.noVehicles}
             </p>
             <button
               type="button"
@@ -471,7 +588,7 @@ export function InternationalSettingsView({
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>{t.actions.addVehicle}</span>
+              <span>{ui.addVehicleBtn}</span>
             </button>
           </div>
         ) : (
@@ -504,7 +621,7 @@ export function InternationalSettingsView({
                         )}
                         <span className="truncate">
                           {v.make} {v.model} ({v.year})
-                          {isSelected ? ' · Ativo' : ''}
+                          {isSelected ? ` · ${ui.activeBadge}` : ''}
                         </span>
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2">
@@ -515,7 +632,7 @@ export function InternationalSettingsView({
                         <span className="font-mono">{formatDistance(v.odometerKm, prefs.units)}</span>
                         <span aria-hidden="true">·</span>
                         <span>
-                          {vLogsCount} registro{vLogsCount === 1 ? '' : 's'}
+                          {vLogsCount} {bundle.medicalUi.summaryRecords.toLowerCase()}
                         </span>
                       </div>
                     </div>
@@ -528,7 +645,7 @@ export function InternationalSettingsView({
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors whitespace-nowrap shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remover</span>
+                      <span>{ui.removeBtn}</span>
                     </button>
                   </div>
                 </div>
@@ -545,11 +662,11 @@ export function InternationalSettingsView({
             <div className="flex items-center gap-2">
               <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-                WhatsApp Cadastrado (Serviços &amp; Notas)
+                {ui.whatsappTitle}
               </h2>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Salvo uma única vez: qualquer manutenção, revisão, abastecimento ou nota pode ser enviada direto para este número.
+              {ui.whatsappDesc}
             </p>
           </div>
           {hasSavedWhatsapp && (
@@ -563,7 +680,7 @@ export function InternationalSettingsView({
         {hasSavedWhatsapp && !editingWhatsapp ? (
           <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-lg border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20">
             <div className="text-xs text-slate-700 dark:text-slate-200">
-              Número salvo permanentemente:{' '}
+              {extra.waSavedPrefix}{' '}
               <strong className="font-mono">
                 {formatWhatsAppDisplay(prefs.whatsappNumber, prefs.language)}
               </strong>
@@ -573,7 +690,7 @@ export function InternationalSettingsView({
                 const testUrl = buildWhatsAppUrl(
                   prefs.whatsappNumber,
                   prefs.language,
-                  `*AutoLife World*\nWhatsApp conectado com sucesso! Você receberá serviços, manutenções e notas por aqui.`
+                  extra.waTestMessage
                 );
                 if (!testUrl) return null;
                 return (
@@ -584,7 +701,7 @@ export function InternationalSettingsView({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap"
                   >
                     <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>Testar WhatsApp</span>
+                    <span>{extra.testWaBtn}</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 );
@@ -598,7 +715,7 @@ export function InternationalSettingsView({
                 }}
                 className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
               >
-                Alterar número
+                {bundle.garageUi.actions.edit}
               </button>
             </div>
           </div>
@@ -608,17 +725,15 @@ export function InternationalSettingsView({
               e.preventDefault();
               const clean = whatsappInput.trim();
               if (clean && !sanitizeWhatsAppNumber(clean, prefs.language)) {
-                setWhatsappSavedMsg(
-                  'Número inválido. Informe com DDD/DDI (ex.: +55 11 99999-8888).'
-                );
+                setWhatsappSavedMsg(ui.whatsappInvalidMsg);
                 return;
               }
               onUpdatePrefs({ whatsappNumber: clean });
               if (clean) {
                 setEditingWhatsapp(false);
-                setWhatsappSavedMsg('WhatsApp salvo permanentemente para todo o aplicativo.');
+                setWhatsappSavedMsg(ui.whatsappSavedMsg);
               } else {
-                setWhatsappSavedMsg('Número de WhatsApp removido.');
+                setWhatsappSavedMsg(extra.waRemovedMsg);
               }
             }}
             className="flex flex-col sm:flex-row gap-2"
@@ -627,14 +742,14 @@ export function InternationalSettingsView({
               type="tel"
               value={whatsappInput}
               onChange={(e) => setWhatsappInput(e.target.value)}
-              placeholder="Ex.: +55 11 99999-8888"
+              placeholder={waUi.inputPlaceholder}
               className="flex-1 px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
             />
             <button
               type="submit"
               className="px-4 py-2 text-xs font-medium rounded-lg bg-slate-900 dark:bg-blue-600 text-white hover:bg-slate-800 dark:hover:bg-blue-700 whitespace-nowrap shrink-0"
             >
-              Salvar WhatsApp
+              {ui.whatsappSaveBtn}
             </button>
             {hasSavedWhatsapp && (
               <button
@@ -645,7 +760,7 @@ export function InternationalSettingsView({
                 }}
                 className="px-3.5 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
               >
-                Cancelar
+                {waUi.cancel}
               </button>
             )}
           </form>
@@ -663,7 +778,7 @@ export function InternationalSettingsView({
             <div className="flex items-center gap-2 min-w-0">
               <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
               <h2 className="font-display text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-                País / Região de Faturamento
+                {ui.regionCountryLabel}
               </h2>
             </div>
             {onResetAutoRegion && (
@@ -672,8 +787,10 @@ export function InternationalSettingsView({
                 disabled={detectingRegion}
                 onClick={async () => {
                   setDetectingRegion(true);
+                  setRegionMessage(null);
                   try {
                     await onResetAutoRegion();
+                    setRegionMessage(ui.regionAutoApplied);
                   } finally {
                     setDetectingRegion(false);
                   }
@@ -685,7 +802,7 @@ export function InternationalSettingsView({
                 ) : (
                   <RefreshCw className="w-3 h-3" />
                 )}
-                <span>Automático</span>
+                <span>{ui.regionAutoBtn}</span>
               </button>
             )}
           </div>
@@ -694,6 +811,7 @@ export function InternationalSettingsView({
             onChange={(e) => {
               const code = e.target.value as CountryCode;
               const cfg = COUNTRY_CATALOG[code];
+              setRegionMessage(null);
               onUpdatePrefs({
                 countryCode: code,
                 currency: cfg?.defaultCurrency ?? prefs.currency,
@@ -703,12 +821,12 @@ export function InternationalSettingsView({
           >
             {COUNTRY_LIST.map((c) => (
               <option key={c.code} value={c.code}>
-                {c.name} ({c.defaultCurrency})
+                {getLocalizedCountryName(c.code, prefs.language)} ({c.defaultCurrency})
               </option>
             ))}
           </select>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-            Detectado automaticamente pela sua região; ajuste manualmente quando preferir outra moeda ou país.
+            {regionMessage || extra.regionAutoHint}
           </p>
         </section>
 
@@ -719,8 +837,8 @@ export function InternationalSettingsView({
           <div className="space-y-2">
             {(
               [
-                { id: 'metric', title: 'Metric (km)', desc: t.settings.metricDesc },
-                { id: 'imperial', title: 'Imperial (mi)', desc: t.settings.imperialDesc },
+                { id: 'metric', title: extra.metricTitle, desc: t.settings.metricDesc },
+                { id: 'imperial', title: extra.imperialTitle, desc: t.settings.imperialDesc },
               ] as { id: UnitSystem; title: string; desc: string }[]
             ).map((opt) => (
               <button
@@ -777,10 +895,10 @@ export function InternationalSettingsView({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-              {t.settings.remindersTitle}
+              {ui.pushTitle}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Service Worker Web Push: receba lembretes de manutenção agendados mesmo com o app fechado.
+              {ui.pushDesc}
             </p>
           </div>
 
@@ -806,8 +924,8 @@ export function InternationalSettingsView({
                   )}
                   <span>
                     {pushSubscribed
-                      ? `Push Ativo (${scheduledCount || maintenanceItems.length} itens)`
-                      : 'Ativar Push em 2º Plano'}
+                      ? `${ui.pushDisableBtn} (${scheduledCount || maintenanceItems.length} ${extra.pushCountSuffix})`
+                      : ui.pushEnableBtn}
                   </span>
                 </button>
 
@@ -819,13 +937,13 @@ export function InternationalSettingsView({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
                   >
                     <Send className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                    <span>Testar Push em 5s</span>
+                    <span>{ui.pushTestBtn}</span>
                   </button>
                 )}
               </>
             ) : (
               <span className="text-xs text-slate-500 dark:text-slate-400">
-                Web Push indisponível neste navegador (no iOS, instale na Tela Inicial).
+                {ui.pushUnsupported}
               </span>
             )}
           </div>
@@ -902,8 +1020,10 @@ export function InternationalSettingsView({
             />
           </div>
         </div>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+          {ui.remindersSavedHint}
+        </p>
       </section>
-
     </div>
   );
 }

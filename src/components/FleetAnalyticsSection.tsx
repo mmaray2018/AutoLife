@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { getUi } from '../data/uiTranslations';
 import {
   ChargingSession,
   ServiceLog,
@@ -53,8 +54,9 @@ export function FleetAnalyticsSection({
   chargingSessions,
   prefs,
 }: FleetAnalyticsSectionProps) {
+  const ui = getUi(prefs.language).analyticsUi;
   const [trendScope, setTrendScope] = useState<'all' | 'car' | 'motorcycle' | 'active'>('all');
-  const currencyMeta = CURRENCY_CATALOG[prefs.currency] ?? CURRENCY_CATALOG.BRL;
+  const currencyMeta = CURRENCY_CATALOG[prefs.currency] ?? CURRENCY_CATALOG.USD;
 
   const roundCurrency = (val: number) => {
     const factor = Math.pow(10, currencyMeta.decimals);
@@ -188,11 +190,11 @@ export function FleetAnalyticsSection({
           <div className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-sky-600 dark:text-sky-400" />
             <h2 className="font-display text-base font-semibold text-slate-900 dark:text-slate-100">
-              Fleet Analytics · Custos &amp; Recargas
+              {ui.title}
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Comparativo de carros e motos: manutenção preventiva, recargas e TCO em {prefs.currency}
+            {ui.subtitle} ({prefs.currency})
           </p>
         </div>
 
@@ -206,7 +208,7 @@ export function FleetAnalyticsSection({
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
-            Todos ({vehicles.length})
+            {ui.scopeAll} ({vehicles.length})
           </button>
           <button
             type="button"
@@ -217,7 +219,7 @@ export function FleetAnalyticsSection({
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
-            Carros ({carCount})
+            {ui.scopeCars} ({carCount})
           </button>
           <button
             type="button"
@@ -228,7 +230,7 @@ export function FleetAnalyticsSection({
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
-            Motos ({motoCount})
+            {ui.scopeMotos} ({motoCount})
           </button>
           <button
             type="button"
@@ -239,7 +241,7 @@ export function FleetAnalyticsSection({
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >
-            Ativo
+            {ui.scopeActive}
           </button>
         </div>
       </div>
@@ -248,7 +250,7 @@ export function FleetAnalyticsSection({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 tabular-nums">
         <div className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            Total em Manutenção (Frota)
+            {ui.kpiMaintenance}
           </div>
           <div className="mt-1 font-mono text-lg font-bold text-slate-900 dark:text-slate-100">
             {formatCurrency(fleetSummary.totalMaintenance, prefs.currency)}
@@ -256,7 +258,7 @@ export function FleetAnalyticsSection({
         </div>
         <div className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            Total em Recargas EV
+            {ui.kpiCharging}
           </div>
           <div className="mt-1 font-mono text-lg font-bold text-emerald-600 dark:text-emerald-400">
             {formatCurrency(fleetSummary.totalCharging, prefs.currency)}
@@ -264,7 +266,7 @@ export function FleetAnalyticsSection({
         </div>
         <div className="p-4 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-[#081020]/60">
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            Energia Acumulada
+            {ui.kpiEnergy}
           </div>
           <div className="mt-1 font-mono text-lg font-bold text-sky-600 dark:text-sky-400">
             {fleetSummary.totalEnergyKwh.toFixed(1)} kWh
@@ -277,7 +279,7 @@ export function FleetAnalyticsSection({
         {/* Chart 1: Multi-Vehicle Total Maintenance vs EV Charging Breakdown */}
         <div className="space-y-3">
           <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Custo Total por Veículo ({prefs.currency})
+            {ui.chartVehicleTitle} ({prefs.currency})
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -326,14 +328,14 @@ export function FleetAnalyticsSection({
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar
                   dataKey="maintenanceCost"
-                  name="Manutenção"
+                  name={ui.legendMaintenance}
                   stackId="cost"
                   fill="#0284c7"
                   radius={[0, 0, 0, 0]}
                 />
                 <Bar
                   dataKey="chargingCost"
-                  name="Recarga EV"
+                  name={ui.legendCharging}
                   stackId="cost"
                   fill="#10b981"
                   radius={[4, 4, 0, 0]}
@@ -346,11 +348,11 @@ export function FleetAnalyticsSection({
         {/* Chart 2: Chronological Maintenance Spend & Charging Energy Trend */}
         <div className="space-y-3">
           <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Tendência Cronológica: Custos ({prefs.currency}) &amp; Energia (kWh)
+            {ui.chartTrendTitle} ({prefs.currency})
           </div>
           {trendData.length === 0 ? (
             <div className="h-64 flex items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-white/15 text-xs text-slate-500 dark:text-slate-400">
-              Sem registros de manutenção ou recarga para este filtro.
+              {ui.emptyTrend}
             </div>
           ) : (
             <div className="h-64 w-full">
@@ -393,19 +395,19 @@ export function FleetAnalyticsSection({
                             {row.date}
                           </div>
                           <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-300">
-                            <span>Manutenção:</span>
+                            <span>{ui.legendMaintenance}:</span>
                             <span className="font-mono font-semibold text-sky-600 dark:text-sky-400">
                               {formatCurrency(row.maintenanceCost, prefs.currency)}
                             </span>
                           </div>
                           <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-300">
-                            <span>Recarga EV:</span>
+                            <span>{ui.legendCharging}:</span>
                             <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
                               {formatCurrency(row.chargingCost, prefs.currency)}
                             </span>
                           </div>
                           <div className="flex items-center justify-between gap-4 text-slate-600 dark:text-slate-300">
-                            <span>Energia:</span>
+                            <span>{ui.legendEnergy}:</span>
                             <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
                               {row.energyKwh} kWh
                             </span>
@@ -419,7 +421,7 @@ export function FleetAnalyticsSection({
                     yAxisId="cost"
                     type="monotone"
                     dataKey="maintenanceCost"
-                    name="Manutenção"
+                    name={ui.legendMaintenance}
                     stroke="#2563eb"
                     fill="#2563eb"
                     fillOpacity={0.14}
@@ -428,7 +430,7 @@ export function FleetAnalyticsSection({
                   <Bar
                     yAxisId="cost"
                     dataKey="chargingCost"
-                    name="Custo Recarga"
+                    name={ui.legendChargingCost}
                     fill="#0ea5e9"
                     radius={[4, 4, 0, 0]}
                     barSize={18}
@@ -437,7 +439,7 @@ export function FleetAnalyticsSection({
                     yAxisId="kwh"
                     type="monotone"
                     dataKey="energyKwh"
-                    name="Energia (kWh)"
+                    name={ui.legendEnergy}
                     stroke="#10b981"
                     strokeWidth={2}
                     dot={{ r: 3, fill: '#10b981' }}

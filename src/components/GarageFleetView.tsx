@@ -21,9 +21,11 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Translations } from '../data/i18n';
+import { getUi } from '../data/uiTranslations';
 import {
   ChargingSession,
   DrivingProfile,
+  LanguageCode,
   MaintenanceItem,
   MaintenanceStatus,
   OdometerEvent,
@@ -50,6 +52,7 @@ import {
   CURRENCY_CATALOG,
   convertCurrency,
   isBusinessPlan,
+  localizePlanCatalog,
   normalizePlanTier,
 } from '../utils/billing';
 import { downloadCalendarEvent } from '../utils/calendar';
@@ -60,6 +63,7 @@ import {
 } from '../utils/whatsapp';
 import {
   VEHICLE_COLOR_SWATCHES,
+  getLocalizedColorLabel,
   resolveVehicleColorStyle,
 } from '../utils/vehicleVisualResolver';
 import { CarbonFootprintSection } from './CarbonFootprintSection';
@@ -123,6 +127,437 @@ interface GarageFleetViewProps {
   onOpenCloudSettings: () => void;
 }
 
+const GARAGE_EXTRA_COPY: Record<
+  LanguageCode,
+  {
+    accountOwner: string;
+    ownerRole: string;
+    signInBtn: string;
+    csvHeaders: [string, string, string, string, string, string];
+    csvFilename: string;
+    fleetDefaultName: string;
+    fleetHeaderTitle: string;
+    companyFallback: string;
+    activeVehiclesLabel: string;
+    personalPlanFallback: string;
+    sendVehicleWaTitle: string;
+    fleetModeBtn: string;
+    selectVehicleAria: string;
+    gateBadge: string;
+    viewFleetPlansBtn: string;
+    backToPersonalBtn: string;
+    multiVehiclesTitle: string;
+    multiVehiclesDesc: string;
+    teamPermTitle: string;
+    teamPermDesc: string;
+    limitReachedTitle: string;
+    limitReachedDesc: string;
+    expandFleetBtn: string;
+    kpiFleetVehicles: string;
+    unlimited: string;
+    kpiTotalOdo: string;
+    kpiOverdue: string;
+    vehicleUnitSuffix: string;
+    kpiUpcoming: string;
+    revShort: string;
+    docShort: string;
+    insShort: string;
+    kpiMonthlySpend: string;
+    fleetPdfBtn: string;
+    colPlateType: string;
+    colMonthlySpend: string;
+    colExpiries: string;
+    overdueSuffix: string;
+    attentionSuffix: string;
+    qrShort: string;
+    ficheShort: string;
+    removeVehicleAria: string;
+    setColorAria: string;
+    drivingProfileLabel: string;
+    profileUrban: string;
+    profileMixed: string;
+    profileHighway: string;
+    weeklyAvgLabel: string;
+    vehiclesInPlanSuffix: string;
+    removeVehicleAndHistory: string;
+    sendDocWaTitle: string;
+    sendInsWaTitle: string;
+    waDocHeader: string;
+    waInsHeader: string;
+    waVehicleLabel: string;
+    waExpiresOn: string;
+    addCalTitle: string;
+    addCalAria: string;
+    calDocPrefix: string;
+    calInsPrefix: string;
+    accumulatedTco: string;
+    costPerKm: string;
+    ledgerDate: string;
+    ledgerVehicle: string;
+    ledgerService: string;
+    ledgerWorkshop: string;
+    ledgerOdometer: string;
+    ledgerAmount: string;
+    sendBtn: string;
+  }
+> = {
+  pt: {
+    accountOwner: 'Administrador da Conta',
+    ownerRole: 'Proprietário',
+    signInBtn: 'Entrar com Google / Conta',
+    csvHeaders: ['Data', 'Veículo', 'Categoria', 'Serviço', 'Odômetro (km)', 'Oficina'],
+    csvFilename: 'autolife-historico-servicos.csv',
+    fleetDefaultName: 'Frota Empresarial',
+    fleetHeaderTitle: 'Gestão Empresarial de Frotas',
+    companyFallback: 'Empresa',
+    activeVehiclesLabel: 'veículo(s) sob gestão ativa',
+    personalPlanFallback: 'Plano Particular',
+    sendVehicleWaTitle: 'Enviar resumo do veículo para o WhatsApp cadastrado',
+    fleetModeBtn: 'Frota Empresarial',
+    selectVehicleAria: 'Selecionar veículo',
+    gateBadge: 'Área Exclusiva para Empresas · Plano Frotas',
+    viewFleetPlansBtn: 'Ver Planos Frotas',
+    backToPersonalBtn: 'Voltar para Modo Particular',
+    multiVehiclesTitle: 'Multiveículos (10 a 100+)',
+    multiVehiclesDesc: 'Carros e motocicletas unificados',
+    teamPermTitle: 'Equipe & Permissões',
+    teamPermDesc: 'Motoristas, gestores e isolamento por empresa',
+    limitReachedTitle: 'Limite do plano atingido',
+    limitReachedDesc: 'Para cadastrar novos veículos sem interromper sua operação, expanda sua frota.',
+    expandFleetBtn: 'Expandir Frota',
+    kpiFleetVehicles: 'Veículos na Frota',
+    unlimited: '(ilimitado)',
+    kpiTotalOdo: 'Odômetro Total',
+    kpiOverdue: 'Manutenções Atrasadas',
+    vehicleUnitSuffix: 'veículo(s)',
+    kpiUpcoming: 'Revisões / Docs Próximos',
+    revShort: 'rev',
+    docShort: 'Doc',
+    insShort: 'Seg',
+    kpiMonthlySpend: 'Gastos no Mês Atual',
+    fleetPdfBtn: 'Relatório Geral (PDF)',
+    colPlateType: 'Placa / Tipo',
+    colMonthlySpend: 'Gastos Mês',
+    colExpiries: 'Vencimentos',
+    overdueSuffix: 'atrasado(s)',
+    attentionSuffix: 'revisão(ões) próxima(s)',
+    qrShort: 'QR',
+    ficheShort: 'Ficha',
+    removeVehicleAria: 'Remover veículo',
+    setColorAria: 'Definir cor',
+    drivingProfileLabel: 'Perfil de Severidade de Uso',
+    profileUrban: 'Urbano Severo (trânsito intenso)',
+    profileMixed: 'Misto (cidade + estrada)',
+    profileHighway: 'Rodoviário (viagens longas)',
+    weeklyAvgLabel: 'Média semanal (km/sem)',
+    vehiclesInPlanSuffix: 'veículo(s) no plano',
+    removeVehicleAndHistory: 'Remover veículo e histórico',
+    sendDocWaTitle: 'Enviar vencimento no WhatsApp cadastrado',
+    sendInsWaTitle: 'Enviar vencimento do seguro no WhatsApp cadastrado',
+    waDocHeader: '*AutoLife World — Documento*',
+    waInsHeader: '*AutoLife World — Seguro*',
+    waVehicleLabel: 'Veículo',
+    waExpiresOn: 'vence em',
+    addCalTitle: 'Adicionar ao Calendário (.ics)',
+    addCalAria: 'Adicionar vencimento ao Calendário',
+    calDocPrefix: 'documento',
+    calInsPrefix: 'seguro',
+    accumulatedTco: 'TCO acumulado:',
+    costPerKm: 'Custo por km:',
+    ledgerDate: 'Data',
+    ledgerVehicle: 'Veículo',
+    ledgerService: 'Serviço',
+    ledgerWorkshop: 'Oficina / Local',
+    ledgerOdometer: 'Odômetro',
+    ledgerAmount: 'Valor',
+    sendBtn: 'Enviar',
+  },
+  en: {
+    accountOwner: 'Account Owner',
+    ownerRole: 'Owner',
+    signInBtn: 'Sign in with Google / Account',
+    csvHeaders: ['Date', 'Vehicle', 'Category', 'Service', 'Odometer (km)', 'Workshop'],
+    csvFilename: 'autolife-service-history.csv',
+    fleetDefaultName: 'Business Fleet',
+    fleetHeaderTitle: 'Business Fleet Management',
+    companyFallback: 'Company',
+    activeVehiclesLabel: 'vehicle(s) under active management',
+    personalPlanFallback: 'Personal Plan',
+    sendVehicleWaTitle: 'Send vehicle summary to saved WhatsApp',
+    fleetModeBtn: 'Business Fleet',
+    selectVehicleAria: 'Select vehicle',
+    gateBadge: 'Business Exclusive · Fleet Plans',
+    viewFleetPlansBtn: 'View Fleet Plans',
+    backToPersonalBtn: 'Back to Personal Mode',
+    multiVehiclesTitle: 'Multi-Vehicle (10 to 100+)',
+    multiVehiclesDesc: 'Cars and motorcycles unified',
+    teamPermTitle: 'Team & Permissions',
+    teamPermDesc: 'Drivers, managers, and tenant isolation',
+    limitReachedTitle: 'Plan limit reached',
+    limitReachedDesc: 'To register more vehicles without interrupting operations, expand your fleet plan.',
+    expandFleetBtn: 'Expand Fleet',
+    kpiFleetVehicles: 'Fleet Vehicles',
+    unlimited: '(unlimited)',
+    kpiTotalOdo: 'Total Odometer',
+    kpiOverdue: 'Overdue Maintenance',
+    vehicleUnitSuffix: 'vehicle(s)',
+    kpiUpcoming: 'Upcoming Services / Docs',
+    revShort: 'svc',
+    docShort: 'Doc',
+    insShort: 'Ins',
+    kpiMonthlySpend: 'Current Month Spend',
+    fleetPdfBtn: 'Fleet Report (PDF)',
+    colPlateType: 'Plate / Type',
+    colMonthlySpend: 'Month Spend',
+    colExpiries: 'Expiries',
+    overdueSuffix: 'overdue',
+    attentionSuffix: 'due soon',
+    qrShort: 'QR',
+    ficheShort: 'Record',
+    removeVehicleAria: 'Remove vehicle',
+    setColorAria: 'Set color',
+    drivingProfileLabel: 'Driving Severity Profile',
+    profileUrban: 'Severe Urban (heavy traffic)',
+    profileMixed: 'Mixed (city + highway)',
+    profileHighway: 'Highway (long trips)',
+    weeklyAvgLabel: 'Weekly average (km/wk)',
+    vehiclesInPlanSuffix: 'vehicle(s) in plan',
+    removeVehicleAndHistory: 'Remove vehicle & history',
+    sendDocWaTitle: 'Send document expiry to saved WhatsApp',
+    sendInsWaTitle: 'Send insurance expiry to saved WhatsApp',
+    waDocHeader: '*AutoLife World — Document*',
+    waInsHeader: '*AutoLife World — Insurance*',
+    waVehicleLabel: 'Vehicle',
+    waExpiresOn: 'expires on',
+    addCalTitle: 'Add to Calendar (.ics)',
+    addCalAria: 'Add expiry to Calendar',
+    calDocPrefix: 'document',
+    calInsPrefix: 'insurance',
+    accumulatedTco: 'Accumulated TCO:',
+    costPerKm: 'Cost per km:',
+    ledgerDate: 'Date',
+    ledgerVehicle: 'Vehicle',
+    ledgerService: 'Service',
+    ledgerWorkshop: 'Workshop / Place',
+    ledgerOdometer: 'Odometer',
+    ledgerAmount: 'Amount',
+    sendBtn: 'Send',
+  },
+  es: {
+    accountOwner: 'Administrador de la Cuenta',
+    ownerRole: 'Propietario',
+    signInBtn: 'Entrar con Google / Cuenta',
+    csvHeaders: ['Fecha', 'Vehículo', 'Categoría', 'Servicio', 'Odómetro (km)', 'Taller'],
+    csvFilename: 'autolife-historial-servicios.csv',
+    fleetDefaultName: 'Flota Empresarial',
+    fleetHeaderTitle: 'Gestión Empresarial de Flotas',
+    companyFallback: 'Empresa',
+    activeVehiclesLabel: 'vehículo(s) bajo gestión activa',
+    personalPlanFallback: 'Plan Particular',
+    sendVehicleWaTitle: 'Enviar resumen del vehículo al WhatsApp guardado',
+    fleetModeBtn: 'Flota Empresarial',
+    selectVehicleAria: 'Seleccionar vehículo',
+    gateBadge: 'Área Exclusiva para Empresas · Plan Flotas',
+    viewFleetPlansBtn: 'Ver Planes de Flota',
+    backToPersonalBtn: 'Volver al Modo Particular',
+    multiVehiclesTitle: 'Multivehículos (10 a 100+)',
+    multiVehiclesDesc: 'Coches y motocicletas unificados',
+    teamPermTitle: 'Equipo y Permisos',
+    teamPermDesc: 'Conductores, gestores y aislamiento por empresa',
+    limitReachedTitle: 'Límite del plan alcanzado',
+    limitReachedDesc: 'Para registrar nuevos vehículos sin interrumpir tu operación, amplía tu flota.',
+    expandFleetBtn: 'Ampliar Flota',
+    kpiFleetVehicles: 'Vehículos en Flota',
+    unlimited: '(ilimitado)',
+    kpiTotalOdo: 'Odómetro Total',
+    kpiOverdue: 'Mantenimientos Vencidos',
+    vehicleUnitSuffix: 'vehículo(s)',
+    kpiUpcoming: 'Revisiones / Docs Próximos',
+    revShort: 'rev',
+    docShort: 'Doc',
+    insShort: 'Seg',
+    kpiMonthlySpend: 'Gasto del Mes Actual',
+    fleetPdfBtn: 'Informe General (PDF)',
+    colPlateType: 'Matrícula / Tipo',
+    colMonthlySpend: 'Gasto Mes',
+    colExpiries: 'Vencimientos',
+    overdueSuffix: 'vencido(s)',
+    attentionSuffix: 'revisión(es) próxima(s)',
+    qrShort: 'QR',
+    ficheShort: 'Ficha',
+    removeVehicleAria: 'Eliminar vehículo',
+    setColorAria: 'Establecer color',
+    drivingProfileLabel: 'Perfil de Severidad de Uso',
+    profileUrban: 'Urbano Severo (tráfico intenso)',
+    profileMixed: 'Mixto (ciudad + carretera)',
+    profileHighway: 'Carretera (viajes largos)',
+    weeklyAvgLabel: 'Media semanal (km/sem)',
+    vehiclesInPlanSuffix: 'vehículo(s) en el plan',
+    removeVehicleAndHistory: 'Eliminar vehículo e historial',
+    sendDocWaTitle: 'Enviar vencimiento al WhatsApp guardado',
+    sendInsWaTitle: 'Enviar vencimiento del seguro al WhatsApp guardado',
+    waDocHeader: '*AutoLife World — Documento*',
+    waInsHeader: '*AutoLife World — Seguro*',
+    waVehicleLabel: 'Vehículo',
+    waExpiresOn: 'vence el',
+    addCalTitle: 'Añadir al Calendario (.ics)',
+    addCalAria: 'Añadir vencimiento al Calendario',
+    calDocPrefix: 'documento',
+    calInsPrefix: 'seguro',
+    accumulatedTco: 'TCO acumulado:',
+    costPerKm: 'Costo por km:',
+    ledgerDate: 'Fecha',
+    ledgerVehicle: 'Vehículo',
+    ledgerService: 'Servicio',
+    ledgerWorkshop: 'Taller / Lugar',
+    ledgerOdometer: 'Odómetro',
+    ledgerAmount: 'Importe',
+    sendBtn: 'Enviar',
+  },
+  de: {
+    accountOwner: 'Kontoadministrator',
+    ownerRole: 'Inhaber',
+    signInBtn: 'Mit Google / Konto anmelden',
+    csvHeaders: ['Datum', 'Fahrzeug', 'Kategorie', 'Service', 'Kilometerstand (km)', 'Werkstatt'],
+    csvFilename: 'autolife-serviceverlauf.csv',
+    fleetDefaultName: 'Unternehmensflotte',
+    fleetHeaderTitle: 'Gewerbliches Flottenmanagement',
+    companyFallback: 'Unternehmen',
+    activeVehiclesLabel: 'Fahrzeug(e) aktiv verwaltet',
+    personalPlanFallback: 'Privattarif',
+    sendVehicleWaTitle: 'Fahrzeugübersicht an gespeichertes WhatsApp senden',
+    fleetModeBtn: 'Gewerbeflotte',
+    selectVehicleAria: 'Fahrzeug auswählen',
+    gateBadge: 'Exklusiv für Unternehmen · Flottentarife',
+    viewFleetPlansBtn: 'Flottentarife ansehen',
+    backToPersonalBtn: 'Zurück zum Privatmodus',
+    multiVehiclesTitle: 'Mehrfahrzeuge (10 bis 100+)',
+    multiVehiclesDesc: 'PKW und Motorräder vereint',
+    teamPermTitle: 'Team & Berechtigungen',
+    teamPermDesc: 'Fahrer, Manager und Mandantentrennung',
+    limitReachedTitle: 'Tariflimit erreicht',
+    limitReachedDesc: 'Erweitern Sie Ihren Flottentarif, um weitere Fahrzeuge hinzuzufügen.',
+    expandFleetBtn: 'Flotte erweitern',
+    kpiFleetVehicles: 'Flottenfahrzeuge',
+    unlimited: '(unbegrenzt)',
+    kpiTotalOdo: 'Gesamtkilometer',
+    kpiOverdue: 'Überfällige Wartungen',
+    vehicleUnitSuffix: 'Fahrzeug(e)',
+    kpiUpcoming: 'Anstehende Services / Dok.',
+    revShort: 'Svc',
+    docShort: 'Dok',
+    insShort: 'Vers',
+    kpiMonthlySpend: 'Ausgaben aktueller Monat',
+    fleetPdfBtn: 'Flottenbericht (PDF)',
+    colPlateType: 'Kennzeichen / Typ',
+    colMonthlySpend: 'Monatskosten',
+    colExpiries: 'Fristen',
+    overdueSuffix: 'überfällig',
+    attentionSuffix: 'bald fällig',
+    qrShort: 'QR',
+    ficheShort: 'Akte',
+    removeVehicleAria: 'Fahrzeug entfernen',
+    setColorAria: 'Farbe festlegen',
+    drivingProfileLabel: 'Nutzungs- und Belastungsprofil',
+    profileUrban: 'Starker Stadtverkehr',
+    profileMixed: 'Gemischt (Stadt + Autobahn)',
+    profileHighway: 'Langstrecke / Autobahn',
+    weeklyAvgLabel: 'Wochendurchschnitt (km/W)',
+    vehiclesInPlanSuffix: 'Fahrzeug(e) im Tarif',
+    removeVehicleAndHistory: 'Fahrzeug & Verlauf löschen',
+    sendDocWaTitle: 'Dokumentfrist an gespeichertes WhatsApp senden',
+    sendInsWaTitle: 'Versicherungsfrist an gespeichertes WhatsApp senden',
+    waDocHeader: '*AutoLife World — Dokument*',
+    waInsHeader: '*AutoLife World — Versicherung*',
+    waVehicleLabel: 'Fahrzeug',
+    waExpiresOn: 'läuft ab am',
+    addCalTitle: 'Zum Kalender hinzufügen (.ics)',
+    addCalAria: 'Frist zum Kalender hinzufügen',
+    calDocPrefix: 'dokument',
+    calInsPrefix: 'versicherung',
+    accumulatedTco: 'Gesamte TCO:',
+    costPerKm: 'Kosten pro km:',
+    ledgerDate: 'Datum',
+    ledgerVehicle: 'Fahrzeug',
+    ledgerService: 'Service',
+    ledgerWorkshop: 'Werkstatt / Ort',
+    ledgerOdometer: 'Kilometerstand',
+    ledgerAmount: 'Betrag',
+    sendBtn: 'Senden',
+  },
+  fr: {
+    accountOwner: 'Administrateur du Compte',
+    ownerRole: 'Propriétaire',
+    signInBtn: 'Se connecter avec Google / Compte',
+    csvHeaders: ['Date', 'Véhicule', 'Catégorie', 'Service', 'Kilométrage (km)', 'Garage'],
+    csvFilename: 'autolife-historique-services.csv',
+    fleetDefaultName: 'Flotte Entreprise',
+    fleetHeaderTitle: 'Gestion de Flotte Entreprise',
+    companyFallback: 'Entreprise',
+    activeVehiclesLabel: 'véhicule(s) sous gestion active',
+    personalPlanFallback: 'Offre Particulier',
+    sendVehicleWaTitle: 'Envoyer le résumé du véhicule sur WhatsApp enregistré',
+    fleetModeBtn: 'Flotte Entreprise',
+    selectVehicleAria: 'Sélectionner le véhicule',
+    gateBadge: 'Espace Entreprises · Offres Flotte',
+    viewFleetPlansBtn: 'Voir les Offres Flotte',
+    backToPersonalBtn: 'Revenir au Mode Particulier',
+    multiVehiclesTitle: 'Multi-véhicules (10 à 100+)',
+    multiVehiclesDesc: 'Voitures et motos unifiées',
+    teamPermTitle: 'Équipe & Permissions',
+    teamPermDesc: 'Conducteurs, gestionnaires et isolation multi-entreprise',
+    limitReachedTitle: 'Limite de l’offre atteinte',
+    limitReachedDesc: 'Étendez votre offre flotte pour ajouter davantage de véhicules.',
+    expandFleetBtn: 'Étendre la Flotte',
+    kpiFleetVehicles: 'Véhicules en Flotte',
+    unlimited: '(illimité)',
+    kpiTotalOdo: 'Kilométrage Total',
+    kpiOverdue: 'Entretiens en Retard',
+    vehicleUnitSuffix: 'véhicule(s)',
+    kpiUpcoming: 'Révisions / Docs Proches',
+    revShort: 'rév',
+    docShort: 'Doc',
+    insShort: 'Ass',
+    kpiMonthlySpend: 'Dépenses du Mois',
+    fleetPdfBtn: 'Rapport Général (PDF)',
+    colPlateType: 'Immatriculation / Type',
+    colMonthlySpend: 'Dépenses Mois',
+    colExpiries: 'Échéances',
+    overdueSuffix: 'en retard',
+    attentionSuffix: 'bientôt dû(s)',
+    qrShort: 'QR',
+    ficheShort: 'Fiche',
+    removeVehicleAria: 'Supprimer le véhicule',
+    setColorAria: 'Définir la couleur',
+    drivingProfileLabel: 'Profil de Sévérité d’Usage',
+    profileUrban: 'Urbain Sévère (trafic dense)',
+    profileMixed: 'Mixte (ville + route)',
+    profileHighway: 'Autoroute (longs trajets)',
+    weeklyAvgLabel: 'Moyenne hebdomadaire (km/sem)',
+    vehiclesInPlanSuffix: 'véhicule(s) dans l’offre',
+    removeVehicleAndHistory: 'Supprimer véhicule et historique',
+    sendDocWaTitle: 'Envoyer l’échéance sur WhatsApp enregistré',
+    sendInsWaTitle: 'Envoyer l’échéance d’assurance sur WhatsApp enregistré',
+    waDocHeader: '*AutoLife World — Document*',
+    waInsHeader: '*AutoLife World — Assurance*',
+    waVehicleLabel: 'Véhicule',
+    waExpiresOn: 'expire le',
+    addCalTitle: 'Ajouter au Calendrier (.ics)',
+    addCalAria: 'Ajouter l’échéance au Calendrier',
+    calDocPrefix: 'document',
+    calInsPrefix: 'assurance',
+    accumulatedTco: 'TCO cumulé :',
+    costPerKm: 'Coût par km :',
+    ledgerDate: 'Date',
+    ledgerVehicle: 'Véhicule',
+    ledgerService: 'Service',
+    ledgerWorkshop: 'Garage / Lieu',
+    ledgerOdometer: 'Kilométrage',
+    ledgerAmount: 'Montant',
+    sendBtn: 'Envoyer',
+  },
+};
+
 export function GarageFleetView({
   vehicles,
   activeVehicle,
@@ -164,6 +599,13 @@ export function GarageFleetView({
   cloudUserEmail,
   onOpenCloudSettings,
 }: GarageFleetViewProps) {
+  const ui = getUi(prefs.language);
+  const gCopy = GARAGE_EXTRA_COPY[prefs.language] ?? GARAGE_EXTRA_COPY.en;
+  const localizedCatalogPlans = useMemo(
+    () => localizePlanCatalog(catalogPlans, prefs.language),
+    [catalogPlans, prefs.language]
+  );
+
   const normalizedPlan = normalizePlanTier(prefs.activePlan);
   const hasBusinessAccess = isBusinessPlan(normalizedPlan);
 
@@ -200,8 +642,11 @@ export function GarageFleetView({
   }, [focusPlansSignal]);
 
   const activePlanItem = useMemo(
-    () => catalogPlans.find((p) => p.id === normalizedPlan) ?? catalogPlans[0] ?? null,
-    [catalogPlans, normalizedPlan]
+    () =>
+      localizedCatalogPlans.find((p) => p.id === normalizedPlan) ??
+      localizedCatalogPlans[0] ??
+      null,
+    [localizedCatalogPlans, normalizedPlan]
   );
   const vehicleLimit = activePlanItem?.vehicleLimit ?? (hasBusinessAccess ? 10 : 1);
   const isFleetModeActive = viewMode === 'fleet' && hasBusinessAccess;
@@ -298,7 +743,11 @@ export function GarageFleetView({
   const assignablePeople = useMemo(() => {
     const list: Array<{ name: string; email: string; roleLabel: string }> = [];
     if (cloudUserEmail) {
-      list.push({ name: 'Administrador da Conta', email: cloudUserEmail, roleLabel: 'Proprietário' });
+      list.push({
+        name: gCopy.accountOwner,
+        email: cloudUserEmail,
+        roleLabel: gCopy.ownerRole,
+      });
     }
     for (const m of orgMembers) {
       if (m.inviteStatus === 'revoked') continue;
@@ -309,7 +758,7 @@ export function GarageFleetView({
       });
     }
     return list;
-  }, [cloudUserEmail, orgMembers]);
+  }, [cloudUserEmail, orgMembers, gCopy.accountOwner, gCopy.ownerRole]);
 
   const scrollToPlans = () => {
     plansSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -331,10 +780,10 @@ export function GarageFleetView({
           <Car className="w-10 h-10 text-sky-500 dark:text-sky-400 mx-auto" />
           <div className="space-y-1">
             <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-slate-100">
-              Sua garagem está vazia
+              {ui.garageUi.emptyTitle}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              Cadastre seu primeiro carro ou moto para gerar o Passaporte Digital com QR Code, controlar manutenções e anexar notas fiscais com privacidade.
+              {ui.garageUi.emptyDesc}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
@@ -352,7 +801,7 @@ export function GarageFleetView({
                 onClick={onOpenCloudSettings}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-medium"
               >
-                <span>Entrar com Google / Conta</span>
+                <span>{gCopy.signInBtn}</span>
               </button>
             )}
           </div>
@@ -390,15 +839,7 @@ export function GarageFleetView({
   const currencyMeta = CURRENCY_CATALOG[prefs.currency] ?? CURRENCY_CATALOG.BRL;
 
   const handleExportCsv = () => {
-    const header = [
-      'Date',
-      'Vehicle',
-      'Category',
-      'Title',
-      'Odometer (km)',
-      'Workshop',
-      `Cost (${prefs.currency})`,
-    ];
+    const header = [...gCopy.csvHeaders, `${gCopy.ledgerAmount} (${prefs.currency})`];
     const rows = visibleLogs.map((log) => {
       const veh = vehicles.find((v) => v.id === log.vehicleId);
       const converted = convertCurrency(log.cost, log.currency ?? 'BRL', prefs.currency);
@@ -412,12 +853,12 @@ export function GarageFleetView({
         converted.toFixed(currencyMeta.decimals),
       ];
     });
-    downloadCsv('autolife-service-history.csv', [header, ...rows]);
+    downloadCsv(gCopy.csvFilename, [header, ...rows]);
   };
 
   const handleDownloadFleetPdf = () => {
     const { blob, filename } = generateFleetSummaryPdf({
-      organizationName: organization?.name || 'Frota Empresarial',
+      organizationName: organization?.name || gCopy.fleetDefaultName,
       vehicles,
       maintenanceItems,
       logs,
@@ -444,14 +885,14 @@ export function GarageFleetView({
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            {isFleetModeActive ? 'Gestão Empresarial de Frotas' : t.garage.title}
+            {isFleetModeActive ? gCopy.fleetHeaderTitle : t.garage.title}
           </h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
             {isFleetModeActive
-              ? `${organization?.name || 'Empresa'} · ${vehicles.length}${
+              ? `${organization?.name || gCopy.companyFallback} · ${vehicles.length}${
                   vehicleLimit !== null ? ` / ${vehicleLimit}` : ''
-                } veículo(s) sob gestão ativa`
-              : `${t.garage.subtitle} · ${activePlanItem?.name ?? 'Plano Particular'}`}
+                } ${gCopy.activeVehiclesLabel}`
+              : `${t.garage.subtitle} · ${activePlanItem?.name ?? gCopy.personalPlanFallback}`}
           </p>
         </div>
 
@@ -459,11 +900,12 @@ export function GarageFleetView({
           <WhatsAppConnectButton
             whatsappNumber={prefs.whatsappNumber}
             language={prefs.language}
-            label="WhatsApp"
-            title="Enviar resumo do veículo para o WhatsApp cadastrado"
+            label={ui.whatsapp.buttonLabel}
+            title={gCopy.sendVehicleWaTitle}
             message={buildVehicleWhatsAppText({
               vehicle: activeVehicle,
               units: prefs.units,
+              language: prefs.language,
             })}
             onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
           />
@@ -475,7 +917,7 @@ export function GarageFleetView({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/60 transition-colors whitespace-nowrap shrink-0"
           >
             <Stethoscope className="w-3.5 h-3.5" />
-            <span>Ficha Médica</span>
+            <span>{ui.garageUi.actions.medical}</span>
           </button>
 
           <button
@@ -484,7 +926,7 @@ export function GarageFleetView({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
           >
             <QrCode className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Passaporte Digital + QR</span>
+            <span>{ui.garageUi.actions.passport}</span>
           </button>
 
           <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit shrink-0">
@@ -510,7 +952,8 @@ export function GarageFleetView({
             >
               {!hasBusinessAccess && <Lock className="w-3 h-3 text-amber-500" />}
               <span>
-                Frota Empresarial{hasBusinessAccess ? ` (${vehicles.length})` : ''}
+                {gCopy.fleetModeBtn}
+                {hasBusinessAccess ? ` (${vehicles.length})` : ''}
               </span>
             </button>
           </div>
@@ -562,7 +1005,7 @@ export function GarageFleetView({
                         backgroundColor: resolveVehicleColorStyle(activeVehicle.color).primaryHex,
                       }}
                     />
-                    <span>{activeVehicle.color}</span>
+                    <span>{getLocalizedColorLabel(activeVehicle.color, prefs.language)}</span>
                   </span>
                 </>
               )}
@@ -573,7 +1016,7 @@ export function GarageFleetView({
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           {vehicles.length > 1 && (
             <select
-              aria-label="Selecionar veículo"
+              aria-label={gCopy.selectVehicleAria}
               value={activeVehicle.id}
               onChange={(e) => onSelectVehicle(e.target.value)}
               className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-[#081020] text-slate-900 dark:text-slate-100"
@@ -593,7 +1036,7 @@ export function GarageFleetView({
               className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#0c1629] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#101d36] transition-colors whitespace-nowrap shrink-0"
             >
               <Pencil className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-              <span>Editar</span>
+              <span>{ui.garageUi.actions.edit}</span>
             </button>
           )}
           <button
@@ -610,7 +1053,7 @@ export function GarageFleetView({
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors whitespace-nowrap shrink-0"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Remover</span>
+            <span>{ui.garageUi.actions.remove}</span>
           </button>
         </div>
       </section>
@@ -621,13 +1064,13 @@ export function GarageFleetView({
           <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
               <Building2 className="w-4 h-4" />
-              <span>Área Exclusiva para Empresas · Plano Frotas</span>
+              <span>{gCopy.gateBadge}</span>
             </div>
             <h2 className="font-display text-xl font-bold text-slate-900 dark:text-slate-100">
-              Separe sua garagem particular da gestão corporativa de frotas
+              {ui.garageUi.fleet.gateTitle}
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              O Plano Particular foi desenhado para 1 veículo com experiência simples, Passaporte Digital e alertas preventivos. O módulo <strong>Frota Empresarial</strong> desbloqueia até 10, 25, 50 ou 100+ carros e motos, responsáveis por veículo, convites de equipe com permissões, isolamento multiempresa e relatórios gerenciais consolidados.
+              {ui.garageUi.fleet.gateDesc}
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <button
@@ -636,32 +1079,32 @@ export function GarageFleetView({
                 className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white whitespace-nowrap shrink-0"
               >
                 <Building2 className="w-3.5 h-3.5" />
-                <span>Ver Planos Frotas</span>
+                <span>{gCopy.viewFleetPlansBtn}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode('personal')}
                 className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
               >
-                Voltar para Modo Particular
+                {gCopy.backToPersonalBtn}
               </button>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 text-xs shrink-0">
             <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
               <div className="font-semibold text-slate-900 dark:text-slate-100">
-                Multiveículos (10 a 100+)
+                {gCopy.multiVehiclesTitle}
               </div>
               <div className="text-slate-500 dark:text-slate-400 mt-1">
-                Carros e motocicletas unificados
+                {gCopy.multiVehiclesDesc}
               </div>
             </div>
             <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
               <div className="font-semibold text-slate-900 dark:text-slate-100">
-                Equipe & Permissões
+                {gCopy.teamPermTitle}
               </div>
               <div className="text-slate-500 dark:text-slate-400 mt-1">
-                Motoristas, gestores e isolamento por CNPJ
+                {gCopy.teamPermDesc}
               </div>
             </div>
           </div>
@@ -674,8 +1117,10 @@ export function GarageFleetView({
               <div className="flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                 <div className="text-xs text-amber-900 dark:text-amber-200">
-                  <strong>Limite do plano atingido ({vehicles.length}/{vehicleLimit} veículos).</strong>{' '}
-                  Para cadastrar novos veículos sem interromper sua operação, expanda sua frota para 25, 50 ou 100 veículos.
+                  <strong>
+                    {gCopy.limitReachedTitle} ({vehicles.length}/{vehicleLimit}).
+                  </strong>{' '}
+                  {gCopy.limitReachedDesc}
                 </div>
               </div>
               <button
@@ -683,7 +1128,7 @@ export function GarageFleetView({
                 onClick={scrollToPlans}
                 className="px-3.5 py-2 text-xs font-medium rounded-lg bg-amber-600 hover:bg-amber-700 text-white whitespace-nowrap shrink-0"
               >
-                Expandir Frota
+                {gCopy.expandFleetBtn}
               </button>
             </div>
           )}
@@ -691,22 +1136,28 @@ export function GarageFleetView({
           {/* Enterprise Fleet KPI Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 tabular-nums">
             <div className="autolife-glass rounded-2xl p-4">
-              <div className="text-xs text-slate-500 dark:text-slate-400">Veículos na Frota</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                {gCopy.kpiFleetVehicles}
+              </div>
               <div className="mt-1 font-display text-xl font-bold text-slate-900 dark:text-slate-100">
                 {vehicles.length}
                 <span className="text-xs font-normal text-slate-400">
-                  {vehicleLimit !== null ? ` / ${vehicleLimit}` : ' (ilimitado)'}
+                  {vehicleLimit !== null ? ` / ${vehicleLimit}` : ` ${gCopy.unlimited}`}
                 </span>
               </div>
             </div>
             <div className="autolife-glass rounded-2xl p-4">
-              <div className="text-xs text-slate-500 dark:text-slate-400">Odômetro Total</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                {gCopy.kpiTotalOdo}
+              </div>
               <div className="mt-1 font-display text-xl font-bold text-slate-900 dark:text-slate-100">
                 {formatDistance(fleetKpis.totalOdometer, prefs.units)}
               </div>
             </div>
             <div className="autolife-glass rounded-2xl p-4">
-              <div className="text-xs text-slate-500 dark:text-slate-400">Manutenções Atrasadas</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                {gCopy.kpiOverdue}
+              </div>
               <div
                 className={`mt-1 font-display text-xl font-bold ${
                   fleetKpis.overdueVehicles > 0
@@ -714,19 +1165,22 @@ export function GarageFleetView({
                     : 'text-emerald-600 dark:text-emerald-400'
                 }`}
               >
-                {fleetKpis.overdueVehicles} veículo(s)
+                {fleetKpis.overdueVehicles} {gCopy.vehicleUnitSuffix}
               </div>
             </div>
             <div className="autolife-glass rounded-2xl p-4">
               <div className="text-xs text-slate-500 dark:text-slate-400">
-                Revisões / Docs Próximos
+                {gCopy.kpiUpcoming}
               </div>
               <div className="mt-1 font-display text-xl font-bold text-amber-600 dark:text-amber-400">
-                {fleetKpis.upcomingRevisions} rev · {fleetKpis.expiringDocuments} doc
+                {fleetKpis.upcomingRevisions} {gCopy.revShort} · {fleetKpis.expiringDocuments}{' '}
+                {gCopy.docShort}
               </div>
             </div>
             <div className="autolife-glass rounded-2xl p-4 col-span-2 lg:col-span-1">
-              <div className="text-xs text-slate-500 dark:text-slate-400">Gastos no Mês Atual</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                {gCopy.kpiMonthlySpend}
+              </div>
               <div className="mt-1 font-display text-xl font-bold text-slate-900 dark:text-slate-100">
                 {formatCurrency(fleetKpis.monthlySpend, prefs.currency)}
               </div>
@@ -743,7 +1197,7 @@ export function GarageFleetView({
                 <div className="inline-flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
                   {(
                     [
-                      { id: 'all', label: `Todos (${vehicles.length})` },
+                      { id: 'all', label: `${ui.garageUi.fleet.filterAll} (${vehicles.length})` },
                       {
                         id: 'car',
                         label: `${t.vehicleTypes.car} (${vehicles.filter((v) => (v.vehicleType ?? 'car') === 'car').length})`,
@@ -777,7 +1231,7 @@ export function GarageFleetView({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  <span>Relatório Geral (PDF)</span>
+                  <span>{gCopy.fleetPdfBtn}</span>
                 </button>
                 <button
                   type="button"
@@ -793,14 +1247,14 @@ export function GarageFleetView({
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-500 dark:text-slate-400">
-                    <th className="py-3 px-5">Veículo</th>
-                    <th className="py-3 px-4">Placa / Tipo</th>
-                    <th className="py-3 px-4">Situação</th>
-                    <th className="py-3 px-4 text-right">Odômetro</th>
-                    <th className="py-3 px-4 text-right">Gastos Mês</th>
-                    <th className="py-3 px-4">Vencimentos</th>
-                    <th className="py-3 px-4">Responsável</th>
-                    <th className="py-3 px-5 text-right">Ações</th>
+                    <th className="py-3 px-5">{ui.garageUi.fleet.colVehicle}</th>
+                    <th className="py-3 px-4">{gCopy.colPlateType}</th>
+                    <th className="py-3 px-4">{ui.garageUi.fleet.colStatus}</th>
+                    <th className="py-3 px-4 text-right">{ui.garageUi.fleet.colOdometer}</th>
+                    <th className="py-3 px-4 text-right">{gCopy.colMonthlySpend}</th>
+                    <th className="py-3 px-4">{gCopy.colExpiries}</th>
+                    <th className="py-3 px-4">{ui.garageUi.fleet.colDriver}</th>
+                    <th className="py-3 px-5 text-right">{ui.garageUi.fleet.colActions}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800 tabular-nums">
@@ -877,17 +1331,21 @@ export function GarageFleetView({
                             {vOverdue > 0 ? (
                               <span className="inline-flex items-center gap-1 font-semibold text-red-600 dark:text-red-400">
                                 <AlertTriangle className="w-3.5 h-3.5" />
-                                <span>{vOverdue} atrasado(s)</span>
+                                <span>
+                                  {vOverdue} {gCopy.overdueSuffix}
+                                </span>
                               </span>
                             ) : vAttention > 0 ? (
                               <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
                                 <Clock className="w-3.5 h-3.5" />
-                                <span>{vAttention} revisão(ões) próxima(s)</span>
+                                <span>
+                                  {vAttention} {gCopy.attentionSuffix}
+                                </span>
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Em dia</span>
+                                <span>{ui.garageUi.fleet.statusOk}</span>
                               </span>
                             )}
                           </td>
@@ -899,13 +1357,13 @@ export function GarageFleetView({
                           </td>
                           <td className="py-3 px-4 font-mono text-[11px] text-slate-600 dark:text-slate-400 whitespace-nowrap">
                             <div>
-                              Doc:{' '}
+                              {gCopy.docShort}:{' '}
                               {isDateRecorded(v.documentExpiryDate)
                                 ? v.documentExpiryDate
                                 : '—'}
                             </div>
                             <div>
-                              Seg:{' '}
+                              {gCopy.insShort}:{' '}
                               {isDateRecorded(v.insuranceExpiryDate)
                                 ? v.insuranceExpiryDate
                                 : '—'}
@@ -921,7 +1379,7 @@ export function GarageFleetView({
                               }}
                               className="px-2 py-1 text-xs rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 max-w-[160px]"
                             >
-                              <option value="">Não atribuído</option>
+                              <option value="">{ui.garageUi.fleet.unassigned}</option>
                               {assignablePeople.map((p) => (
                                 <option key={p.email} value={p.email}>
                                   {p.name}
@@ -938,10 +1396,10 @@ export function GarageFleetView({
                                   setShowPassport(true);
                                 }}
                                 className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                title="Passaporte Digital + QR Code"
+                                title={ui.garageUi.actions.passport}
                               >
                                 <Award className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                                <span>QR</span>
+                                <span>{gCopy.qrShort}</span>
                               </button>
                               <button
                                 type="button"
@@ -957,13 +1415,13 @@ export function GarageFleetView({
                                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                               >
                                 <Stethoscope className="w-3.5 h-3.5" />
-                                <span>Ficha</span>
+                                <span>{gCopy.ficheShort}</span>
                               </button>
                               <button
                                 type="button"
                                 onClick={() => onDeleteVehicle(v.id)}
                                 className="p-1.5 rounded text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                                aria-label="Remover veículo"
+                                aria-label={gCopy.removeVehicleAria}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -982,6 +1440,7 @@ export function GarageFleetView({
             organization={organization}
             members={orgMembers}
             cloudUserId={cloudUserId}
+            language={prefs.language}
             maxTeamMembers={activePlanItem?.maxTeamMembers ?? 10}
             onOrganizationUpdated={onOrganizationUpdated}
             onMembersChanged={onMembersChanged}
@@ -1047,17 +1506,21 @@ export function GarageFleetView({
               <div className="pt-3 border-t border-slate-200 dark:border-white/10 space-y-2">
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="font-medium text-slate-500 dark:text-slate-400">
-                    Cor do veículo
+                    {ui.garageUi.specs.colorLabel}
                   </span>
                   <span className="font-medium text-slate-800 dark:text-sky-200">
-                    {activeVehicle.color || 'Não informada'}
+                    {activeVehicle.color
+                      ? getLocalizedColorLabel(activeVehicle.color, prefs.language)
+                      : ui.garageUi.specs.notInformed}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {VEHICLE_COLOR_SWATCHES.map((swatch) => {
-                    const isSelected =
-                      (activeVehicle.color ?? '').trim().toLowerCase() ===
-                      swatch.label.toLowerCase();
+                    const currentColorKey = activeVehicle.color
+                      ? resolveVehicleColorStyle(activeVehicle.color).searchKeywordEn
+                      : '';
+                    const isSelected = Boolean(activeVehicle.color) && currentColorKey === swatch.id;
+                    const localizedSwatchName = getLocalizedColorLabel(swatch.id, prefs.language);
                     const isLightSwatch =
                       swatch.id === 'white' || swatch.id === 'silver' || swatch.id === 'yellow';
                     return (
@@ -1067,11 +1530,11 @@ export function GarageFleetView({
                         onClick={() =>
                           onUpdateVehicle({
                             ...activeVehicle,
-                            color: swatch.label,
+                            color: localizedSwatchName,
                           })
                         }
-                        title={swatch.label}
-                        aria-label={`Definir cor ${swatch.label}`}
+                        title={localizedSwatchName}
+                        aria-label={`${gCopy.setColorAria} ${localizedSwatchName}`}
                         className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform border ${
                           isSelected
                             ? 'ring-2 ring-sky-400 ring-offset-2 ring-offset-white dark:ring-offset-[#0c1629] scale-110'
@@ -1101,7 +1564,7 @@ export function GarageFleetView({
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                  Perfil de Severidade de Uso
+                  {gCopy.drivingProfileLabel}
                 </label>
                 <select
                   value={activeVehicle.drivingProfile ?? 'mixed'}
@@ -1114,14 +1577,14 @@ export function GarageFleetView({
                   }
                   className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                 >
-                  <option value="urban_severe">Urbano Severo (trânsito intenso)</option>
-                  <option value="mixed">Misto (cidade + estrada)</option>
-                  <option value="highway">Rodoviário (viagens longas)</option>
+                  <option value="urban_severe">{gCopy.profileUrban}</option>
+                  <option value="mixed">{gCopy.profileMixed}</option>
+                  <option value="highway">{gCopy.profileHighway}</option>
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                  Média semanal (km/sem)
+                  {gCopy.weeklyAvgLabel}
                 </label>
                 <input
                   type="number"
@@ -1147,7 +1610,7 @@ export function GarageFleetView({
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>
                   {vehicles.length}
-                  {vehicleLimit !== null ? `/${vehicleLimit}` : ''} veículo(s) no plano
+                  {vehicleLimit !== null ? `/${vehicleLimit}` : ''} {gCopy.vehiclesInPlanSuffix}
                 </span>
               </div>
 
@@ -1167,7 +1630,7 @@ export function GarageFleetView({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors whitespace-nowrap shrink-0"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Remover veículo e histórico</span>
+                  <span>{gCopy.removeVehicleAndHistory}</span>
                 </button>
               </div>
             </div>
@@ -1213,10 +1676,10 @@ export function GarageFleetView({
                     language={prefs.language}
                     compact
                     label=""
-                    title="Enviar vencimento no WhatsApp cadastrado"
-                    message={`*AutoLife World — Documento*\nVeículo: ${activeVehicle.make} ${activeVehicle.model} (${activeVehicle.plate})\n${t.garage.docLicense}: ${
+                    title={gCopy.sendDocWaTitle}
+                    message={`${gCopy.waDocHeader}\n${gCopy.waVehicleLabel}: ${activeVehicle.make} ${activeVehicle.model} (${activeVehicle.plate})\n${t.garage.docLicense}: ${
                       hasLicenseDate
-                        ? `vence em ${activeVehicle.documentExpiryDate}`
+                        ? `${gCopy.waExpiresOn} ${activeVehicle.documentExpiryDate}`
                         : t.health.notRecorded
                     }`}
                     onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
@@ -1229,12 +1692,12 @@ export function GarageFleetView({
                           title: `${t.garage.docLicense} — ${activeVehicle.make} ${activeVehicle.model}`,
                           description: `${activeVehicle.plate} (${t.garage.expiresOn} ${activeVehicle.documentExpiryDate})`,
                           dateIso: activeVehicle.documentExpiryDate,
-                          filename: `licenciamento-${activeVehicle.plate}.ics`,
+                          filename: `${gCopy.calDocPrefix}-${activeVehicle.plate}.ics`,
                         })
                       }
                       className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
-                      title="Adicionar ao Calendário (.ics)"
-                      aria-label="Adicionar vencimento ao Calendário"
+                      title={gCopy.addCalTitle}
+                      aria-label={gCopy.addCalAria}
                     >
                       <CalendarPlus className="w-3.5 h-3.5" />
                     </button>
@@ -1272,10 +1735,10 @@ export function GarageFleetView({
                     language={prefs.language}
                     compact
                     label=""
-                    title="Enviar vencimento do seguro no WhatsApp cadastrado"
-                    message={`*AutoLife World — Seguro*\nVeículo: ${activeVehicle.make} ${activeVehicle.model} (${activeVehicle.plate})\n${t.garage.docInsurance}: ${
+                    title={gCopy.sendInsWaTitle}
+                    message={`${gCopy.waInsHeader}\n${gCopy.waVehicleLabel}: ${activeVehicle.make} ${activeVehicle.model} (${activeVehicle.plate})\n${t.garage.docInsurance}: ${
                       hasInsuranceDate
-                        ? `vence em ${activeVehicle.insuranceExpiryDate}`
+                        ? `${gCopy.waExpiresOn} ${activeVehicle.insuranceExpiryDate}`
                         : t.health.notRecorded
                     }`}
                     onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
@@ -1288,12 +1751,12 @@ export function GarageFleetView({
                           title: `${t.garage.docInsurance} — ${activeVehicle.make} ${activeVehicle.model}`,
                           description: `${activeVehicle.plate} (${t.garage.expiresOn} ${activeVehicle.insuranceExpiryDate})`,
                           dateIso: activeVehicle.insuranceExpiryDate,
-                          filename: `seguro-${activeVehicle.plate}.ics`,
+                          filename: `${gCopy.calInsPrefix}-${activeVehicle.plate}.ics`,
                         })
                       }
                       className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
-                      title="Adicionar ao Calendário (.ics)"
-                      aria-label="Adicionar vencimento ao Calendário"
+                      title={gCopy.addCalTitle}
+                      aria-label={gCopy.addCalAria}
                     >
                       <CalendarPlus className="w-3.5 h-3.5" />
                     </button>
@@ -1376,14 +1839,14 @@ export function GarageFleetView({
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums mt-0.5 flex flex-wrap items-center gap-2">
               <span>
-                TCO acumulado:{' '}
+                {gCopy.accumulatedTco}{' '}
                 <strong className="font-mono text-slate-900 dark:text-slate-100">
                   {formatCurrency(totalSpend, prefs.currency)}
                 </strong>
               </span>
               <span aria-hidden="true">·</span>
               <span>
-                Custo por km:{' '}
+                {gCopy.costPerKm}{' '}
                 <strong className="font-mono text-slate-900 dark:text-slate-100">
                   {formatCurrency(costPerKm, prefs.currency)}/km
                 </strong>
@@ -1404,13 +1867,13 @@ export function GarageFleetView({
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-500 dark:text-slate-400">
-                <th className="py-3 px-5">Data</th>
-                <th className="py-3 px-4">Veículo</th>
-                <th className="py-3 px-4">Serviço</th>
-                <th className="py-3 px-4">Oficina / Local</th>
-                <th className="py-3 px-4 text-right">Odômetro</th>
-                <th className="py-3 px-4 text-right">Valor</th>
-                <th className="py-3 px-5 text-right">WhatsApp</th>
+                <th className="py-3 px-5">{gCopy.ledgerDate}</th>
+                <th className="py-3 px-4">{gCopy.ledgerVehicle}</th>
+                <th className="py-3 px-4">{gCopy.ledgerService}</th>
+                <th className="py-3 px-4">{gCopy.ledgerWorkshop}</th>
+                <th className="py-3 px-4 text-right">{gCopy.ledgerOdometer}</th>
+                <th className="py-3 px-4 text-right">{gCopy.ledgerAmount}</th>
+                <th className="py-3 px-5 text-right">{ui.whatsapp.buttonLabel}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 tabular-nums">
@@ -1454,12 +1917,13 @@ export function GarageFleetView({
                         whatsappNumber={prefs.whatsappNumber}
                         language={prefs.language}
                         compact
-                        label="Enviar"
+                        label={gCopy.sendBtn}
                         message={buildServiceLogWhatsAppText({
                           vehicle: veh,
                           log,
                           currency: prefs.currency,
                           units: prefs.units,
+                          language: prefs.language,
                         })}
                         onSaveWhatsApp={(phone) => onUpdatePrefs({ whatsappNumber: phone })}
                       />

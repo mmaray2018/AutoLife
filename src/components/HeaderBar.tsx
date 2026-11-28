@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Menu, Plus } from 'lucide-react';
 import { Translations } from '../data/i18n';
+import { getUi } from '../data/uiTranslations';
 import { CurrencyCode, LanguageCode, ModuleId, Vehicle } from '../types/autolife';
 import { CURRENCY_CATALOG, CURRENCY_LIST } from '../utils/billing';
 
@@ -72,6 +73,7 @@ export function HeaderBar({
   const currentLang =
     LANGUAGE_OPTIONS.find((item) => item.code === language) ?? LANGUAGE_OPTIONS[0];
   const currentCurrency = CURRENCY_CATALOG[currency] ?? CURRENCY_CATALOG.BRL;
+  const ui = getUi(language);
 
   return (
     <header className="h-16 px-4 sm:px-6 lg:px-8 bg-white/90 dark:bg-[#091120]/90 backdrop-blur-md border-b border-slate-200 dark:border-white/10 flex items-center justify-between gap-3 shrink-0">
@@ -218,7 +220,7 @@ export function HeaderBar({
         >
           <Plus className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline">{primaryActionLabel}</span>
-          <span className="sm:hidden">Novo</span>
+          <span className="sm:hidden">{ui.header.addShort}</span>
         </button>
       </div>
     </header>
